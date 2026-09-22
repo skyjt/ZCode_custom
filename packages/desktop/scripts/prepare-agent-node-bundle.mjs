@@ -17,6 +17,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { runCommand } from "../../../scripts/spawn-command.mjs";
 import { stageAgentBundle } from "./stage-agent-bundle.mjs";
+import { prepareOfficeCliPlugin } from "../../../scripts/prepare-officecli.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = resolve(scriptDir, "..");
@@ -89,6 +90,19 @@ const browserUseRequiredRuntimePaths = [
   "skills/web-gui-tester/SKILL.md",
 ];
 const officialPluginPackages = [
+  {
+    relativePath: "apps/aibuddy-cli/packages/intranet-skills-plugin",
+    stagedPath: "packages/intranet-skills-plugin",
+    requiresRuntime: false,
+    requiredSeedPaths: [
+      "skills/intranet-code-review/SKILL.md",
+      "skills/intranet-sql-review/SKILL.md",
+      "skills/intranet-log-triage/SKILL.md",
+      "skills/intranet-data-check/SKILL.md",
+      "skills/intranet-tech-docs/SKILL.md",
+      "skills/uos-linux-diagnostics/SKILL.md",
+    ],
+  },
   {
     // browser-use 只携带自己的 client script 与 skill/docs；node_repl MCP runtime 归
     // @aibuddy/node-repl-host（见上方常量注释）。
@@ -260,3 +274,8 @@ buildCliBundle();
 buildOfficialPluginRuntimes();
 stageBundle();
 stageOfficialPlugins();
+await prepareOfficeCliPlugin({
+  platform,
+  arch,
+  outputDir: resolve(glmDir, "packages/officecli-plugin"),
+});

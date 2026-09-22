@@ -166,7 +166,9 @@
   },
   {
     "id": "Fig autocomplete registry",
-    "roots": ["apps/aibuddy-cli/packages/core/src/tool/handlers/generated/bash-command-registry.ts"],
+    "roots": [
+      "apps/aibuddy-cli/packages/core/src/tool/handlers/generated/bash-command-registry.ts"
+    ],
     "license": "MIT",
     "source": "https://raw.githubusercontent.com/withfig/autocomplete/aef52acff84c45edde61ae610cc2c964802b9a38/LICENSE",
     "file": "third-party/upstream/5129f8779dca579cfcb235570688a2f15822b270575e04f27ef906aabbcc0355.txt",
@@ -250,5 +252,21 @@
     "license": "MIT",
     "scope": "Vendored React/Next.js guidance and local adaptations; local README preserves Shu Ding / Vercel attribution.",
     "reviewRequired": "Pinned upstream README and skill declare MIT, but a complete original copyright/license notice has not been obtained."
+  },
+  {
+    "id": "officecli",
+    "referenceRevision": "ffa8a0afbe2e9686abd636368e3da38c50f22131",
+    "importRevision": "ffa8a0afbe2e9686abd636368e3da38c50f22131",
+    "source": "https://github.com/iOfficeAI/OfficeCLI/blob/ffa8a0afbe2e9686abd636368e3da38c50f22131/LICENSE",
+    "file": "apps/aibuddy-cli/packages/officecli-plugin/docs/LICENSE",
+    "sha256": "7e282402a5a6db33995fe638bb3fe79013f9884d8f7d15a42e481c1e86aadda1",
+    "provenance": "OfficeCLI v1.0.152. Skill adapted for bundled offline launchers; unmodified Release binaries selected by platform with pinned SHA-256. Original NOTICE and dependency notices ship beside the skill.",
+    "roots": [
+      "apps/aibuddy-cli/packages/officecli-plugin/skills",
+      "apps/aibuddy-cli/packages/officecli-plugin/docs"
+    ],
+    "scope": "Upstream skill and attribution files; locally authored launchers and packaging scripts are not attributed to OfficeCLI.",
+    "license": "Apache-2.0",
+    "modifiedFiles": ["apps/aibuddy-cli/packages/officecli-plugin/skills/officecli/SKILL.md"]
   }
 ]

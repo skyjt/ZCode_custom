@@ -23,6 +23,7 @@ import {
 import { removeWindowsAuthenticodeSignature } from "./windows-authenticode.mjs";
 import { collectSeaTuiAssets } from "./sea-tui-assets.mjs";
 import { collectSeaOfficialPluginAssets } from "./sea-official-plugin-assets.mjs";
+import { prepareOfficeCliPlugin } from "../../../../../scripts/prepare-officecli.mjs";
 import { collectSeaRuntimeToolAssets } from "./sea-runtime-tool-assets.mjs";
 import { prepareSeaRuntimeToolAssets } from "./sea-runtime-tool-prepare.mjs";
 import { collectSeaPlaywrightAssets } from "./sea-playwright-assets.mjs";
@@ -149,10 +150,18 @@ const prepareSeaBlob = async (target, nodeVersion) => {
     stagingDirectory: seaAssetStagingForTarget(target),
     target,
   });
+  const { arch, releasePlatform } = targetParts(target);
+  const officeCliRoot = await prepareOfficeCliPlugin({
+    platform: releasePlatform === "win" ? "win32" : releasePlatform,
+    arch,
+    outputDir: seaAssetStagingForTarget(`${target}-officecli`),
+  });
   const { assets: pluginAssets, manifest: pluginManifest } = await collectSeaOfficialPluginAssets({
     requireRuntime: true,
     root,
     stagingDirectory: seaAssetStagingForTarget(`${target}-official-plugins`),
+    target,
+    pluginRoots: { officecli: officeCliRoot },
   });
   const { assets: runtimeToolAssets, manifest: runtimeToolManifest } =
     await collectSeaRuntimeToolAssets({
@@ -167,7 +176,11 @@ const prepareSeaBlob = async (target, nodeVersion) => {
       target,
     });
   const providerConfigAssets = await collectSeaProviderConfigAssets({ root: repositoryRoot });
-  const nodeLicensePath = await stageNodeNotices(seaAssetStagingForTarget(`${target}-node`), nodeVersion, repositoryRoot);
+  const nodeLicensePath = await stageNodeNotices(
+    seaAssetStagingForTarget(`${target}-node`),
+    nodeVersion,
+    repositoryRoot,
+  );
 
   await writeFile(
     seaConfig,

@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
-import { access } from "node:fs/promises";
+import { access, cp } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageAgentBundle } from "../packages/desktop/scripts/stage-agent-bundle.mjs";
 import { runCommand } from "./spawn-command.mjs";
+import { prepareOfficeCliPlugin } from "./prepare-officecli.mjs";
 
 // adapters tsc 在内存受限机器上会 OOM（exit 134），给整条构建链路提高堆上限。
 process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--max-old-space-size=8192`;
@@ -91,11 +92,23 @@ async function verifyRequiredDevPluginRuntimeArtifacts() {
  *
  * dev 只跑宿主平台，所以 platformKey 直接取 process；打包链的跨平台 target 由它自己解析。
  */
-function stageDevAgentBundle() {
+async function stageDevAgentBundle() {
   stageAgentBundle({
     repoRoot,
     platformKey: `${process.platform}-${process.arch}`,
   });
+  const pluginDirectory = resolve(
+    repoRoot,
+    "packages/desktop/bundled-agents",
+    `${process.platform}-${process.arch}`,
+    "glm/packages",
+  );
+  await cp(
+    resolve(repoRoot, "apps/aibuddy-cli/packages/intranet-skills-plugin"),
+    resolve(pluginDirectory, "intranet-skills-plugin"),
+    { recursive: true },
+  );
+  await prepareOfficeCliPlugin({ outputDir: resolve(pluginDirectory, "officecli-plugin") });
 }
 
 async function runBootstrapWithRemoteBuild() {
@@ -138,7 +151,7 @@ async function runBootstrapWithRemoteBuild() {
 
 if (useBootstrapWithRemoteBuild) {
   await runBootstrapWithRemoteBuild();
-  stageDevAgentBundle();
+  await stageDevAgentBundle();
   process.exit(0);
 }
 
@@ -159,7 +172,7 @@ if (!useTurboBuild) {
     env: pnpmRunEnv,
     stdio: "inherit",
   });
-  stageDevAgentBundle();
+  await stageDevAgentBundle();
   process.exit(0);
 }
 
@@ -180,4 +193,4 @@ runCommand(
     stdio: "inherit",
   },
 );
-stageDevAgentBundle();
+await stageDevAgentBundle();

@@ -1,0 +1,8 @@
+{
+  "name": "intranet-skills",
+  "version": "1.0.0",
+  "description": "Local-first code review, SQL, logs, data validation, technical documentation and UOS/Linux diagnostics. No additional downloads or background services.",
+  "author": { "name": "AIbuddy" },
+  "license": "Apache-2.0",
+  "skills": "skills"
+}

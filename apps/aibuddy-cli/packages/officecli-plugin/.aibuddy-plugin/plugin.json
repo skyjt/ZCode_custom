@@ -1,0 +1,8 @@
+{
+  "name": "officecli",
+  "version": "1.0.152",
+  "description": "Read, create and edit Word, Excel and PowerPoint using the bundled platform-specific OfficeCLI. Includes local help and skills.",
+  "author": { "name": "OfficeCLI / goworm", "url": "https://github.com/iOfficeAI/OfficeCLI" },
+  "license": "Apache-2.0",
+  "skills": "skills"
+}

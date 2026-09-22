@@ -11,6 +11,8 @@ export const AIBUDDY_OFFICIAL_PLUGIN_MARKETPLACE_ID = "zcode-plugins-official";
 
 /** Settings 三类资源发现共用；Bootstrap 单测与官方 definition 的 defaultEnabled 机械对照。 */
 export const DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS: ReadonlySet<string> = new Set([
+  "intranet-skills@zcode-plugins-official",
+  "officecli@zcode-plugins-official",
   "browser-use@zcode-plugins-official",
   "image-search@zcode-plugins-official",
   "documents@zcode-plugins-official",
@@ -36,7 +38,8 @@ export const DEFAULT_PLUGIN_MARKETPLACES: DefaultPluginMarketplace[] = [
     id: AIBUDDY_OFFICIAL_PLUGIN_MARKETPLACE_ID,
     source: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
     name: AIBUDDY_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-    description: "Official AIbuddy plugins marketplace: built-in and community plugins for AIbuddy.",
+    description:
+      "Official AIbuddy plugins marketplace: built-in and community plugins for AIbuddy.",
     pluginCount: 0,
   },
 ];

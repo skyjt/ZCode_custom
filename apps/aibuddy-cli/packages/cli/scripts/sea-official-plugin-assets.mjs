@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { hostTarget, targetParts } from "./sea-targets.mjs";
 
 export const seaOfficialPluginAssetPrefix = "aibuddy-official-plugins/";
 export const seaOfficialPluginManifestAssetKey = `${seaOfficialPluginAssetPrefix}manifest.json`;
@@ -19,6 +20,36 @@ const browserUseRequiredRuntimePaths = [
 
 export const officialSeaPlugins = [
   {
+    marketplace: "zcode-plugins-official",
+    name: "intranet-skills",
+    rootPath: join("packages", "intranet-skills-plugin"),
+    version: "1.0.0",
+    requiresRuntime: false,
+    requiredSeedPaths: [
+      "skills/intranet-code-review/SKILL.md",
+      "skills/intranet-sql-review/SKILL.md",
+      "skills/intranet-log-triage/SKILL.md",
+      "skills/intranet-data-check/SKILL.md",
+      "skills/intranet-tech-docs/SKILL.md",
+      "skills/uos-linux-diagnostics/SKILL.md",
+    ],
+  },
+  {
+    marketplace: "zcode-plugins-official",
+    name: "officecli",
+    rootPath: join("packages", "officecli-plugin"),
+    version: "1.0.152",
+    requiresRuntime: true,
+    requiredSeedPaths: [
+      "skills/officecli/SKILL.md",
+      "scripts/officecli.sh",
+      "scripts/officecli.cmd",
+      "docs/LICENSE",
+      "docs/NOTICE",
+      "docs/THIRD-PARTY-NOTICES.txt",
+    ],
+  },
+  {
     // node_repl 宿主：Browser Use 与 Computer Use 共用的运行时产物，自己不是面向用户的插件
     // （无 skill、无市场 listing）。它必须始终随发布物嵌入，否则任一能力启用时都没有宿主可跑。
     marketplace: "zcode-plugins-official",
@@ -30,7 +61,6 @@ export const officialSeaPlugins = [
     version: "0.6.0",
   },
   {
-
     marketplace: "zcode-plugins-official",
     name: "browser-use",
     packageName: "@aibuddy/browser-use-plugin",
@@ -49,6 +79,8 @@ export const collectSeaOfficialPluginAssets = async ({
   requireRuntime = false,
   root,
   stagingDirectory,
+  target = hostTarget(),
+  pluginRoots = {},
 } = {}) => {
   const files = [];
   const assets = {};
@@ -60,12 +92,18 @@ export const collectSeaOfficialPluginAssets = async ({
   });
 
   for (const plugin of officialSeaPlugins) {
-    const pluginRoot = resolve(root, plugin.rootPath);
+    const pluginRoot = pluginRoots[plugin.name] ?? resolve(root, plugin.rootPath);
     assertPluginRoot(pluginRoot, plugin);
     assertPluginRequiredSeedAssets(pluginRoot, plugin);
     // 只提供 skills 的内容型插件没有 MCP server，用 requiresRuntime:false 跳过校验；
     // 其余运行时插件仍要在此校验，避免发布缺失可执行入口的产物。
-    if (requireRuntime && plugin.requiresRuntime !== false) assertPluginRuntime(pluginRoot, plugin);
+    if (requireRuntime && plugin.requiresRuntime !== false) {
+      const requiredRuntimePaths =
+        plugin.name === "officecli"
+          ? [targetParts(target).releasePlatform === "win" ? "bin/officecli.exe" : "bin/officecli"]
+          : plugin.requiredRuntimePaths;
+      assertPluginRuntime(pluginRoot, { ...plugin, requiredRuntimePaths });
+    }
 
     const pluginFiles = [];
     for await (const sourcePath of walkFiles(pluginRoot)) {
@@ -184,6 +222,7 @@ const shouldSkipDirectory = (name) =>
   name === "__pycache__";
 
 const includedTopLevelPaths = new Set([
+  "bin",
   ".mcp.json",
   ".aibuddy-plugin",
   "README.md",
