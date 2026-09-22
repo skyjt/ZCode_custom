@@ -249,7 +249,7 @@
     "apps/aibuddy-cli/packages/tui/package.json": "ebec892e586863c7bdea6b72fe2a82e70546c2d911ba0e4a36cab9f70887a94e",
     "apps/aibuddy-cli/tools/prompt-trajectory/package.json": "05ff14e8ada32b2b8e1ef716d3c1e430c1842e869b488dedc35004affe16fabc",
     "apps/aibuddy-cli/tools/typescript/package.json": "da27b1b7bfe362386ea8d9ea590ba383e906fedb0e81f23545f63388d63f8cca",
-    "package.json": "81d892bed76a58e77cc630cb4756e23fb402a9bcd3f68bb74508b7fa3bb35895",
+    "package.json": "21c3106fc866262130ad2bbf99b59a341872c4597b60418d43665c2b253f0381",
     "packages/aibuddy-cua/package.json": "cfc804cfc059dddbf0b454fb82fd6dd816d8a9fe88899929342d12f6fb2c621b",
     "packages/aibuddy-server-cli/package.json": "e635ba03dfcb22e41375d6a1fb370337c04e5d6008eb41a6b715edc7148f760c",
     "packages/client/package.json": "c646818edc29610d33baa183f0ab863151e0c3558bc585d9bdc71c36ba0c314c",

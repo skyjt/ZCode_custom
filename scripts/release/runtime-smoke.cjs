@@ -75,6 +75,46 @@ const { _electron } = require("playwright-core");
           else reject(new Error(`PTY failed (${exitCode}): ${text}`));
         });
       });
+      const { join: joinPath } = process.getBuiltinModule("node:path");
+      const run = process
+        .getBuiltinModule("node:util")
+        .promisify(process.getBuiltinModule("node:child_process").execFile);
+      const win = process.platform === "win32";
+      const launcher = joinPath(
+        process.resourcesPath,
+        "glm",
+        "packages",
+        "officecli-plugin",
+        "scripts",
+        win ? "officecli.cmd" : "officecli.sh",
+      );
+      const officecli = (args) =>
+        run(
+          win ? process.env.ComSpec || "cmd.exe" : "/bin/sh",
+          win
+            ? ["/d", "/s", "/c", `""${launcher}" ${args.map((arg) => `"${arg}"`).join(" ")}"`]
+            : [launcher, ...args],
+          { timeout: 30_000, maxBuffer: 1024 * 1024, windowsVerbatimArguments: win },
+        );
+      const officeVersion = (await officecli(["--version"])).stdout.trim();
+      const officeFormats = [];
+      for (const extension of ["docx", "xlsx", "pptx"]) {
+        const file = joinPath(app.getPath("home"), `内网验证 sample.${extension}`);
+        const text = "内网验证 00123";
+        await officecli(["create", file]);
+        const edit =
+          extension === "docx"
+            ? ["add", file, "/body", "--type", "paragraph", "--prop", `text=${text}`]
+            : extension === "xlsx"
+              ? ["set", file, "/Sheet1/A1", "--prop", `value=${text}`]
+              : ["add", file, "/", "--type", "slide", "--prop", `title=${text}`];
+        await officecli(edit);
+        if (!(await officecli(["view", file, "text"])).stdout.includes(text)) {
+          throw new Error(`OfficeCLI ${extension} round trip failed`);
+        }
+        await officecli(["validate", file]);
+        officeFormats.push(extension);
+      }
       return {
         name: app.getName(),
         version: app.getVersion(),
@@ -83,6 +123,8 @@ const { _electron } = require("playwright-core");
         node: process.versions.node,
         sqlite,
         terminal,
+        officeVersion,
+        officeFormats,
       };
     });
     assert.equal(runtime.name, "AIbuddy");
@@ -91,6 +133,9 @@ const { _electron } = require("playwright-core");
     assert.equal(runtime.arch, arch);
     assert.equal(runtime.sqlite, 1);
     assert.equal(runtime.terminal, true);
+    const { OFFICECLI_RELEASE } = await import("../prepare-officecli.mjs");
+    assert.equal(runtime.officeVersion, OFFICECLI_RELEASE);
+    assert.deepEqual(runtime.officeFormats, ["docx", "xlsx", "pptx"]);
     await page.screenshot({ path: join(output, `smoke-${platform}-${arch}.png`) });
     await writeFile(
       join(output, `smoke-${platform}-${arch}.json`),

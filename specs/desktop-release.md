@@ -2,7 +2,7 @@
 
 ## 规则
 
-- 将当前 AIbuddy 改名、API 接入及新图标发布为 `3.15.0`。应用版本唯一来源是根 `package.json`；CLI 独立版本不随桌面版本修改。
+- 将界面性能优化、六项内网技能及按平台内置的 OfficeCLI 发布为 `3.16.0`。应用版本唯一来源是根 `package.json`；CLI 独立版本不随桌面版本修改。
 - GitHub Actions 手动触发五个原生 runner：Linux x64/arm64、Windows x64、macOS x64/arm64。产物分别为两份 `.deb`、一份 NSIS `.exe`、两份 `.dmg`。
 - 复用现有 runtime 准备、生产构建及 electron-builder 配置。每个阶段只运行一次；远端运行时按现有 `AIBUDDY_SKIP_REMOTE_ASSETS=1` 跳过，桌面内置 Agent、插件与搜索工具完整打包。
 - 先准备本地 runtime、生成 CLI workspace 包的 dist，再执行品牌及 API 回归检查；全新 checkout 不得依赖开发机已有构建缓存。
@@ -10,6 +10,7 @@
 - afterPack 完成 ASAR 重打包后负责恢复 macOS node-pty `spawn-helper` 的执行权限；ASAR 解包不保留 unpacked 文件的可执行位，必须在最终产物上修复。成包终端测试必须执行真实 shell 并收到输出。
 - Debian 包声明 glibc 2.28 及桌面运行依赖。检查最终 deb（包括 app.asar 解包内容）内每个 ELF 的架构和所需 GLIBC、GLIBCXX、CXXABI 版本；不能仅检查 deb 的 Depends。
 - 两种 deb 均放入对应架构的 Debian 10 Buster 容器安装，在 Xvfb 下启动真实成包应用，并验证首页、node:sqlite 及 node-pty。macOS/Windows 也启动各自成包应用验证相同基础能力。
+- 成包检查从实际 resources 目录调用 OfficeCLI 启动脚本，核对固定版本，并在临时目录完成 DOCX/XLSX/PPTX 中文内容的创建、写入、读取和校验；沿用启动脚本的离线开关，任一失败阻止发布。Linux 在上述 Debian 10 容器中执行同一检查。
 - Buster 容器同时使用 Debian 主归档和 security 的 `buster/updates` 归档，保留基础镜像中安全更新库的配套依赖，避免仅配置主归档时 GTK 依赖无法解析。
 - 所有测试使用临时用户数据目录，不读取开发者现有 AIbuddy/ZCode 配置。CI 不需要真实 API Key，不验证真实模型服务。
 - 每个平台上传安装包、SHA-256 清单与测试证据。只有五个平台全部成功，且手动输入 `publish=true`，才允许创建同一 commit 的注释标签及普通 Latest Release。
@@ -37,4 +38,4 @@ flowchart LR
 
 ## 验收边界
 
-CI 成包启动、终端和 SQLite 成功代表基础运行兼容；真实 API、GPU、音视频、系统权限和 Windows/macOS/Linux 实机上的所有插件功能仍需目标环境验证。
+CI 成包启动、终端、SQLite 和 OfficeCLI 文档读写成功代表这些基础能力兼容；真实 API、GPU、音视频、系统权限、Office/WPS 排版效果及 UOS 20 实机性能仍需目标环境验证。
