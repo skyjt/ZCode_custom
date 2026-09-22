@@ -1,5 +1,5 @@
 {
-  "name": "@zcode/services",
+  "name": "@aibuddy/services",
   "private": true,
   "type": "module",
   "imports": {
@@ -17,11 +17,11 @@
     "lint:fix": "oxlint --fix"
   },
   "dependencies": {
-    "@zcode/provider": "workspace:*",
-    "@zcode/provider-node": "workspace:*",
-    "@zcode/rpc": "workspace:*",
-    "@zcode/shared": "workspace:*",
-    "@zcode/zcode-cua": "workspace:*",
+    "@aibuddy/provider": "workspace:*",
+    "@aibuddy/provider-node": "workspace:*",
+    "@aibuddy/rpc": "workspace:*",
+    "@aibuddy/shared": "workspace:*",
+    "@aibuddy/aibuddy-cua": "workspace:*",
     "croner": "^10.0.1",
     "ignore": "^5.3.2",
     "node-forge": "^1.4.0",

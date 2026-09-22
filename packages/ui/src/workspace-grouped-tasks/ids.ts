@@ -1,8 +1,8 @@
-import type { ZCodeTaskMeta } from "@zcode/shared";
+import type { AIbuddyTaskMeta } from "@aibuddy/shared";
 import { buildTaskWorkspaceKey } from "@/lib/taskQueryCache.js";
 
 function taskKey(
-  task: Pick<ZCodeTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
+  task: Pick<AIbuddyTaskMeta, "workspacePath" | "workspaceIdentity" | "taskId">,
 ): string {
   return `${buildTaskWorkspaceKey(task.workspacePath, task.workspaceIdentity)}\u0000${task.taskId}`;
 }

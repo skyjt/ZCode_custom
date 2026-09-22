@@ -1,7 +1,5 @@
-const DEEP_LINK_SCHEME = "zcode";
-const DEEP_LINK_RE = /\bzcode:(?:\/\/|\/)?[^\s"'<>]+/i;
-const OAUTH_CALLBACK_HOSTS = new Set(["oauth"]);
-const PAYMENT_CALLBACK_HOST = "payment";
+const DEEP_LINK_SCHEME = "aibuddy";
+const DEEP_LINK_RE = /\baibuddy:(?:\/\/|\/)?[^\s"'<>]+/i;
 const WORKSPACE_OPEN_HOST = "workspace";
 const SHARE_IMPORT_HOST = "share";
 const DEEP_LINK_ADDITIONAL_DATA_KEY = "deepLinkUrl";
@@ -14,42 +12,12 @@ function normalizeOAuthCallbackPath(pathname: string): string {
   return `/${normalized.replace(/^\/+/, "")}`;
 }
 
-export function isOAuthCallbackUrl(parsedUrl: URL): boolean {
-  if (parsedUrl.protocol !== `${DEEP_LINK_SCHEME}:`) {
-    return false;
-  }
-
-  const normalizedPath = normalizeOAuthCallbackPath(parsedUrl.pathname);
-  if (OAUTH_CALLBACK_HOSTS.has(parsedUrl.hostname)) {
-    return normalizedPath === "/callback";
-  }
-
-  if (parsedUrl.hostname) {
-    return false;
-  }
-
-  const [, host, ...pathParts] = normalizedPath.split("/");
-  return Boolean(
-    host && OAUTH_CALLBACK_HOSTS.has(host) && `/${pathParts.join("/")}` === "/callback",
-  );
+// 产品账号与套餐购买已移除，旧授权链接不能恢复已停用流程。
+export function isOAuthCallbackUrl(_parsedUrl: URL): boolean {
+  return false;
 }
-
-export function isPaymentCallbackUrl(parsedUrl: URL): boolean {
-  if (parsedUrl.protocol !== `${DEEP_LINK_SCHEME}:`) {
-    return false;
-  }
-
-  const normalizedPath = normalizeOAuthCallbackPath(parsedUrl.pathname);
-  if (parsedUrl.hostname === PAYMENT_CALLBACK_HOST) {
-    return normalizedPath === "/callback";
-  }
-
-  if (parsedUrl.hostname) {
-    return false;
-  }
-
-  const [, host, ...pathParts] = normalizedPath.split("/");
-  return Boolean(host === PAYMENT_CALLBACK_HOST && `/${pathParts.join("/")}` === "/callback");
+export function isPaymentCallbackUrl(_parsedUrl: URL): boolean {
+  return false;
 }
 
 export function isWorkspaceOpenUrl(parsedUrl: URL): boolean {
@@ -192,7 +160,7 @@ export function extractDeepLinkUrlFromArgs(args: readonly string[]): string | nu
       if (match) {
         // Debian/xdg 的协议回调可能被浏览器或桌面门户多次编码，
         // 也可能把 query 片段拆成相邻 argv。这里先生成有限候选再多轮解码，
-        // 避免浏览器确认“打开 ZCode”后主进程拿不到完整回调 URL。
+        // 避免浏览器确认“打开 AIbuddy”后主进程拿不到完整回调 URL。
         if (isCompleteDeepLinkUrl(match)) {
           return match;
         }

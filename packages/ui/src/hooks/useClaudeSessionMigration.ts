@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import type { ZCodeImportSessionsResult, ZCodeImportableSessionCandidate } from "@zcode/shared";
+import type { AIbuddyImportSessionsResult, AIbuddyImportableSessionCandidate } from "@aibuddy/shared";
 import { logger } from "@/logger.js";
-import { useZCodeTaskService } from "@/hooks/useZCodeTaskService.js";
+import { useAIbuddyTaskService } from "@/hooks/useAIbuddyTaskService.js";
 import { useTabStoreApi } from "@/store/TabStoreProvider.js";
 import { invalidateTaskQueryCacheByScopes } from "@/store/taskQueryCacheStore.js";
 
@@ -60,7 +60,7 @@ export function useClaudeSessionMigration(params: {
   workspaceIdentity?: string;
   isDesktop?: boolean;
 }) {
-  const zcodeTaskService = useZCodeTaskService(
+  const aibuddyTaskService = useAIbuddyTaskService(
     params.workspacePath ?? undefined,
     undefined,
     params.workspaceIdentity,
@@ -70,11 +70,11 @@ export function useClaudeSessionMigration(params: {
     useState<ClaudeMigrationWorkspaceFilterMode>("all");
   const [range, setRange] = useState<ClaudeMigrationRange>("30d");
   const [limitInput, setLimitInput] = useState(String(DEFAULT_LIMIT));
-  const [candidates, setCandidates] = useState<ZCodeImportableSessionCandidate[]>([]);
+  const [candidates, setCandidates] = useState<AIbuddyImportableSessionCandidate[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
   const [scanError, setScanError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [lastImportResult, setLastImportResult] = useState<ZCodeImportSessionsResult | null>(null);
+  const [lastImportResult, setLastImportResult] = useState<AIbuddyImportSessionsResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -147,7 +147,7 @@ export function useClaudeSessionMigration(params: {
       logger.info(
         `[Migration] 开始扫描 Claude 原生历史 workspaceFilter=${effectiveWorkspacePath ?? "all"} range=${range} limit=${scanLimit ?? "unlimited"}`,
       );
-      const nextCandidates = await zcodeTaskService.scanImportableClaudeSessions({
+      const nextCandidates = await aibuddyTaskService.scanImportableClaudeSessions({
         workspacePath: effectiveWorkspacePath,
         ...(effectiveWorkspaceIdentity ? { workspaceIdentity: effectiveWorkspaceIdentity } : {}),
         modifiedSince: resolveModifiedSince(range),
@@ -172,7 +172,7 @@ export function useClaudeSessionMigration(params: {
       setIsScanning(false);
     }
   }, [
-    zcodeTaskService,
+    aibuddyTaskService,
     effectiveWorkspaceIdentity,
     effectiveWorkspacePath,
     range,
@@ -193,7 +193,7 @@ export function useClaudeSessionMigration(params: {
         logger.info(
           `[Migration] 开始导入 Claude 原生历史 workspaceFilter=${effectiveWorkspacePath ?? "all"} selected=${sessionIds.length}`,
         );
-        const result = await zcodeTaskService.importClaudeSessions({
+        const result = await aibuddyTaskService.importClaudeSessions({
           workspacePath: effectiveWorkspacePath,
           ...(effectiveWorkspaceIdentity ? { workspaceIdentity: effectiveWorkspaceIdentity } : {}),
           sessionIds,
@@ -234,7 +234,7 @@ export function useClaudeSessionMigration(params: {
       }
     },
     [
-      zcodeTaskService,
+      aibuddyTaskService,
       effectiveWorkspaceIdentity,
       effectiveWorkspacePath,
       supportState.supported,

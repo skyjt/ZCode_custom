@@ -1,4 +1,4 @@
-import type { LaunchMarks } from "@zcode/shared";
+import type { LaunchMarks } from "@aibuddy/shared";
 
 export function shouldReportLaunchToInput(state: {
   isStartupRenderBlocked: boolean;
@@ -15,14 +15,14 @@ export function readRendererLaunchTimings(): {
   reactCommit: number;
 } | null {
   const w = window as Window & {
-    __ZCODE_LAUNCH_MARKS__?: LaunchMarks | null;
-    __ZCODE_RENDERER_START__?: number;
-    __ZCODE_REACT_COMMIT_AT__?: number;
+    __AIBUDDY_LAUNCH_MARKS__?: LaunchMarks | null;
+    __AIBUDDY_RENDERER_START__?: number;
+    __AIBUDDY_REACT_COMMIT_AT__?: number;
   };
-  const rendererStart = w.__ZCODE_RENDERER_START__;
-  const reactCommit = w.__ZCODE_REACT_COMMIT_AT__;
+  const rendererStart = w.__AIBUDDY_RENDERER_START__;
+  const reactCommit = w.__AIBUDDY_REACT_COMMIT_AT__;
   if (typeof rendererStart !== "number" || typeof reactCommit !== "number") {
     return null;
   }
-  return { marks: w.__ZCODE_LAUNCH_MARKS__ ?? null, rendererStart, reactCommit };
+  return { marks: w.__AIBUDDY_LAUNCH_MARKS__ ?? null, rendererStart, reactCommit };
 }

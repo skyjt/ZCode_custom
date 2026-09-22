@@ -46,7 +46,7 @@ export type {
   ConversationShareTurnPreflightResult,
   PublishTextConversationInput,
 } from "./conversation-share/conversationShare.js";
-// Conversation share 的具体实现依赖 Node 文件系统，只能从 @zcode/services/node 引入；
+// Conversation share 的具体实现依赖 Node 文件系统，只能从 @aibuddy/services/node 引入；
 // 根入口必须保持 browser-safe，避免 renderer 解析到 node:* 模块。
 export {
   createConversationTelemetryService,
@@ -85,7 +85,7 @@ export type {
   OnboardingRecordServiceFactory,
 } from "./onboarding/onboardingRecord.js";
 // 这里只能导出 descriptor 和类型。根 index 会被 renderer 经 value import 拉进浏览器包，
-// 若 value 导出 createOnboardingRecordService，会连带 fs/atomicFileUtils → @zcode/shared/node →
+// 若 value 导出 createOnboardingRecordService，会连带 fs/atomicFileUtils → @aibuddy/shared/node →
 // node:timers/promises 整条 Node 链进浏览器，模块加载直接抛错导致整个应用黑屏。
 // 工厂函数由 host 侧（node.ts）与测试从实现文件路径直接导入，与 createSettingService 同惯例。
 export type {
@@ -94,36 +94,36 @@ export type {
   BroadcastMessage,
 } from "./broadcast/broadcast.js";
 
-// ZCode task wrapper service — task 列表/置顶/归档等 app 侧包装状态入口。
-export { IZCodeTaskService } from "./session/zcodeTaskService.js";
+// AIbuddy task wrapper service — task 列表/置顶/归档等 app 侧包装状态入口。
+export { IAIbuddyTaskService } from "./session/aibuddyTaskService.js";
 export type {
-  ZCodeArchivedTaskDeletionResult,
-  ZCodeModelTrajectory,
-  ZCodeModelTrajectoryCallSource,
-  ZCodeModelTrajectoryCallSourceKind,
-  ZCodeModelTrajectoryContentPart,
-  ZCodeModelTrajectoryMessage,
-  ZCodeModelTrajectoryRecord,
-  ZCodeModelTrajectoryUsage,
-  ZCodeTaskListKind,
-  ZCodeTaskListQuery,
-  ZCodeTaskListResult,
-  ZCodeTaskListSortBy,
-  ZCodeTaskListWorkspaceScope,
-  ZCodeTaskReadyOutcome,
-  ZCodeGroupedTaskRef,
-  ZCodeGroupedTaskView,
-  ZCodeGroupedTaskViewNode,
-  ZCodeGroupedTaskViewOrderInput,
-  ZCodeGroupedTaskViewQuery,
-  ZCodeGroupedTaskViewStructure,
-  ZCodeGroupedTaskViewStructureMember,
-  ZCodeGroupedTaskViewStructureTopOrder,
-  ZCodeGroupedTaskViewTopLevelNodeRef,
-  ZCodeTaskGroup,
-  ZCodeTaskGroupColor,
-} from "./session/zcodeTaskService.js";
-export type { ZCodeTaskListItem } from "./session/zcodeTaskListTypes.js";
+  AIbuddyArchivedTaskDeletionResult,
+  AIbuddyModelTrajectory,
+  AIbuddyModelTrajectoryCallSource,
+  AIbuddyModelTrajectoryCallSourceKind,
+  AIbuddyModelTrajectoryContentPart,
+  AIbuddyModelTrajectoryMessage,
+  AIbuddyModelTrajectoryRecord,
+  AIbuddyModelTrajectoryUsage,
+  AIbuddyTaskListKind,
+  AIbuddyTaskListQuery,
+  AIbuddyTaskListResult,
+  AIbuddyTaskListSortBy,
+  AIbuddyTaskListWorkspaceScope,
+  AIbuddyTaskReadyOutcome,
+  AIbuddyGroupedTaskRef,
+  AIbuddyGroupedTaskView,
+  AIbuddyGroupedTaskViewNode,
+  AIbuddyGroupedTaskViewOrderInput,
+  AIbuddyGroupedTaskViewQuery,
+  AIbuddyGroupedTaskViewStructure,
+  AIbuddyGroupedTaskViewStructureMember,
+  AIbuddyGroupedTaskViewStructureTopOrder,
+  AIbuddyGroupedTaskViewTopLevelNodeRef,
+  AIbuddyTaskGroup,
+  AIbuddyTaskGroupColor,
+} from "./session/aibuddyTaskService.js";
+export type { AIbuddyTaskListItem } from "./session/aibuddyTaskListTypes.js";
 
 export { IWindowControllerService } from "./window-controller/windowController.js";
 export type {
@@ -133,68 +133,68 @@ export type {
   WindowHostControllerTaskListResult,
 } from "./window-controller/windowController.js";
 
-// ZCode agent service — IZCodeAgentService is both a type (interface) and value (descriptor)
+// AIbuddy agent service — IAIbuddyAgentService is both a type (interface) and value (descriptor)
 export {
-  IZCodeAgentService,
-  type ZCodeAgentLocalRuntimeChildProcesses,
-  ZCODE_AGENT_RUNTIME_UNAVAILABLE_CODE,
-} from "./zcode-agent/zcodeAgent.js";
+  IAIbuddyAgentService,
+  type AIbuddyAgentLocalRuntimeChildProcesses,
+  AIBUDDY_AGENT_RUNTIME_UNAVAILABLE_CODE,
+} from "./aibuddy-agent/aibuddyAgent.js";
 export {
-  isZCodeAgentMcpStatusModeUnsupportedError,
-  ZCODE_AGENT_MCP_STATUS_MODE_UNSUPPORTED_ERROR_CODE,
-  ZCodeAgentMcpStatusModeUnsupportedError,
-} from "./zcode-agent/zcodeAgentErrors.js";
+  isAIbuddyAgentMcpStatusModeUnsupportedError,
+  AIBUDDY_AGENT_MCP_STATUS_MODE_UNSUPPORTED_ERROR_CODE,
+  AIbuddyAgentMcpStatusModeUnsupportedError,
+} from "./aibuddy-agent/aibuddyAgentErrors.js";
 export {
-  createZCodeAgentConnectionScope,
-  readTrustedZCodeAgentV4Connection,
-} from "./zcode-agent/zcodeAgentConnectionScope.js";
+  createAIbuddyAgentConnectionScope,
+  readTrustedAIbuddyAgentV4Connection,
+} from "./aibuddy-agent/aibuddyAgentConnectionScope.js";
 export type {
-  ZCodeAgentConnectionScope,
-  ZCodeAgentV4ClientMode,
-  ZCodeAgentV4ConnectionContext,
-} from "./zcode-agent/zcodeAgentConnectionScope.js";
+  AIbuddyAgentConnectionScope,
+  AIbuddyAgentV4ClientMode,
+  AIbuddyAgentV4ConnectionContext,
+} from "./aibuddy-agent/aibuddyAgentConnectionScope.js";
 export type {
-  ZCodeAgentAttachmentBeginParams,
-  ZCodeAgentAttachmentChunkParams,
-  ZCodeAgentAttachmentTerminalParams,
-  ZCodeAgentCreateSessionParams,
-  ZCodeAgentCuaPermissionObservation,
-  ZCodeAgentInitializeResult,
-  ZCodeAgentStorageStartupSnapshot,
-  ZCodeAgentRuntimeLifecycleEvent,
-  ZCodeAgentRuntimePolicy,
-  ZCodeAgentReadSessionParams,
-  ZCodeAgentResumeSessionParams,
-  ZCodeAgentRunAutomationNowResult,
-  ZCodeAgentSavedWorkflowTarget,
-  ZCodeAgentSendPromptParams,
-  ZCodeAgentServiceEvent,
-  ZCodeAgentSessionSubscribeParams,
-  ZCodeAgentSessionTarget,
-  ZCodeAgentSetModeParams,
-  ZCodeAgentSetModelParams,
-  ZCodeAgentSetThoughtLevelParams,
-  ZCodeAgentWorkspaceTarget,
-} from "./zcode-agent/zcodeAgent.js";
+  AIbuddyAgentAttachmentBeginParams,
+  AIbuddyAgentAttachmentChunkParams,
+  AIbuddyAgentAttachmentTerminalParams,
+  AIbuddyAgentCreateSessionParams,
+  AIbuddyAgentCuaPermissionObservation,
+  AIbuddyAgentInitializeResult,
+  AIbuddyAgentStorageStartupSnapshot,
+  AIbuddyAgentRuntimeLifecycleEvent,
+  AIbuddyAgentRuntimePolicy,
+  AIbuddyAgentReadSessionParams,
+  AIbuddyAgentResumeSessionParams,
+  AIbuddyAgentRunAutomationNowResult,
+  AIbuddyAgentSavedWorkflowTarget,
+  AIbuddyAgentSendPromptParams,
+  AIbuddyAgentServiceEvent,
+  AIbuddyAgentSessionSubscribeParams,
+  AIbuddyAgentSessionTarget,
+  AIbuddyAgentSetModeParams,
+  AIbuddyAgentSetModelParams,
+  AIbuddyAgentSetThoughtLevelParams,
+  AIbuddyAgentWorkspaceTarget,
+} from "./aibuddy-agent/aibuddyAgent.js";
 
-// ZCode session service — app-facing session facade without ZCode Agent naming.
-export { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
+// AIbuddy session service — app-facing session facade without AIbuddy Agent naming.
+export { IAIbuddySessionService } from "./aibuddy-session/aibuddySession.js";
 export type {
-  ZCodeSessionCreateParams,
-  ZCodeSessionEventsParams,
-  ZCodeSessionInitializeResult,
-  ZCodeSessionListParams,
-  ZCodeSessionMessagesParams,
-  ZCodeSessionReadParams,
-  ZCodeSessionResumeParams,
-  ZCodeSessionServiceEvent,
-  ZCodeSessionSetModeParams,
-  ZCodeSessionSetModelParams,
-  ZCodeSessionSetThoughtLevelParams,
-  ZCodeSessionSubscribeParams,
-  ZCodeTaskTarget,
-  ZCodeSessionWorkspaceTarget,
-} from "./zcode-session/zcodeSession.js";
+  AIbuddySessionCreateParams,
+  AIbuddySessionEventsParams,
+  AIbuddySessionInitializeResult,
+  AIbuddySessionListParams,
+  AIbuddySessionMessagesParams,
+  AIbuddySessionReadParams,
+  AIbuddySessionResumeParams,
+  AIbuddySessionServiceEvent,
+  AIbuddySessionSetModeParams,
+  AIbuddySessionSetModelParams,
+  AIbuddySessionSetThoughtLevelParams,
+  AIbuddySessionSubscribeParams,
+  AIbuddyTaskTarget,
+  AIbuddySessionWorkspaceTarget,
+} from "./aibuddy-session/aibuddySession.js";
 
 // Hooks service — IHooksService is both a type (interface) and value (descriptor).
 export { IHooksService } from "./hooks/hooks.js";
@@ -218,7 +218,7 @@ export { IOAuthService } from "./oauth/oauth.js";
 // UsageStats service — IUsageStatsService is both a type (interface) and value (descriptor)
 export { IUsageStatsService } from "./usage-stats/usageStats.js";
 
-// Storage（资源管理器「存储」tab）：数据类型在 @zcode/shared；这里只导出服务接口与卷分组纯函数
+// Storage（资源管理器「存储」tab）：数据类型在 @aibuddy/shared；这里只导出服务接口与卷分组纯函数
 export type { IStorageService } from "./storage/contract.js";
 
 // CodingPlanSubscription service — ICodingPlanSubscriptionService is both a type (interface) and value (descriptor)
@@ -261,7 +261,7 @@ export {
 
 // Plugins service — IPluginsService is both a type (interface) and value (descriptor)
 export { IPluginsService } from "./plugins/plugins.js";
-// 设置页插件管理薄服务（UI 平台能力面不再直触 zcodeAgentService）
+// 设置页插件管理薄服务（UI 平台能力面不再直触 aibuddyAgentService）
 export { IPluginManagementService } from "./plugins/pluginManagement.js";
 
 // Subagents service — ISubagentsService is both a type (interface) and value (descriptor)
@@ -297,5 +297,5 @@ export type {
   FeedbackTicketStatus,
   FeedbackTicketSummary,
   FeedbackTicketType,
-} from "@zcode/shared";
+} from "@aibuddy/shared";
 export { IClientConfigService } from "./client-config/clientConfig.js";

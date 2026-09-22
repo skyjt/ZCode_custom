@@ -6,8 +6,8 @@ import {
   type LocalTtftFacts,
   type LocalTtftRecord,
   type LocalTtftOutputKind,
-} from "@zcode/shared";
-import type { ConversationRow } from "@zcode/shared/zcode-protocol-v4";
+} from "@aibuddy/shared";
+import type { ConversationRow } from "@aibuddy/shared/aibuddy-protocol-v4";
 export interface LocalTtftPending {
   context: LocalTtftContext;
   workspace: string;

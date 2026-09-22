@@ -7,11 +7,11 @@ import {
   type CommandEnvelope,
   type CommandPayloadMap,
   type CommandType,
-} from "@zcode/shared/zcode-protocol-v4";
-import { uuidv7 } from "@zcode/shared";
-export { uuidv7 } from "@zcode/shared";
+} from "@aibuddy/shared/aibuddy-protocol-v4";
+import { uuidv7 } from "@aibuddy/shared";
+export { uuidv7 } from "@aibuddy/shared";
 
-const CLIENT_ID_STORAGE_KEY = "zcode-v4-client-id:v1";
+const CLIENT_ID_STORAGE_KEY = "aibuddy-v4-client-id:v1";
 let cachedClientId: string | null = null;
 
 /**

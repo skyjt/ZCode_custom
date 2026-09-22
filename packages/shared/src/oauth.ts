@@ -11,11 +11,23 @@ export const BIGMODEL_PROVIDER_ID = "bigmodel" as const;
 /** 内置 ZAI provider id */
 export const ZAI_PROVIDER_ID = "zai" as const;
 
+/** 产品账号已移除；只匹配其私有命名空间，保留 API、SSH 和第三方 MCP 凭据。 */
+export function isRetiredProductCredentialKey(key: string): boolean {
+  return (
+    key === "zcodejwttoken" ||
+    key === "oauth:active_provider" ||
+    key === "oauth:login_attribution" ||
+    key.startsWith("oauth:zai:") ||
+    key.startsWith("oauth:bigmodel:") ||
+    key.startsWith("account-provider:")
+  );
+}
+
 /** 凭据解密失败错误前缀 */
 export const CREDENTIAL_DECRYPT_ERROR_PREFIX = "凭据解密失败：" as const;
 
 /** 凭据解密失败稳定错误码 */
-export const CREDENTIAL_DECRYPT_ERROR_CODE = "ZCODE_CREDENTIAL_DECRYPT_FAILED" as const;
+export const CREDENTIAL_DECRYPT_ERROR_CODE = "AIBUDDY_CREDENTIAL_DECRYPT_FAILED" as const;
 
 /** 判断错误是否来自本地凭据解密失败 */
 export function isCredentialDecryptError(error: unknown): boolean {
@@ -134,7 +146,7 @@ export interface OAuthTokenSet {
   accessToken: string;
   refreshToken?: string;
   expiresAt?: number;
-  zcodeJwtToken?: string;
+  aibuddyJwtToken?: string;
 }
 
 export interface UserInfo {
@@ -149,8 +161,8 @@ export type OAuthCachedSessionRestoreResult =
   | { status: "signed-out" }
   | { status: "reauthentication-required"; reason: "jwt-expired" };
 
-/** Host 在检测到 ZCode JWT 失效后通知 Renderer 展示确认并重启。 */
-export const ZCODE_JWT_INVALID_BROADCAST_CHANNEL = "auth:zcode-jwt-invalid";
+/** Host 在检测到 AIbuddy JWT 失效后通知 Renderer 展示确认并重启。 */
+export const AIBUDDY_JWT_INVALID_BROADCAST_CHANNEL = "auth:aibuddy-jwt-invalid";
 
 export type JwtExpirationResult =
   | { kind: "valid"; expiresAt: number }

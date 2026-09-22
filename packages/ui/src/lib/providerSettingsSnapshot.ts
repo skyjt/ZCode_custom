@@ -1,4 +1,4 @@
-import type { IProviderSettingsService, ProviderSettingsView } from "@zcode/services";
+import type { IProviderSettingsService, ProviderSettingsView } from "@aibuddy/services";
 
 type ProviderSettingsSnapshotListener = () => void;
 

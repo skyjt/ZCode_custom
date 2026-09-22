@@ -1,0 +1,116 @@
+name: Build AIbuddy releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish all five verified installers as a GitHub Release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aibuddy-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AIBUDDY_ENV: production
+  AIBUDDY_SKIP_REMOTE_ASSETS: "1"
+  AIBUDDY_ENABLE_MAC_SIGN: "0"
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  AIBUDDY_ELECTRON_RUNTIME_MIRROR: https://github.com/electron/electron/releases/download/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux, arch: x64, runner: ubuntu-24.04, target: deb }
+          - { platform: linux, arch: arm64, runner: ubuntu-24.04-arm, target: deb }
+          - { platform: win, arch: x64, runner: windows-2022, target: nsis }
+          - { platform: mac, arch: x64, runner: macos-15-intel, target: dmg }
+          - { platform: mac, arch: arm64, runner: macos-15, target: dmg }
+    defaults:
+      run:
+        shell: bash
+    env:
+      AIBUDDY_TARGET_OS: ${{ matrix.platform }}
+      AIBUDDY_TARGET_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - name: Install pinned dependencies and Electron
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          node node_modules/electron/install.js
+      - name: Check source
+        if: matrix.platform == 'linux' && matrix.arch == 'x64'
+        run: |
+          pnpm typecheck
+          pnpm verify:pre-push
+          pnpm check:branding
+          node --test scripts/release/release.test.mjs
+          node --import tsx --test packages/services/test/apiOnly.test.ts
+      - name: Prepare local runtime
+        run: pnpm --filter @aibuddy/desktop prepare:runtime-assets
+      - name: Build desktop
+        run: pnpm --filter @aibuddy/desktop build:no-runtime-assets
+      - name: Package
+        run: pnpm --filter @aibuddy/desktop exec electron-builder --config electron-builder.config.js --${{ matrix.platform }} ${{ matrix.target }} --${{ matrix.arch }} --publish never
+      - name: Collect installer and checksum
+        run: node scripts/release/collect-artifacts.mjs ${{ matrix.platform }} ${{ matrix.arch }}
+      - name: Inspect Debian ABI and test on Debian 10
+        if: matrix.platform == 'linux'
+        run: |
+          node scripts/release/verify-linux.mjs release/*.deb ${{ matrix.arch }} "$RUNNER_TEMP/aibuddy-deb"
+          docker run --rm --shm-size=1g \
+            -v "$PWD:/workspace:ro" \
+            -v "$PWD/release:/artifacts" \
+            debian:buster \
+            bash /workspace/scripts/release/debian10-smoke.sh
+      - name: Test packaged desktop
+        if: matrix.platform != 'linux'
+        run: node scripts/release/runtime-smoke.cjs ${{ matrix.platform }} ${{ matrix.arch }}
+      - name: Upload installers and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: aibuddy-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish verified release
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: aibuddy-*
+          path: release
+          merge-multiple: true
+      - name: Verify checksums, tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/release/publish.sh

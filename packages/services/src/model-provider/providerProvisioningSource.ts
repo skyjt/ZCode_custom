@@ -4,18 +4,14 @@ import { join } from "node:path";
 import {
   isProviderProvisioningAccountCredentialKey,
   providerProvisioningEnvelopeSchema,
-  type ProviderProvisioningCredentialEntry,
   type ProviderProvisioningEnvelope,
-} from "@zcode/shared";
+} from "@aibuddy/shared";
 import type {
   PersonalProviderConfigRepository,
   ProviderConfigLayerSnapshot,
-} from "@zcode/provider";
-import { decodeProviderConfigFile, encodeProviderConfigFile } from "@zcode/provider-node";
-import {
-  createCredentialCipherProvider,
-  type CredentialCipherProvider,
-} from "../credential/providers/credentialCipherProvider.js";
+} from "@aibuddy/provider";
+import { decodeProviderConfigFile, encodeProviderConfigFile } from "@aibuddy/provider-node";
+import { type CredentialCipherProvider } from "../credential/providers/credentialCipherProvider.js";
 import type { ISettingService } from "../setting/setting.js";
 
 const CREDENTIAL_FILE_NAME = "credentials.json";
@@ -48,23 +44,22 @@ export function createProviderProvisioningSource(
 ): ProviderProvisioningSource {
   return {
     async read(syncId: string): Promise<ProviderProvisioningEnvelope> {
-      const [personal, settings, credentials] = await Promise.all([
-        readProvisionablePersonalConfig(options.personalRepository, options.personalConfigFilePath),
-        options.settingService.get(),
-        readProvisioningCredentials(options.credentialFilePath, options.cipherProvider),
-      ]);
+      const personal = await readProvisionablePersonalConfig(
+        options.personalRepository,
+        options.personalConfigFilePath,
+      );
       // 默认与规则来自同一份持锁读取，不能把两次读取的值拼成不存在的配置版本。
       const personalConfig = encodeProviderConfigFile(personal).config;
       const accountSettings = {
-        providerFamilyDomain: settings.providerFamilyDomain ?? null,
-        providerFamilyConnectionSelections: settings.providerFamilyConnectionSelections ?? {},
+        providerFamilyDomain: null,
+        providerFamilyConnectionSelections: {},
       };
       return providerProvisioningEnvelopeSchema.parse({
         schemaVersion: 1,
         syncId,
         personalConfig,
         accountSettings,
-        credentials,
+        credentials: [],
       });
     },
   };
@@ -106,44 +101,6 @@ export async function readProvisionablePersonalConfig(
   } catch (error) {
     throw new Error(`本地 Personal Provider Config 无法同步: ${filePath}`, { cause: error });
   }
-}
-
-async function readProvisioningCredentials(
-  credentialFilePath: string,
-  cipherProvider?: CredentialCipherProvider,
-): Promise<ProviderProvisioningCredentialEntry[]> {
-  let raw: string;
-  try {
-    raw = await readFile(credentialFilePath, "utf8");
-  } catch (error) {
-    if (isFileNotFound(error)) return [];
-    throw error;
-  }
-  const parsed = JSON.parse(raw) as unknown;
-  if (!isRecord(parsed)) {
-    throw new Error("Credential Store 必须是 JSON 对象");
-  }
-  const cipher = cipherProvider ?? createCredentialCipherProvider();
-  const allowedKeys = new Set<string>(PROVIDER_PROVISIONING_OAUTH_CREDENTIAL_KEYS);
-  const entries: ProviderProvisioningCredentialEntry[] = [];
-  // Credential Store 还可能包含不属于 Provisioning allowlist 的历史记录；
-  // 这些记录不是本次同步事实，不能因为其值损坏而阻断合法账号凭据的同步。
-  // allowlist 内的条目仍保持字符串和解密校验，避免把未知内容当成 Secret 传输。
-  for (const [key, encrypted] of Object.entries(parsed)) {
-    const scope = allowedKeys.has(key)
-      ? ("oauth-session" as const)
-      : isProviderProvisioningAccountCredentialKey(key)
-        ? ("account-provider" as const)
-        : undefined;
-    if (!scope) continue;
-    if (typeof encrypted !== "string") {
-      throw new Error(`Credential allowlist value must be a string: ${key}`);
-    }
-    const value = cipher.decrypt(encrypted);
-    if (!value.trim()) continue;
-    entries.push({ scope, key, value });
-  }
-  return entries;
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

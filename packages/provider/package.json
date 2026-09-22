@@ -1,5 +1,5 @@
 {
-  "name": "@zcode/provider",
+  "name": "@aibuddy/provider",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,8 +11,8 @@
     "lint": "oxlint"
   },
   "dependencies": {
-    "@zcode/model-option-map": "workspace:*",
-    "@zcode/shared": "workspace:*",
+    "@aibuddy/model-option-map": "workspace:*",
+    "@aibuddy/shared": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {

@@ -4,7 +4,7 @@ import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { resolveZCodeEndpointOrigin, pickProductEndpointEnv } from "@zcode/shared/zcodeEndpoint";
+import { resolveAIbuddyEndpointOrigin, pickProductEndpointEnv } from "@aibuddy/shared/aibuddyEndpoint";
 import { pdfJsCMapsPlugin } from "../ui/vite/pdfJsCMapsPlugin.js";
 import { getBuildMetadata } from "./scripts/build-metadata.mjs";
 import { resolveDesktopProductFlavor } from "./scripts/desktop-product-identity.mjs";
@@ -46,7 +46,7 @@ export const desktopRendererDependencyAliases = {
   "lucide-react": resolveInstalledPackageRoot("lucide-react"),
 } as const;
 
-function resolveZCodeEnv(value: string | undefined): "test" | "production" {
+function resolveAIbuddyEnv(value: string | undefined): "test" | "production" {
   return value?.trim().toLowerCase() === "production" ? "production" : "test";
 }
 
@@ -72,7 +72,7 @@ function createE2EUIRendererCoveragePlugin(repoRoot: string): Plugin {
   );
 
   return {
-    name: "zcode:e2e-ui-source-coverage",
+    name: "aibuddy:e2e-ui-source-coverage",
     enforce: "pre",
     transform(sourceCode, id, options) {
       if (options?.ssr || id.startsWith("\0")) {
@@ -141,23 +141,23 @@ function stripViteRequestQuery(id: string) {
 }
 
 export default defineConfig(({ mode }) => {
-  // `.env*` 只提供链接常量；当前产品环境由启动脚本或 CI 注入 ZCODE_ENV。
+  // `.env*` 只提供链接常量；当前产品环境由启动脚本或 CI 注入 AIBUDDY_ENV。
   const env = { ...loadEnv(mode, "../..", ""), ...process.env };
   const repoRoot = resolve(__dirname, "../..");
-  const zcodeEnv = resolveZCodeEnv(env.ZCODE_ENV);
+  const aibuddyEnv = resolveAIbuddyEnv(env.AIBUDDY_ENV);
   // 安装包身份与后端环境分轴；renderer 用它决定是否展示更新入口。
-  const zcodeProductFlavor = resolveDesktopProductFlavor({
+  const aibuddyProductFlavor = resolveDesktopProductFlavor({
     ...process.env,
     ...env,
-    ZCODE_ENV: zcodeEnv,
+    AIBUDDY_ENV: aibuddyEnv,
   });
   const e2eCoverageEnabled =
-    env.ZCODE_E2E_COVERAGE === "1" || process.env.ZCODE_E2E_COVERAGE === "1";
+    env.AIBUDDY_E2E_COVERAGE === "1" || process.env.AIBUDDY_E2E_COVERAGE === "1";
   const e2eStoreBridgeEnabled =
-    env.VITE_ZCODE_E2E_STORE_BRIDGE === "1" || process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1";
-  const zcodeEndpointOrigin = resolveZCodeEndpointOrigin({
-    env: zcodeEnv,
-    envBaseOrigin: env.ZCODE_BASE_URL ?? env.ZCODE_ENDPOINT_ORIGIN,
+    env.VITE_AIBUDDY_E2E_STORE_BRIDGE === "1" || process.env.VITE_AIBUDDY_E2E_STORE_BRIDGE === "1";
+  const aibuddyEndpointOrigin = resolveAIbuddyEndpointOrigin({
+    env: aibuddyEnv,
+    envBaseOrigin: env.AIBUDDY_BASE_URL ?? env.AIBUDDY_ENDPOINT_ORIGIN,
   });
   const codingPlanWebviewOrigin =
     env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? process.env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? "";
@@ -188,22 +188,22 @@ export default defineConfig(({ mode }) => {
     },
     server: { port: 5174, strictPort: true },
     define: {
-      __ZCODE_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
-      __ZCODE_VERSION__: JSON.stringify(buildMetadata.appVersion),
-      __ZCODE_COMMIT__: JSON.stringify(buildMetadata.buildCommitId),
-      __ZCODE_BUILD_TIME__: JSON.stringify(buildMetadata.buildTime),
-      __ZCODE_ENV__: JSON.stringify(zcodeEnv),
-      __ZCODE_PRODUCT_FLAVOR__: JSON.stringify(zcodeProductFlavor),
-      __ZCODE_LOCAL_DEVELOPMENT_RUNTIME__: JSON.stringify(mode !== "production"),
-      "import.meta.env.VITE_ZCODE_BASE_URL": JSON.stringify(zcodeEndpointOrigin),
-      // 兼容旧 renderer 读取名；新代码统一读 VITE_ZCODE_BASE_URL。
-      "import.meta.env.VITE_ZCODE_ENDPOINT_ORIGIN": JSON.stringify(zcodeEndpointOrigin),
+      __AIBUDDY_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
+      __AIBUDDY_VERSION__: JSON.stringify(buildMetadata.appVersion),
+      __AIBUDDY_COMMIT__: JSON.stringify(buildMetadata.buildCommitId),
+      __AIBUDDY_BUILD_TIME__: JSON.stringify(buildMetadata.buildTime),
+      __AIBUDDY_ENV__: JSON.stringify(aibuddyEnv),
+      __AIBUDDY_PRODUCT_FLAVOR__: JSON.stringify(aibuddyProductFlavor),
+      __AIBUDDY_LOCAL_DEVELOPMENT_RUNTIME__: JSON.stringify(mode !== "production"),
+      "import.meta.env.VITE_AIBUDDY_BASE_URL": JSON.stringify(aibuddyEndpointOrigin),
+      // 兼容旧 renderer 读取名；新代码统一读 VITE_AIBUDDY_BASE_URL。
+      "import.meta.env.VITE_AIBUDDY_ENDPOINT_ORIGIN": JSON.stringify(aibuddyEndpointOrigin),
       "import.meta.env.VITE_CODING_PLAN_WEBVIEW_ORIGIN": JSON.stringify(codingPlanWebviewOrigin),
       "import.meta.env.VITE_REWARDS_WEBVIEW_ORIGIN": JSON.stringify(
         env.VITE_REWARDS_WEBVIEW_ORIGIN ?? process.env.VITE_REWARDS_WEBVIEW_ORIGIN ?? "",
       ),
-      // E2E store bridge 只能由 WDIO 专用变量打开，避免把 ZCODE_ENV=test 产品环境误当成测试运行态。
-      "import.meta.env.VITE_ZCODE_E2E_STORE_BRIDGE": JSON.stringify(
+      // E2E store bridge 只能由 WDIO 专用变量打开，避免把 AIBUDDY_ENV=test 产品环境误当成测试运行态。
+      "import.meta.env.VITE_AIBUDDY_E2E_STORE_BRIDGE": JSON.stringify(
         e2eStoreBridgeEnabled ? "1" : "",
       ),
     },

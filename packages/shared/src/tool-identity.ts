@@ -1,4 +1,4 @@
-export const ZCODE_KNOWN_TOOL_NAMES = [
+export const AIBUDDY_KNOWN_TOOL_NAMES = [
   "Read",
   "Write",
   "Edit",
@@ -36,9 +36,9 @@ export const ZCODE_KNOWN_TOOL_NAMES = [
   "submit_result",
 ] as const;
 
-export type ZCodeKnownToolName = (typeof ZCODE_KNOWN_TOOL_NAMES)[number];
+export type AIbuddyKnownToolName = (typeof AIBUDDY_KNOWN_TOOL_NAMES)[number];
 
-export type ZCodeToolFamily =
+export type AIbuddyToolFamily =
   | "file-read"
   | "file-write"
   | "shell"
@@ -54,7 +54,7 @@ export type ZCodeToolFamily =
   | "node-repl"
   | "workflow";
 
-const TOOL_FAMILY_BY_NAME: Record<ZCodeKnownToolName, ZCodeToolFamily> = {
+const TOOL_FAMILY_BY_NAME: Record<AIbuddyKnownToolName, AIbuddyToolFamily> = {
   Read: "file-read",
   Write: "file-write",
   Edit: "file-write",
@@ -91,13 +91,13 @@ const TOOL_FAMILY_BY_NAME: Record<ZCodeKnownToolName, ZCodeToolFamily> = {
   submit_result: "workflow",
 };
 
-const TOOL_NAME_BY_LOWER = new Map<string, ZCodeKnownToolName>(
-  ZCODE_KNOWN_TOOL_NAMES.map((toolName) => [toolName.toLowerCase(), toolName]),
+const TOOL_NAME_BY_LOWER = new Map<string, AIbuddyKnownToolName>(
+  AIBUDDY_KNOWN_TOOL_NAMES.map((toolName) => [toolName.toLowerCase(), toolName]),
 );
 
-export function normalizeZCodeToolName(
+export function normalizeAIbuddyToolName(
   value: string | null | undefined,
-): ZCodeKnownToolName | null {
+): AIbuddyKnownToolName | null {
   const normalized = value?.trim();
   if (!normalized) {
     return null;
@@ -106,20 +106,20 @@ export function normalizeZCodeToolName(
   return TOOL_NAME_BY_LOWER.get(normalized.toLowerCase()) ?? null;
 }
 
-export function getZCodeToolFamilyForName(
+export function getAIbuddyToolFamilyForName(
   value: string | null | undefined,
-): ZCodeToolFamily | null {
-  const toolName = normalizeZCodeToolName(value);
+): AIbuddyToolFamily | null {
+  const toolName = normalizeAIbuddyToolName(value);
   return toolName ? TOOL_FAMILY_BY_NAME[toolName] : null;
 }
 
-export function isZCodeToolFamily(
+export function isAIbuddyToolFamily(
   value: string | null | undefined,
-  family: ZCodeToolFamily,
+  family: AIbuddyToolFamily,
 ): boolean {
-  return getZCodeToolFamilyForName(value) === family;
+  return getAIbuddyToolFamilyForName(value) === family;
 }
 
-export function isZCodeFileContentWriteToolName(value: string | null | undefined): boolean {
-  return normalizeZCodeToolName(value) === "Write";
+export function isAIbuddyFileContentWriteToolName(value: string | null | undefined): boolean {
+  return normalizeAIbuddyToolName(value) === "Write";
 }

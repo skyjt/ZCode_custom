@@ -6,34 +6,34 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { pdfJsCMapsPlugin } from "../ui/vite/pdfJsCMapsPlugin.js";
 import { thirdPartyNoticesVitePlugin } from "../../scripts/third-party-notices.mjs";
-// Vite 配置在 Node 加载期执行，不能导入 @zcode/shared 根入口。
+// Vite 配置在 Node 加载期执行，不能导入 @aibuddy/shared 根入口。
 // 根入口包含 NodeNext 风格的源码 re-export，Node 会按真实文件查找 .js 并在 bootstrap 阶段失败。
 import {
-  resolveRuntimeZCodeEndpointOrigin,
+  resolveRuntimeAIbuddyEndpointOrigin,
   pickProductEndpointEnv,
   resolveZaiOAuthClientId,
   resolveZaiOAuthOrigin,
-} from "@zcode/shared/zcodeEndpoint";
+} from "@aibuddy/shared/aibuddyEndpoint";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = resolve(HERE, "../..");
 const { version } = JSON.parse(readFileSync(resolve(REPO_ROOT, "package.json"), "utf-8"));
 
-function resolveZCodeEnv(value: string | undefined): "test" | "production" {
+function resolveAIbuddyEnv(value: string | undefined): "test" | "production" {
   return value?.trim().toLowerCase() === "production" ? "production" : "test";
 }
 
 export default defineConfig(({ mode }) => {
-  // `.env*` 只提供链接常量；当前产品环境由启动脚本或 CI 注入 ZCODE_ENV。
+  // `.env*` 只提供链接常量；当前产品环境由启动脚本或 CI 注入 AIBUDDY_ENV。
   // 启动脚本通过 process.env 显式选择 test/production；它必须优先于 .env 文件，
   // 否则 share:test 可能被 mode 的旧配置误解析到错误 endpoint。
   const env = { ...loadEnv(mode, REPO_ROOT, ""), ...process.env };
-  const zcodeEnv = resolveZCodeEnv(env.ZCODE_ENV);
+  const aibuddyEnv = resolveAIbuddyEnv(env.AIBUDDY_ENV);
   const endpointEnv = {
     ...env,
-    ZCODE_ENV: zcodeEnv,
+    AIBUDDY_ENV: aibuddyEnv,
   };
-  const zcodeEndpointOrigin = resolveRuntimeZCodeEndpointOrigin(endpointEnv);
+  const aibuddyEndpointOrigin = resolveRuntimeAIbuddyEndpointOrigin(endpointEnv);
   const zaiOAuthOrigin = resolveZaiOAuthOrigin(endpointEnv);
   // ZAI OAuth client_id 是公开标识，允许注入浏览器包；secret/token 不得走 VITE_。
   const zaiOAuthClientId = resolveZaiOAuthClientId(endpointEnv);
@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
         // Web 登录本地调试时，OAuth token 交换必须先命中线上同源接口。
         // 该专用代理放在 `/api` 通配代理之前，避免被转发到本地 server 导致 404。
         "/api/v1/oauth/token": {
-          target: zcodeEndpointOrigin,
+          target: aibuddyEndpointOrigin,
           changeOrigin: true,
           secure: true,
         },
@@ -82,13 +82,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      __ZCODE_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
-      __ZCODE_VERSION__: JSON.stringify(version),
-      __ZCODE_COMMIT__: JSON.stringify(env.ZCODE_COMMIT || "unknown"),
-      __ZCODE_ENV__: JSON.stringify(zcodeEnv),
-      "import.meta.env.VITE_ZCODE_BASE_URL": JSON.stringify(zcodeEndpointOrigin),
-      // 兼容旧 Web runtime 读取名；新代码统一读 VITE_ZCODE_BASE_URL。
-      "import.meta.env.VITE_ZCODE_ENDPOINT_ORIGIN": JSON.stringify(zcodeEndpointOrigin),
+      __AIBUDDY_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
+      __AIBUDDY_VERSION__: JSON.stringify(version),
+      __AIBUDDY_COMMIT__: JSON.stringify(env.AIBUDDY_COMMIT || "unknown"),
+      __AIBUDDY_ENV__: JSON.stringify(aibuddyEnv),
+      "import.meta.env.VITE_AIBUDDY_BASE_URL": JSON.stringify(aibuddyEndpointOrigin),
+      // 兼容旧 Web runtime 读取名；新代码统一读 VITE_AIBUDDY_BASE_URL。
+      "import.meta.env.VITE_AIBUDDY_ENDPOINT_ORIGIN": JSON.stringify(aibuddyEndpointOrigin),
       // 明确注入 OAuth 公开配置，避免 Web 端在不同 mode 下隐式依赖源码 fallback。
       "import.meta.env.VITE_ZAI_OAUTH_CLIENT_ID": JSON.stringify(zaiOAuthClientId),
       "import.meta.env.VITE_ZAI_OAUTH_ORIGIN": JSON.stringify(zaiOAuthOrigin),

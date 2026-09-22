@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { atomicWritePrivateTextFile, backupCorruptFile, withFileLock } from "@zcode/shared/node";
+import { atomicWritePrivateTextFile, backupCorruptFile, withFileLock } from "@aibuddy/shared/node";
 import {
   credentialKeySchema,
   credentialRecordSchema,
   credentialValueSchema,
   formatZodError,
-} from "@zcode/shared";
+  isRetiredProductCredentialKey,
+} from "@aibuddy/shared";
 import type { ICredentialService } from "./credential.js";
 import {
   createCredentialCipherProvider,
@@ -48,7 +49,7 @@ async function readAll(credentialsFile = getCredentialsFile()): Promise<Record<s
     if (getErrorCode(error) === "ENOENT") {
       return {};
     }
-    throw new Error(`Unable to read ZCode credentials: ${credentialsFile}`, { cause: error });
+    throw new Error(`Unable to read AIbuddy credentials: ${credentialsFile}`, { cause: error });
   }
 
   try {
@@ -68,7 +69,7 @@ async function readAll(credentialsFile = getCredentialsFile()): Promise<Record<s
       backupPath,
       credentialsFile,
     });
-    throw new Error(`ZCode credentials are corrupt: ${credentialsFile}`, { cause: error });
+    throw new Error(`AIbuddy credentials are corrupt: ${credentialsFile}`, { cause: error });
   }
 }
 
@@ -92,6 +93,7 @@ export function createCredentialService(
   return {
     async load(key: string): Promise<string | null> {
       const validatedKey = credentialKeySchema.parse(key);
+      if (isRetiredProductCredentialKey(validatedKey)) return null;
       const creds = await readAll();
       const rawValue = creds[validatedKey];
       if (rawValue === undefined) {
@@ -103,6 +105,9 @@ export function createCredentialService(
 
     async save(key: string, value: string): Promise<void> {
       const validatedKey = credentialKeySchema.parse(key);
+      if (isRetiredProductCredentialKey(validatedKey)) {
+        throw new Error("Product login has been removed. Configure an API provider instead.");
+      }
       const validatedValue = credentialValueSchema.parse(value);
       const encryptedValue = cipherProvider.encrypt(validatedValue);
       const credentialsFile = getCredentialsFile();

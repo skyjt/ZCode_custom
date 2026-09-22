@@ -1,9 +1,9 @@
-import type { IDisposable } from "@zcode/rpc";
+import type { IDisposable } from "@aibuddy/rpc";
 import {
   createMemoryDiagnosticsRegistry,
   type MemoryDiagnosticsProvider,
   type MemoryDiagnosticsRegistry,
-} from "@zcode/shared";
+} from "@aibuddy/shared";
 
 /**
  * services 进程级内存诊断计数器注册表。

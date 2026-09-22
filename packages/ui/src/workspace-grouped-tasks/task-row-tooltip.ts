@@ -1,7 +1,7 @@
-import type { ZCodeTaskChangeSummary } from "@zcode/shared";
+import type { AIbuddyTaskChangeSummary } from "@aibuddy/shared";
 
 export function formatGroupedTaskHoverChangeParts(
-  summary: ZCodeTaskChangeSummary | null,
+  summary: AIbuddyTaskChangeSummary | null,
 ): string[] {
   if (!summary) {
     return [];

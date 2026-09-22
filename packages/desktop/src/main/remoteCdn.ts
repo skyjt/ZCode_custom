@@ -1,10 +1,9 @@
-import { ZCODE_VERSION, type ZCodeEnv } from "@zcode/shared";
+import { AIBUDDY_VERSION, type AIbuddyEnv } from "@aibuddy/shared";
 
-declare const __ZCODE_CDN_BASE_URL__: string | undefined;
-const DEFAULT_CDN_BASE_URL = "https://cdn-zcode.z.ai";
+declare const __AIBUDDY_CDN_BASE_URL__: string | undefined;
 
 export interface ResolveRemoteCdnOptions {
-  env?: ZCodeEnv;
+  env?: AIbuddyEnv;
   locale?: string;
   timeZone?: string;
   overrideBaseUrl?: string;
@@ -23,10 +22,11 @@ export function resolveRemoteCdnBaseUrls(options: ResolveRemoteCdnOptions = {}):
   const override = options.overrideBaseUrl?.trim();
   if (override) return [normalizeBaseUrl(override)];
   const baseUrl =
-    process.env.ZCODE_CDN_BASE_URL?.trim() ||
-    (typeof __ZCODE_CDN_BASE_URL__ === "undefined" ? "" : __ZCODE_CDN_BASE_URL__) ||
-    DEFAULT_CDN_BASE_URL;
+    process.env.AIBUDDY_CDN_BASE_URL?.trim() ||
+    (typeof __AIBUDDY_CDN_BASE_URL__ === "undefined" ? "" : __AIBUDDY_CDN_BASE_URL__);
+  // 上游发布包使用旧内部协议；没有 AIbuddy 分发源时仅使用本地随包资源。
+  if (!baseUrl) return [];
   return [
-    `${normalizeBaseUrl(baseUrl)}/zcode/electron/releases/${options.version ?? ZCODE_VERSION}`,
+    `${normalizeBaseUrl(baseUrl)}/aibuddy/electron/releases/${options.version ?? AIBUDDY_VERSION}`,
   ];
 }
