@@ -10,6 +10,7 @@
 - afterPack 完成 ASAR 重打包后负责恢复 macOS node-pty `spawn-helper` 的执行权限；ASAR 解包不保留 unpacked 文件的可执行位，必须在最终产物上修复。成包终端测试必须执行真实 shell 并收到输出。
 - Debian 包声明 glibc 2.28 及桌面运行依赖。检查最终 deb（包括 app.asar 解包内容）内每个 ELF 的架构和所需 GLIBC、GLIBCXX、CXXABI 版本；不能仅检查 deb 的 Depends。
 - 两种 deb 均放入对应架构的 Debian 10 Buster 容器安装，在 Xvfb 下启动真实成包应用，并验证首页、node:sqlite 及 node-pty。macOS/Windows 也启动各自成包应用验证相同基础能力。
+- Buster 容器同时使用 Debian 主归档和 security 的 `buster/updates` 归档，保留基础镜像中安全更新库的配套依赖，避免仅配置主归档时 GTK 依赖无法解析。
 - 所有测试使用临时用户数据目录，不读取开发者现有 AIbuddy/ZCode 配置。CI 不需要真实 API Key，不验证真实模型服务。
 - 每个平台上传安装包、SHA-256 清单与测试证据。只有五个平台全部成功，且手动输入 `publish=true`，才允许创建同一 commit 的注释标签及普通 Latest Release。
 - Debian 打包器的 x64 文件名使用 `amd64`；收集阶段将其统一为发布文件名中的 `x64`，不修改包内的 Debian `Architecture: amd64`。

@@ -2,7 +2,10 @@
 set -euo pipefail
 
 # Buster 已归档；从 Debian 官方归档安装真实系统依赖，在容器内验证成包。
-printf '%s\n' 'deb http://archive.debian.org/debian buster main' > /etc/apt/sources.list
+# 基础镜像已含安全更新；只配置主归档会让 amd64 的 GTK 依赖版本无法配套安装。
+printf '%s\n' \
+  'deb http://archive.debian.org/debian buster main' \
+  'deb http://archive.debian.org/debian-security buster/updates main' > /etc/apt/sources.list
 apt-get -o Acquire::Check-Valid-Until=false update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   /artifacts/*.deb xvfb xauth fonts-noto-cjk ca-certificates
