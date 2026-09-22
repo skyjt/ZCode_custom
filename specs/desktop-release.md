@@ -5,6 +5,7 @@
 - 将当前 AIbuddy 改名、API 接入及新图标发布为 `3.15.0`。应用版本唯一来源是根 `package.json`；CLI 独立版本不随桌面版本修改。
 - GitHub Actions 手动触发五个原生 runner：Linux x64/arm64、Windows x64、macOS x64/arm64。产物分别为两份 `.deb`、一份 NSIS `.exe`、两份 `.dmg`。
 - 复用现有 runtime 准备、生产构建及 electron-builder 配置。每个阶段只运行一次；远端运行时按现有 `AIBUDDY_SKIP_REMOTE_ASSETS=1` 跳过，桌面内置 Agent、插件与搜索工具完整打包。
+- 先准备本地 runtime、生成 CLI workspace 包的 dist，再执行品牌及 API 回归检查；全新 checkout 不得依赖开发机已有构建缓存。
 - 安装依赖时禁用自动生命周期脚本；显式安装 Electron，使用仓库已提供的 N-API prebuild。Linux node-pty 仍由既有 beforePack 恢复。这避免宿主 Ubuntu 的临时原生编译物进入 Debian 10 包；所需原生绑定必须通过成包测试。
 - afterPack 完成 ASAR 重打包后负责恢复 macOS node-pty `spawn-helper` 的执行权限；ASAR 解包不保留 unpacked 文件的可执行位，必须在最终产物上修复。成包终端测试必须执行真实 shell 并收到输出。
 - Debian 包声明 glibc 2.28 及桌面运行依赖。检查最终 deb（包括 app.asar 解包内容）内每个 ELF 的架构和所需 GLIBC、GLIBCXX、CXXABI 版本；不能仅检查 deb 的 Depends。
@@ -20,7 +21,8 @@
 
 ```mermaid
 flowchart LR
-  C[固定 Git commit / 版本] --> Q[类型 / lint / 架构 / 回归检查]
+  C[固定 Git commit / 版本] --> P[准备本地 runtime / CLI 产物]
+  P --> Q[类型 / lint / 架构 / 回归检查]
   Q --> B[五个平台原生构建]
   B --> V[成包启动与终端检查]
   V --> L[Linux 额外 Debian 10 / ELF 检查]

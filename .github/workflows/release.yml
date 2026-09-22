@@ -57,6 +57,8 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
           node node_modules/electron/install.js
+      - name: Prepare local runtime
+        run: pnpm --filter @aibuddy/desktop prepare:runtime-assets
       - name: Check source
         if: matrix.platform == 'linux' && matrix.arch == 'x64'
         run: |
@@ -65,8 +67,6 @@ jobs:
           pnpm check:branding
           node --test scripts/release/release.test.mjs
           node --import tsx --test packages/services/test/apiOnly.test.ts
-      - name: Prepare local runtime
-        run: pnpm --filter @aibuddy/desktop prepare:runtime-assets
       - name: Build desktop
         run: pnpm --filter @aibuddy/desktop build:no-runtime-assets
       - name: Package

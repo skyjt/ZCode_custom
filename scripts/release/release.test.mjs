@@ -20,4 +20,7 @@ test("release workflow covers the five requested targets and gates publication",
   assert.equal(workflow.jobs.publish.needs, "build");
   assert.equal(workflow.jobs.publish.if, "inputs.publish");
   assert.equal(workflow.on.workflow_dispatch.inputs.publish.default, false);
+  const steps = workflow.jobs.build.steps.map((step) => step.name);
+  const prepareIndex = steps.indexOf("Prepare local runtime");
+  assert.ok(prepareIndex >= 0 && prepareIndex < steps.indexOf("Check source"));
 });
