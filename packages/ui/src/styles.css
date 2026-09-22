@@ -154,7 +154,6 @@ body {
   /* iOS Safari 会缩放小于 16px 的聚焦输入；该平台下限不能跟随界面字号降低。 */
   --text-mobile-input-safe: 16px;
   --animated-gradient-text-strong: rgba(10, 10, 10, 1);
-  --animated-gradient-text-soft: rgba(10, 10, 10, 0.22);
   --color-background: var(--color-neutral-50);
   --color-background-alt: color-mix(in oklab, var(--color-neutral-100) 60%, transparent);
   --color-background-win-alt: var(--color-neutral-200);
@@ -307,7 +306,6 @@ body {
 
 .dark {
   --animated-gradient-text-strong: rgba(255, 255, 255, 1);
-  --animated-gradient-text-soft: rgba(255, 255, 255, 0.2);
   --color-background: var(--color-neutral-900);
   --color-background-alt: color-mix(in oklab, var(--color-neutral-800) 60%, transparent);
   --color-background-win-alt: var(--color-neutral-800);
@@ -460,7 +458,6 @@ body {
 
 .theme-zai-light {
   --animated-gradient-text-strong: rgba(13, 13, 13, 1);
-  --animated-gradient-text-soft: rgba(13, 13, 13, 0.22);
   --color-background: #f8f8f8;
   --color-background-win-alt: #ececee;
   --color-background-alt: color-mix(in oklab, var(--color-background) 70%, transparent);
@@ -605,7 +602,6 @@ body {
 
 .theme-zai-dark {
   --animated-gradient-text-strong: rgba(255, 255, 255, 1);
-  --animated-gradient-text-soft: rgba(255, 255, 255, 0.22);
   --color-background: #161616;
   --color-background-win-alt: #2b2b2b;
   --color-background-alt: color-mix(in oklab, var(--color-background-win-alt) 60%, transparent);
@@ -820,80 +816,15 @@ body {
     background-color: #484a58;
   }
 
-  .animated-gradient-text {
+  /* 状态已由文案表达；持续移动背景会反复重绘文字，低配置设备改为静态颜色。 */
+  .animated-gradient-text,
+  .cua-group-gradient-text {
     display: inline-block;
-    background: linear-gradient(
-      90deg,
-      var(--animated-gradient-text-strong) 0%,
-      var(--animated-gradient-text-strong) 34%,
-      var(--animated-gradient-text-soft) 50%,
-      var(--animated-gradient-text-strong) 66%,
-      var(--animated-gradient-text-strong) 100%
-    );
-    background-size: 300% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    animation: gradient-flow 4s linear infinite;
-    will-change: background-position;
-    transform: translateZ(0);
-    backface-visibility: hidden;
+    color: var(--animated-gradient-text-strong);
   }
 
   .animated-gradient-text-subtle {
     --animated-gradient-text-strong: var(--color-foreground-subtle);
-  }
-
-  .cua-group-gradient-text {
-    display: inline-block;
-    background: linear-gradient(
-      90deg,
-      var(--animated-gradient-text-strong) 0%,
-      var(--animated-gradient-text-soft) 40%,
-      var(--animated-gradient-text-soft) 60%,
-      var(--animated-gradient-text-strong) 100%
-    );
-    background-size: 200% 100%;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    animation: cua-group-gradient-flow 1s linear infinite;
-    animation-delay: 0.5s;
-    will-change: background-position;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
-
-  @keyframes cua-group-gradient-flow {
-    0% {
-      background-position: 100% 0;
-    }
-
-    100% {
-      background-position: -100% 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .cua-group-gradient-text {
-      animation: none;
-    }
-  }
-
-  @keyframes gradient-flow {
-    0% {
-      background-position: 100% 0;
-    }
-
-    50% {
-      background-position: 0% 0;
-    }
-
-    100% {
-      background-position: 0% 0;
-    }
   }
 }
 
@@ -1146,8 +1077,8 @@ body {
 }
 
 .aibuddy-task-interaction-countdown-fill {
-  animation: aibuddy-task-interaction-countdown var(--aibuddy-interaction-remaining-ms, 240000ms) linear
-    forwards;
+  animation: aibuddy-task-interaction-countdown var(--aibuddy-interaction-remaining-ms, 240000ms)
+    linear forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1672,8 +1603,8 @@ body {
 /* 工作区 transcript：
  * 条目依次到场（wf-arrive + 每张错 24 ms，封顶 360 ms）；章头的横线从左长出；命令输出的尾巴
  * 与展开面板从上方落下；落点那个条目到位后底色亮一下再退回（一次，不是常驻的焦点带）；
- * 运行中的动词扫光；状态词换值时旧词退场新词进场（wf-swap）。全部只动 opacity / transform /
- * background-color；reduced-motion 下到场、落点与扫光都归零。
+ * 运行中的动词保持静态颜色；状态词换值时旧词退场新词进场（wf-swap）。全部只动 opacity / transform /
+ * background-color；reduced-motion 下到场与落点动画归零。
  */
 .wf-ws-entry {
   transition: background-color var(--wf-t-base) var(--wf-ease);
@@ -1718,17 +1649,7 @@ body {
   animation: wf-rail-grow var(--wf-t-ink) var(--wf-ease);
 }
 .wf-ws-shine {
-  color: transparent;
-  background: linear-gradient(
-    90deg,
-    var(--color-foreground-subtle) 0%,
-    var(--color-foreground) 40%,
-    var(--color-foreground-subtle) 80%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: wf-ws-shine 2.4s linear infinite;
+  color: var(--color-foreground-subtle);
 }
 @keyframes wf-ws-land {
   0% {
@@ -1741,22 +1662,12 @@ body {
     background-color: transparent;
   }
 }
-@keyframes wf-ws-shine {
-  to {
-    background-position: 200% 0;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .wf-ws-landed,
   .wf-ws-body,
   .wf-ws-peek,
   .wf-ws-rule {
     animation: none;
-  }
-  .wf-ws-shine {
-    animation: none;
-    color: var(--color-foreground-subtle);
-    background: none;
   }
 }
 /* 瓦片脸：身份色不随表情改变，动作只作用于眼睛，机身始终静止。 */

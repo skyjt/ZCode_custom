@@ -1,6 +1,7 @@
 "use client";
 
-import { createMermaidPlugin, type MermaidConfig } from "@streamdown/mermaid";
+import type { MermaidConfig } from "@streamdown/mermaid";
+import { mermaid as mermaidPlugin } from "@/lib/lazyMermaid.js";
 import { Loader2Icon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -33,7 +34,6 @@ export interface MermaidBlockProps extends HTMLAttributes<HTMLDivElement> {
   onPreviewSvgChange?: (svg: string | null) => void;
 }
 
-const mermaidPlugin = createMermaidPlugin();
 let mermaidRenderQueue = Promise.resolve();
 const MERMAID_COLOR_CANVAS_SENTINEL = "#010203";
 

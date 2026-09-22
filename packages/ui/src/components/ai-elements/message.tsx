@@ -12,7 +12,7 @@ import { cn } from "../lib/utils.js";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
+import { mermaid } from "@/lib/lazyMermaid.js";
 import type { EditorInfo, FileStat, OpenInEditorOptions } from "@aibuddy/shared";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
