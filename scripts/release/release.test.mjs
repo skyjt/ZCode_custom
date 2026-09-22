@@ -1,8 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
 import { parse } from "yaml";
 import { findAbiViolations } from "./verify-linux.mjs";
+
+test("collector normalizes Debian amd64 filenames and hashes the exact installer", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "aibuddy-release-collect-"));
+  const bytes = Buffer.alloc(1_000_001, "a");
+  try {
+    await mkdir(join(cwd, "packages/desktop/dist"), { recursive: true });
+    await writeFile(join(cwd, "package.json"), JSON.stringify({ version: "1.2.3" }));
+    await writeFile(join(cwd, "packages/desktop/dist/AIbuddy-1.2.3-linux-amd64.deb"), bytes);
+    await promisify(execFile)(
+      process.execPath,
+      [resolve("scripts/release/collect-artifacts.mjs"), "linux", "x64"],
+      { cwd },
+    );
+    assert.deepEqual(await readFile(join(cwd, "release/AIbuddy-1.2.3-linux-x64.deb")), bytes);
+    assert.equal(
+      await readFile(join(cwd, "release/checksums-linux-x64.txt"), "utf8"),
+      `${createHash("sha256").update(bytes).digest("hex")}  AIbuddy-1.2.3-linux-x64.deb\n`,
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
 
 test("Debian 10 gate handles numeric versions and loader requirements", () => {
   assert.deepEqual(findAbiViolations("GLIBC_2.9 GLIBC_2.28 GLIBCXX_3.4.25 CXXABI_1.3.11"), []);

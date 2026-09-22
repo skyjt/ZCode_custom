@@ -12,6 +12,7 @@
 - 两种 deb 均放入对应架构的 Debian 10 Buster 容器安装，在 Xvfb 下启动真实成包应用，并验证首页、node:sqlite 及 node-pty。macOS/Windows 也启动各自成包应用验证相同基础能力。
 - 所有测试使用临时用户数据目录，不读取开发者现有 AIbuddy/ZCode 配置。CI 不需要真实 API Key，不验证真实模型服务。
 - 每个平台上传安装包、SHA-256 清单与测试证据。只有五个平台全部成功，且手动输入 `publish=true`，才允许创建同一 commit 的注释标签及普通 Latest Release。
+- Debian 打包器的 x64 文件名使用 `amd64`；收集阶段将其统一为发布文件名中的 `x64`，不修改包内的 Debian `Architecture: amd64`。
 - 先创建草稿 Release、上传并核对完整的五份安装包与校验清单，再公开；失败保留日志和草稿。重试可复用同一 commit 的标签，不得移动已存在且指向不同 commit 的标签。
 - 当前无发布签名证书；Windows/macOS 产物不声明已获得开发者签名或 Apple 公证。Release 说明公开这一状态。
 

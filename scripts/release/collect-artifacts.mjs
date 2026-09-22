@@ -10,7 +10,12 @@ assert.ok(Object.hasOwn(extensions, platform));
 assert.ok(["x64", "arm64"].includes(arch));
 const { version } = JSON.parse(await readFile("package.json", "utf8"));
 const name = `AIbuddy-${version}-${platform}-${arch}.${extensions[platform]}`;
-const source = resolve("packages/desktop/dist", name);
+// deb target 使用 Debian 的 amd64 命名；对外发布仍统一为 x64，避免收集阶段找不到成包。
+const sourceArch = platform === "linux" && arch === "x64" ? "amd64" : arch;
+const source = resolve(
+  "packages/desktop/dist",
+  `AIbuddy-${version}-${platform}-${sourceArch}.${extensions[platform]}`,
+);
 assert.ok((await stat(source)).size > 1_000_000, "Installer is unexpectedly small");
 await mkdir("release", { recursive: true });
 await copyFile(source, resolve("release", name));
