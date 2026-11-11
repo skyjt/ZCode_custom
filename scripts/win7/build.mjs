@@ -149,6 +149,10 @@ async function build() {
       join(root, "scripts/win7/bootstrap.mjs"),
       join(root, "packages/desktop/out/win7-bootstrap.mjs"),
     );
+    await copyFile(
+      join(root, "scripts/win7/win7-environment.mjs"),
+      join(root, "packages/desktop/out/win7-environment.mjs"),
+    );
     runCommand(
       "pnpm",
       [

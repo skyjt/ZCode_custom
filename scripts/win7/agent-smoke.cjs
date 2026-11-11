@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { mkdtemp, rm } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
-const { join, resolve, relative } = require("node:path");
+const { join, resolve } = require("node:path");
 const { createInterface } = require("node:readline");
 
 const app = resolve(process.argv[2]);
@@ -13,6 +13,9 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
 
 (async () => {
   const folder = await mkdtemp(join(tmpdir(), "zcode-win7-agent-"));
+  const { configureWin7Environment } = await import("./win7-environment.mjs");
+  const env = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
+  configureWin7Environment(env, folder);
   let runtime;
   let lines;
   let timer;
@@ -21,7 +24,7 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
       command: join(app, "ZCode Win7 Experimental.exe"),
       args: [join(app, "resources/glm/zcode.cjs"), "app-server", "--stdio", "--prepare-storage"],
       cwd: folder,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", ZCODE_DATA_BASE_DIR: folder },
+      env,
       signal: new AbortController().signal,
     });
     runtime.child.stderr.on("data", (data) => process.stderr.write(data));
@@ -35,8 +38,7 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
         try {
           const message = JSON.parse(line);
           if (message.method === "startup/storagePath") {
-            const path = relative(folder, message.params.path);
-            assert.ok(path && !path.startsWith("..") && !require("node:path").isAbsolute(path));
+            assert.equal(resolve(message.params.path), env.ZCODE_SESSION_DB_PATH);
             observed = true;
             runtime.child.stdin.write(
               JSON.stringify({ method: "startup/storagePathReady" }) + "\n",

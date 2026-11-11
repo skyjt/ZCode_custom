@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
+import { join } from "node:path";
 import { verifyRuntimeArchive, win7BuildEnv } from "../win7/build.mjs";
+import { configureWin7Environment } from "../win7/win7-environment.mjs";
+
+test("Win7 isolates Agent databases without redirecting Git or SSH home", () => {
+  const env = {
+    HOME: "/real-home",
+    USERPROFILE: "/real-home",
+    ZCODE_SESSION_DB: "/formal.db",
+    ZCODE_SESSION_DB_PATH: "/formal-other.db",
+  };
+  const home = configureWin7Environment(env, "/test-home");
+  assert.equal(env.HOME, "/real-home");
+  assert.equal(env.USERPROFILE, "/real-home");
+  assert.equal(env.ZCODE_SESSION_DB, undefined);
+  assert.equal(env.ZCODE_SESSION_DB_PATH, join(home, ".zcode/cli/db/db.sqlite"));
+  assert.equal(env.ZCODE_STORAGE_DIR, join(home, ".zcode"));
+  assert.equal(env.ZCODE_DATA_BASE_DIR, home);
+});
 
 test("Win7 runtime rejects modified archives and cannot enable modern auto-update", () => {
   const bytes = Buffer.from("pinned source archive");

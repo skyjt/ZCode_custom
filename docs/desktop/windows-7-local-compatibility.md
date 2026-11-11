@@ -23,13 +23,15 @@
 ## 产品规则与范围
 
 1. 独立名称 `ZCode Win7 Experimental`、appId、安装目录与 Electron userData。默认业务目录为 `%USERPROFILE%/.zcode-win7-home/.zcode`，不导入正式版数据库。
-2. 复用既有 `ZCODE_DESKTOP_HOME_DIR` / `ZCODE_DATA_BASE_DIR` 隔离机制；早期设置读取、默认工作区与设置服务必须使用同一隔离 home。保留操作系统 HOME/USERPROFILE，Git、SSH 等用户工具仍使用真实用户目录。
+2. 复用既有 `ZCODE_DESKTOP_HOME_DIR` / `ZCODE_DATA_BASE_DIR` 隔离机制；早期设置读取、默认工作区与设置服务必须使用同一隔离 home。CLI 的默认数据库和 storage.dir 不读取 DATA_BASE_DIR，入口必须同时设置已有的 `ZCODE_SESSION_DB_PATH` / `ZCODE_STORAGE_DIR`，清除旧别名 `ZCODE_SESSION_DB`，避免写正式版会话库。入口与 Agent smoke 共用同一环境构造，验收路径必须等于指定临时数据库。
 3. 编译期关闭自动更新；不发布到现代版更新源。产物是未签名试验 NSIS 安装器与 zip；每次手动测试升级，卸载不删除项目或业务数据。
 4. 核心目标：打开工作区、文件编辑/搜索、模型对话/流式输出、工具审批/取消、本地终端、基本 Git、历史重启恢复。Windows 7 的 Git/外部 MCP/外部 shell 需由用户安装其兼容版本，包内 Agent 不依赖系统 Node。
 5. 当前 `packages/zcode-cua` 明确为占位包，不恢复已删除的 Computer Use 实现。复杂浏览器预览和其他扩展只按实测声明支持。
 6. 不关闭 TLS 校验、Chromium sandbox、权限检查或凭据保护来换取启动成功。
 
 沿用原有 `zcode://` OAuth/工作区 deep link。与现有 Preview 一样，最后启动/注册的版本会成为该链接的处理器；数据目录和安装身份独立，但 deep link 并非独立通道。
+
+保留操作系统 HOME/USERPROFILE，Git、SSH 等用户工具使用真实用户目录。因此用户级 `.zcode/AGENTS.md` 和 CLI `config.json`（MCP/插件等）仍按原规则共享；不要把试验版当作完全隔离的用户账户。试验版数据库、应用设置和凭据文件使用独立目录。
 
 ## 状态与平台边界
 
