@@ -106,7 +106,7 @@ sequenceDiagram
 | OFF-04 | PDF/CSV/JSON/ZIP/SQLite | 随包库/标准库运行，PDF 写后可读取 |
 | OFF-05 | SSH/SFTP | 本地 fixture 服务真实协议验证 exec、文件往返，错误主机指纹失败 |
 | OFF-06 | 内置技能/Office 面板 | Agent 能列出离线技能；Office 技能进入离线分支；预览原产物可用 |
-| OFF-07 | 断公网启动及内网模型 | CI 隔离公网的启动检查；用户填内网 API 后对话/工具调用 |
+| OFF-07 | 断公网启动及内网模型 | CI 阻断成品出站，等初始化退出，经 API Key→跳过进入工作区 sidebar；不能只认初始化页面文字。用户填内网 API 后再验对话/工具调用 |
 | OFF-08 | Win7 安装和终端 | 用户真机安装、Python/Office、SSH/SFTP；保留诊断与退出码 |
 
 无需新增交互 E2E：复用原 UI；新增工程打包探针在最终产物上运行。覆盖矩阵如上；复杂 Office/本地模型列入决策待办，不作为已完成能力。构建信息、版本/摘要、许可和测试指南一起交付。实际验证结果记录在本节下方，现代 Windows CI 与 Win7 实测分开。

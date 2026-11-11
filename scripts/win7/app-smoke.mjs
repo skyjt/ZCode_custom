@@ -42,11 +42,12 @@ try {
   browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   const page = context.pages()[0] || (await context.waitForEvent("page", { timeout: 30000 }));
-  await page.waitForFunction(
-    () => (document.querySelector("#root")?.textContent?.trim().length || 0) > 10,
-    undefined,
-    { timeout: 60000 },
-  );
+  // 初始化页也有正文和 preload；必须走到真实工作区，不能把“正在初始化”当作启动成功。
+  await page.getByTestId("login-use-api-key-button").waitFor({ timeout: 90000 });
+  await page.getByTestId("login-use-api-key-button").click();
+  await page.getByTestId("login-api-key-skip-button").click();
+  await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 30000 });
+  assert.equal(await page.getByTestId("database-startup-status").count(), 0);
   assert.equal(await page.evaluate(() => typeof window.zcode), "object");
   await page.screenshot({ path: join(output, "startup.png") });
   await writeFile(
@@ -58,13 +59,13 @@ try {
         title: await page.title(),
         text: (await page.locator("body").innerText()).slice(0, 3000),
         scope:
-          "Windows Server 2022 packaged UI and preload; Win7 still requires real-machine acceptance",
+          "Windows Server 2022: initialization completes, API Key skip enters workspace while app outbound traffic is blocked; Win7 and intranet model remain untested",
       },
       null,
       2,
     ),
   );
-  console.log("PASS packaged app renders UI with preload bridge");
+  console.log("PASS packaged app enters workspace without cloud login, with preload bridge");
 } finally {
   if (browser) await browser.close();
   if (child.exitCode === null && child.pid) {

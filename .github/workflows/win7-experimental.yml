@@ -5,6 +5,9 @@ on:
     branches: [codex/win7-experimental]
 permissions:
   contents: read
+concurrency:
+  group: win7-experimental-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     if: github.repository != 'zai-org/ZCode'
