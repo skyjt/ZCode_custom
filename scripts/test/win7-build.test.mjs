@@ -1,13 +1,29 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
+import { runInNewContext } from "node:vm";
 import { spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { offlineRuntime, prepareOfflineTools } from "../win7/prepare-offline-tools.mjs";
 import { verifyRuntimeArchive, win7BuildEnv } from "../win7/build.mjs";
 import { configureWin7Environment, configureOfflineTools } from "../win7/win7-environment.mjs";
+import { patchPnpmInstallSource } from "../win7/patch-pnpm.mjs";
+
+test("CI pnpm fix passes only absolute destinations to hoisted copy workers", () => {
+  const source =
+    "const nonBuiltHoistedDeps = hoistedLocationsOfDep?.filter((hoistedLocation) => hoistedLocation !== currentHoistedLocation);\nnonBuiltHoistedDeps;";
+  const result = runInNewContext(patchPnpmInstallSource(source), {
+    path_1: { default: win32 },
+    opts: { lockfileDir: "C:\\repo" },
+    hoistedLocationsOfDep: ["node_modules\\esbuild", "node_modules\\vite\\node_modules\\esbuild"],
+    currentHoistedLocation: "node_modules\\esbuild",
+  });
+  assert.deepEqual(Array.from(result), ["C:\\repo\\node_modules\\vite\\node_modules\\esbuild"]);
+  assert.throws(() => patchPnpmInstallSource("unknown source"), /Unexpected pnpm/);
+  assert.throws(() => patchPnpmInstallSource(source + source), /Unexpected pnpm/);
+});
 
 test("offline staging rejects a tampered cached runtime before extracting or executing it", async () => {
   const root = await mkdtemp(join(tmpdir(), "offline-staging-"));

@@ -26,7 +26,15 @@ jobs:
         with:
           node-version: 24.14.0
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install pinned dependencies
+        shell: pwsh
+        env:
+          PNPM_MAX_WORKERS: "1"
+        run: |
+          node scripts/win7/patch-pnpm.mjs (Join-Path $env:PNPM_HOME '../pnpm/dist/pnpm.cjs')
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --ignore-scripts
+          exit $LASTEXITCODE
       - name: Engineering regression
         run: node --test scripts/test/win7-build.test.mjs scripts/test/windows-runtime-host-build.test.mjs
       - name: Native process ownership (modern and Win7 path)
