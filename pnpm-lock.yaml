@@ -32,6 +32,9 @@ patchedDependencies:
   '@radix-ui/react-menu@2.1.16':
     hash: 4b05eae73074149ac453ee047d9f48707df7d5c9ddedeab8d514f9b9fa097a6c
     path: patches/@radix-ui__react-menu@2.1.16.patch
+  node-pty@1.1.0:
+    hash: edc7b3fac0e50d8835d32c944bc3c904a78fde4ff43acfe8a0175373bb55c569
+    path: patches/node-pty@1.1.0.patch
   vitest@4.1.7:
     hash: 11fdb66aa985e1d77e68752deeb7c1130ae33c9a4e2968f23aae8adaf8bc9ba0
     path: patches/vitest@4.1.7.patch
@@ -1114,7 +1117,7 @@ importers:
         version: 1.4.0
       node-pty:
         specifier: ^1.0.0
-        version: 1.1.0
+        version: 1.1.0(patch_hash=edc7b3fac0e50d8835d32c944bc3c904a78fde4ff43acfe8a0175373bb55c569)
       pkijs:
         specifier: 3.4.3
         version: 3.4.3
@@ -1429,7 +1432,7 @@ importers:
         version: 1.4.0
       node-pty:
         specifier: ^1.0.0
-        version: 1.1.0
+        version: 1.1.0(patch_hash=edc7b3fac0e50d8835d32c944bc3c904a78fde4ff43acfe8a0175373bb55c569)
       proxy-from-env:
         specifier: ^1.1.0
         version: 1.1.0
@@ -1514,7 +1517,7 @@ importers:
         version: 1.4.0
       node-pty:
         specifier: ^1.0.0
-        version: 1.1.0
+        version: 1.1.0(patch_hash=edc7b3fac0e50d8835d32c944bc3c904a78fde4ff43acfe8a0175373bb55c569)
       smol-toml:
         specifier: ^1.6.1
         version: 1.6.1
@@ -22917,7 +22920,7 @@ snapshots:
 
   node-int64@0.4.0: {}
 
-  node-pty@1.1.0:
+  node-pty@1.1.0(patch_hash=edc7b3fac0e50d8835d32c944bc3c904a78fde4ff43acfe8a0175373bb55c569):
     dependencies:
       node-addon-api: 7.1.1
 

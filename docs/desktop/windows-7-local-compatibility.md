@@ -29,6 +29,8 @@
 5. 当前 `packages/zcode-cua` 明确为占位包，不恢复已删除的 Computer Use 实现。复杂浏览器预览和其他扩展只按实测声明支持。
 6. 不关闭 TLS 校验、Chromium sandbox、权限检查或凭据保护来换取启动成功。
 
+沿用原有 `zcode://` OAuth/工作区 deep link。与现有 Preview 一样，最后启动/注册的版本会成为该链接的处理器；数据目录和安装身份独立，但 deep link 并非独立通道。
+
 ## 状态与平台边界
 
 Main 仍负责窗口/转发，window-scoped Local Host 负责 owner/lease 与路由，CLI `CommandInbox` 负责串行 admission。`workspaceIdentity?.trim() || workspacePath`、remoteSessionId、stale run 防护不变。Desktop 连续流与手机 replayable 恢复语义不变；本次不修改协议、数据库 schema 或会话所有者。
@@ -36,6 +38,12 @@ Main 仍负责窗口/转发，window-scoped Local Host 负责 owner/lease 与路
 ### 终端
 
 复用 node-pty 1.1.0 自带 WinPTY 预构建。Windows build < 18309 选择 `useConpty:false,useConptyDll:false` 并向 xterm 返回 `winpty`；现代 Windows 保持现有 ConPTY 与 DLL 加载失败回退。未知 build 按 node-pty 的 WinPTY 下限策略处理。分界来自锁定版本 node-pty 的实现；系统 [ConPTY 从 Windows 10 1809 引入](https://learn.microsoft.com/en-us/windows/console/createpseudoconsole)。WinPTY 文件必须随包解压部署。
+
+CI 已复现 node-pty 1.1.0 的 WinPTY 在 shell 退出后未释放 ConoutConnection worker，所有检查输出 PASS 后 Node 进程仍不退出。对锁定依赖保留一个 pnpm patch：仅 WinPTY 输出 socket close 时调用已有的 connection.dispose，保持原有 drain/worker termination 实现；不强制 process.exit 掩盖泄漏。smoke 的外层进程超时是失败判据，必须自然退出才通过。
+
+### 搜索工具
+
+仓库的 ripgrep 14.1.1 Windows 预构建与该版本上游官方预构建均静态导入 `api-ms-win-core-synch-l1-2-0.dll` 的 `WaitOnAddress` / `WakeByAddress*` 和 `bcryptprimitives.dll` 的 `ProcessPrng`，不能在原生 Win7 加载（`llvm-objdump -p` 已确认）。试验构建使用 Rust 1.77.2、ripgrep 14.1.1 的发布 Cargo.lock、PCRE2 与静态 CRT，替换试验 staging 的 `rg.exe`；现代构建资产不变。包内 smoke 必须执行一次真实中文内容的 JSON 搜索。node-pty 的 WinPTY 组件与 ugrep 预构建未发现上述静态导入；这不替代真机加载测试。
 
 ### Agent 进程归属
 
@@ -76,6 +84,18 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 - 范围外：旧 Node/SQLite 驱动移植、UI 重写、新会话状态、已删除的内部服务、正式更新通道发布。
 
 ## Win7 真机验收清单（由用户执行）
+
+从本次 Actions 的 `ZCode-Win7-Experimental-x64` artifact 下载并解压，先安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
+
+若启动或终端失败，在应用安装/解压目录打开 `cmd.exe`，执行以下命令，将 `%TEMP%/zcode-win7-check.txt` 中的错误提供给维护者。诊断使用包内 Electron，无需另装 Node，也不会请求模型或读取凭据：
+
+```bat
+set ELECTRON_RUN_AS_NODE=1
+"ZCode Win7 Experimental.exe" "resources\win7\runtime-smoke.cjs" "resources\app.asar" > "%TEMP%\zcode-win7-check.txt" 2>&1
+set ELECTRON_RUN_AS_NODE=
+```
+
+默认应用日志位于 `%USERPROFILE%/.zcode-win7-home/.zcode/v2/logs`；只提供相关报错段，删除凭据、私有文件内容和内部地址。
 
 安装前记录 `winver`、CPU、显卡、系统补丁、VC 运行库、Git 与 shell 版本。使用虚构文件与测试模型；日志不能包含凭据。
 

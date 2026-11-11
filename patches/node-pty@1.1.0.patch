@@ -1,0 +1,30 @@
+diff --git a/lib/windowsPtyAgent.js b/lib/windowsPtyAgent.js
+index a358ffb177357e177661033c1b092f9c9d0e5f5a..61b1790413cfbb589c467ba4c2618dd9afe012c0 100644
+--- a/lib/windowsPtyAgent.js
++++ b/lib/windowsPtyAgent.js
+@@ -72,6 +72,10 @@ var WindowsPtyAgent = /** @class */ (function () {
+         this._outSocket.setEncoding('utf8');
+         // The conout socket must be ready out on another thread to avoid deadlocks
+         this._conoutSocketWorker = new windowsConoutConnection_1.ConoutConnection(term.conout, this._useConptyDll);
++        // WinPTY 退出未释放输出 worker，导致 Host 保留线程；沿用已有 drain/dispose 收尾。
++        if (!this._useConpty) {
++            this._outSocket.once('close', function () { return _this._conoutSocketWorker.dispose(); });
++        }
+         this._conoutSocketWorker.onReady(function () {
+             _this._conoutSocketWorker.connectSocket(_this._outSocket);
+         });
+diff --git a/src/windowsPtyAgent.ts b/src/windowsPtyAgent.ts
+index d7054449516f0c9a62af351c2caa17331206d530..7ea54ae4607b5400eb2052ddd548de63af27c414 100644
+--- a/src/windowsPtyAgent.ts
++++ b/src/windowsPtyAgent.ts
+@@ -100,6 +100,10 @@ export class WindowsPtyAgent {
+     this._outSocket.setEncoding('utf8');
+     // The conout socket must be ready out on another thread to avoid deadlocks
+     this._conoutSocketWorker = new ConoutConnection(term.conout, this._useConptyDll);
++    // WinPTY 退出未释放输出 worker，导致 Host 保留线程；沿用已有 drain/dispose 收尾。
++    if (!this._useConpty) {
++      this._outSocket.once('close', () => this._conoutSocketWorker.dispose());
++    }
+     this._conoutSocketWorker.onReady(() => {
+       this._conoutSocketWorker.connectSocket(this._outSocket);
+     });

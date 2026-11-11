@@ -4,5 +4,6 @@
   "chromium": "152.0.7977.76",
   "sourceCommit": "1086a0a7c6b7105f300a4af8724e6d996ce3c347",
   "url": "https://github.com/e3kskoy7wqk/Electron-for-windows-7/releases/download/v44.2.0/dist.zip",
-  "sha256": "c50ba2c10c87331ab961f60569e4d906c8514921ac17e138fd0da21ee4ddb2b1"
+  "sha256": "c50ba2c10c87331ab961f60569e4d906c8514921ac17e138fd0da21ee4ddb2b1",
+  "ripgrep": { "version": "14.1.1", "rust": "1.77.2", "features": ["pcre2"], "crt": "static" }
 }

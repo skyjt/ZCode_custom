@@ -51,12 +51,37 @@ jobs:
       - name: Build isolated experimental installer
         run: node scripts/win7/build.mjs
       - name: Packaged runtime smoke
+        timeout-minutes: 1
         shell: pwsh
         run: |
           $env:ELECTRON_RUN_AS_NODE = '1'
           $app = Resolve-Path 'packages/desktop/dist/win7/win-unpacked'
           & "$app/ZCode Win7 Experimental.exe" "$app/resources/win7/runtime-smoke.cjs" "$app/resources/app.asar"
           exit $LASTEXITCODE
+      - name: Packaged Agent storage and process ownership
+        timeout-minutes: 2
+        run: node scripts/win7/agent-smoke.cjs packages/desktop/dist/win7/win-unpacked .cache/runtime-host-acceptance/Release/adapter.cjs
+      - name: Check Win7 native imports
+        shell: pwsh
+        run: |
+          $dumpbin = Get-ChildItem "${env:ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName | Select-Object -Last 1
+          if (!$dumpbin) { throw 'dumpbin is required for Win7 import checks' }
+          $app = Resolve-Path packages/desktop/dist/win7/win-unpacked
+          $binaries = @(
+            "$app/resources/tools/ripgrep/rg.exe",
+            "$app/resources/tools/ugrep/ugrep.exe",
+            "$app/resources/tools/runtime-host/zcode-runtime-host.exe",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/pty.node",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty.dll",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty-agent.exe"
+          )
+          New-Item .cache/win7-acceptance -ItemType Directory -Force | Out-Null
+          foreach ($binary in $binaries) {
+            $imports = & $dumpbin.FullName /imports $binary | Out-String
+            if ($LASTEXITCODE) { throw "Cannot inspect $binary" }
+            $imports | Add-Content .cache/win7-acceptance/pe-imports.txt
+            if ($imports -match '\b(WaitOnAddress|WakeByAddressAll|WakeByAddressSingle|ProcessPrng|GetSystemTimePreciseAsFileTime|GetTempPath2W|SetThreadDescription|CreatePseudoConsole)\b') { throw "Win8+ static API in $binary" }
+          }
       - name: Record checksums and test instructions
         shell: pwsh
         run: |

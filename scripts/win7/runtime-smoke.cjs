@@ -1,9 +1,10 @@
 // ELECTRON_RUN_AS_NODE=1 electron.exe runtime-smoke.cjs <repo root | resources/app.asar>
 const assert = require("node:assert/strict");
 const { createRequire } = require("node:module");
-const { mkdtemp, rm } = require("node:fs/promises");
+const { mkdtemp, rm, writeFile } = require("node:fs/promises");
+const { execFileSync } = require("node:child_process");
 const { tmpdir, release } = require("node:os");
-const { join, resolve } = require("node:path");
+const { dirname, join, resolve } = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 
 (async () => {
@@ -23,6 +24,24 @@ const { DatabaseSync } = require("node:sqlite");
     assert.equal(reopened.prepare("SELECT value FROM sample").get().value, "中文");
     reopened.close();
     const load = createRequire(join(resolve(process.argv[2]), "package.json"));
+    if (process.argv[2].endsWith("app.asar")) {
+      const tools = join(dirname(resolve(process.argv[2])), "tools");
+      await writeFile(join(folder, "搜索.txt"), "中文搜索验证\n");
+      const result = execFileSync(
+        join(tools, "ripgrep/rg.exe"),
+        ["--json", "中文搜索验证", folder],
+        { encoding: "utf8" },
+      );
+      assert.ok(
+        result
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
+          .some((item) => item.type === "match"),
+      );
+      execFileSync(join(tools, "ugrep/ugrep.exe"), ["--version"], { stdio: "inherit" });
+      console.log("PASS packaged ripgrep Unicode JSON search and ugrep load");
+    }
     const pty = load("node-pty");
     await new Promise((done, fail) => {
       const term = pty.spawn(

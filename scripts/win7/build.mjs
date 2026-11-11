@@ -60,8 +60,39 @@ async function build() {
   runCommand(electron, [join(root, "scripts/win7/runtime-smoke.cjs"), root], {
     cwd: root,
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
+    timeout: 30000,
   });
   runCommand("pnpm", ["--filter", "@zcode/desktop", "build"], { cwd: root, env });
+  // 同版本预构建使用了 Win8+ 的 Rust 同步/随机 API；只替换试验版 staging，不改现代资产。
+  runCommand(
+    "rustup",
+    ["toolchain", "install", runtime.ripgrep.rust, "--profile", "minimal", "--no-self-update"],
+    { cwd: root, env },
+  );
+  const searchRoot = join(root, ".cache/win7-ripgrep");
+  runCommand(
+    "cargo",
+    [
+      `+${runtime.ripgrep.rust}`,
+      "install",
+      "ripgrep",
+      "--version",
+      runtime.ripgrep.version,
+      "--locked",
+      "--features",
+      runtime.ripgrep.features.join(","),
+      "--root",
+      searchRoot,
+    ],
+    {
+      cwd: root,
+      env: { ...env, RUSTFLAGS: "-C target-feature=+crt-static" },
+    },
+  );
+  await copyFile(
+    join(searchRoot, "bin/rg.exe"),
+    join(root, "packages/desktop/bundled-tools/win32-x64/ripgrep/rg.exe"),
+  );
   await copyFile(
     join(root, "scripts/win7/bootstrap.mjs"),
     join(root, "packages/desktop/out/win7-bootstrap.mjs"),
