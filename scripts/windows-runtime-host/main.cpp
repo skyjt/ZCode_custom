@@ -66,20 +66,35 @@ bool createWithHandles(std::wstring command, const std::vector<HANDLE>& handles,
 
 struct BootstrapResult { HANDLE process; HANDLE thread; DWORD pid; };
 
+void bootstrapCheckpoint(const wchar_t* stage, HANDLE supervisor, DWORD rootPid = 0) {
+#ifdef ZCODE_FORCE_LEGACY_JOB
+  wchar_t requested[64];
+  if (GetEnvironmentVariableW(L"ZCODE_TEST_BOOTSTRAP_STAGE", requested, 64) && std::wstring(requested) == stage) {
+    std::printf("bootstrap %lu %lu\n", GetCurrentProcessId(), rootPid); std::fflush(stdout);
+    WaitForSingleObject(supervisor, INFINITE);
+  }
+#else
+  (void)stage; (void)supervisor; (void)rootPid;
+#endif
+}
+
 int bootstrap(int argc, wchar_t** argv) {
   if (argc < 6) return fail("bootstrap arguments");
   Handle job{reinterpret_cast<HANDLE>(wcstoull(argv[2], nullptr, 10))};
   Handle supervisor{reinterpret_cast<HANDLE>(wcstoull(argv[3], nullptr, 10))};
   Handle resultPipe{reinterpret_cast<HANDLE>(wcstoull(argv[4], nullptr, 10))};
-  if (WaitForSingleObject(supervisor.value, 0) != WAIT_TIMEOUT ||
-      !AssignProcessToJobObject(job.value, GetCurrentProcess())) return fail("bootstrap self-assign");
+  if (WaitForSingleObject(supervisor.value, 0) != WAIT_TIMEOUT) return fail("bootstrap supervisor");
+  bootstrapCheckpoint(L"before-join", supervisor.value);
+  if (!AssignProcessToJobObject(job.value, GetCurrentProcess())) return fail("bootstrap self-assign");
   job.close();
+  bootstrapCheckpoint(L"after-join", supervisor.value);
   std::wstring command;
   for (int i = 5; i < argc; ++i) command += (i == 5 ? L"" : L" ") + quote(argv[i]);
   PROCESS_INFORMATION pi{};
   if (!createWithHandles(command, {GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
       GetStdHandle(STD_ERROR_HANDLE)}, CREATE_SUSPENDED, pi)) return fail("bootstrap create CLI");
   Handle root{pi.hProcess}, thread{pi.hThread};
+  bootstrapCheckpoint(L"after-create", supervisor.value, pi.dwProcessId);
   BootstrapResult result{};
   result.pid = pi.dwProcessId;
   if (!DuplicateHandle(GetCurrentProcess(), root.value, supervisor.value, &result.process,
@@ -110,9 +125,17 @@ bool createLegacyCli(HANDLE job, const HANDLE (&stdioHandles)[3], const std::wst
       handleArg(supervisor.value) + L" " + handleArg(writer.value) + L" " + command;
   BOOL inJob = FALSE;
   if (!IsProcessInJob(GetCurrentProcess(), nullptr, &inJob)) return false;
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION outerLimits{};
+  if (inJob && !QueryInformationJobObject(nullptr, JobObjectExtendedLimitInformation,
+      &outerLimits, sizeof(outerLimits), nullptr)) return false;
+  // CI 常处于禁止 breakaway 的外层 Job；仅按内核能力脱离，否则 self-assign 验证嵌套归属。
+  // Win7 不支持嵌套时会在 bootstrap 归组处拒绝，始终不执行未归组的用户 CLI。
+  const DWORD flags = inJob && (outerLimits.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_BREAKAWAY_OK)
+      ? CREATE_BREAKAWAY_FROM_JOB : 0;
+  std::fprintf(stderr, "[windows-runtime-host] legacy bootstrap parent_job=%d breakaway=%d\n", inJob, flags != 0);
   PROCESS_INFORMATION boot{};
   if (!createWithHandles(childCommand, {stdioHandles[0], stdioHandles[1], stdioHandles[2],
-      inheritedJob.value, supervisor.value, writer.value}, inJob ? CREATE_BREAKAWAY_FROM_JOB : 0, boot)) return false;
+      inheritedJob.value, supervisor.value, writer.value}, flags, boot)) return false;
   Handle bootProcess{boot.hProcess}, bootThread{boot.hThread};
   inheritedJob.close(); writer.close(); supervisor.close();
   if (WaitForSingleObject(bootProcess.value, 10000) != WAIT_OBJECT_0) {
@@ -187,8 +210,8 @@ int wmain(int argc, wchar_t** argv) {
 #else
   if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST,
                                   &job.value, sizeof(job.value), nullptr, nullptr)) {
-    const auto error = GetLastError();
-    if (error != ERROR_NOT_SUPPORTED && error != ERROR_INVALID_PARAMETER) {
+    const auto attributeError = GetLastError();
+    if (attributeError != ERROR_NOT_SUPPORTED && attributeError != ERROR_INVALID_PARAMETER) {
       DeleteProcThreadAttributeList(attributes); return fail("creation Job attribute");
     }
     legacy = true;

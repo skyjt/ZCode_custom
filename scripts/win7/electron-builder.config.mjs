@@ -21,7 +21,7 @@ export default {
   extraMetadata: {
     ...base.extraMetadata,
     name: "zcode-win7-experimental",
-    main: "out/win7-bootstrap.cjs",
+    main: "out/win7-bootstrap.mjs",
     zcodeWin7Runtime: runtime,
   },
   extraResources: [

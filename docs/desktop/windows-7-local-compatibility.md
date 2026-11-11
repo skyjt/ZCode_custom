@@ -65,7 +65,7 @@ sequenceDiagram
 
 bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，bootstrap 归组并关闭最后一个 Job 句柄时被内核终止。归组之后所有后代从创建起就在 Job 中。supervisor 始终是唯一长期持有者，bootstrap 只是有限交接；不依赖 PID/PPID 枚举补杀。继承句柄用显式 HANDLE_LIST 限定，用户 CLI 只继承 stdio。
 
-若 supervisor 已在其他 Job 中，Win7 bootstrap 必须通过 `CREATE_BREAKAWAY_FROM_JOB` 脱离；系统拒绝则明确失败，不以失去归属为代价回退。ready/start/close/root/empty 协议、幂等关闭、deadline 不释放归属等现有 TS 契约不变。现代 CI 使用单独的强制旧路径验收 binary，避免只验证 Win10 快路径。
+若 supervisor 已在其他 Job 中，先查询外层 Job 的限制；允许 breakaway 时使用 `CREATE_BREAKAWAY_FROM_JOB`，否则必须通过 bootstrap self-assign 证明可嵌套（现代 CI runner 的 Job）。Win7 无嵌套支持且无法脱离时明确拒绝，不执行未归组的 CLI。ready/start/close/root/empty 协议、幂等关闭、deadline 不释放归属等现有 TS 契约不变。现代 CI 使用单独的强制旧路径验收 binary，额外注入 before-join、after-join、after-create 三个 supervisor 崩溃点；避免只验证 Win10 快路径。
 
 ## 修改覆盖面与验证
 

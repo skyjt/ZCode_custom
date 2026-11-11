@@ -63,8 +63,8 @@ async function build() {
   });
   runCommand("pnpm", ["--filter", "@zcode/desktop", "build"], { cwd: root, env });
   await copyFile(
-    join(root, "scripts/win7/bootstrap.cjs"),
-    join(root, "packages/desktop/out/win7-bootstrap.cjs"),
+    join(root, "scripts/win7/bootstrap.mjs"),
+    join(root, "packages/desktop/out/win7-bootstrap.mjs"),
   );
   runCommand(
     "pnpm",

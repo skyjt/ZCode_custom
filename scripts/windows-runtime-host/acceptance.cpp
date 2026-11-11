@@ -81,12 +81,16 @@ int wmain(int argc, wchar_t** argv) {
       }
       Sleep(INFINITE); return 0;
     }
-    check(argc == 2, "usage: acceptance.exe helper.exe");
+    check(argc == 2 || (argc == 3 && std::wstring(argv[2]) == L"--bootstrap-loss"), "usage: acceptance.exe helper.exe [--bootstrap-loss]");
     struct UnrelatedProcess {
       HANDLE handle;
       ~UnrelatedProcess() { TerminateProcess(handle, 0); WaitForSingleObject(handle, 1000); CloseHandle(handle); }
     } unrelated{launch(L"\"" + self() + L"\" fixture descendant").hProcess};
-    for (const auto mode : {L"graceful", L"tree", L"root-exit", L"control-loss", L"helper-loss", L"cancel", L"ownership-failure"}) {
+    const std::vector<const wchar_t*> modes = argc == 3
+        ? std::vector<const wchar_t*>{L"before-join", L"after-join", L"after-create"}
+        : std::vector<const wchar_t*>{L"graceful", L"tree", L"root-exit", L"control-loss", L"helper-loss", L"cancel", L"ownership-failure"};
+    for (const auto mode : modes) {
+      SetEnvironmentVariableW(L"ZCODE_TEST_BOOTSTRAP_STAGE", argc == 3 ? mode : nullptr);
       const auto name = L"\\\\.\\pipe\\zcode-job-acceptance-" + std::to_wstring(GetCurrentProcessId()) + L"-" + mode;
       HANDLE control = CreateNamedPipeW(name.c_str(), PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 4096, 4096, 0, nullptr);
       check(control != INVALID_HANDLE_VALUE, "create control");
@@ -103,6 +107,24 @@ int wmain(int argc, wchar_t** argv) {
       CloseHandle(input);
       CloseHandle(output);
       check(ConnectNamedPipe(control, nullptr) || GetLastError() == ERROR_PIPE_CONNECTED, "connect control");
+      if (argc == 3) {
+        const auto checkpoint = readLine(outputReader);
+        DWORD bootPid = 0, childPid = 0;
+        check(std::sscanf(checkpoint.c_str(), "bootstrap %lu %lu", &bootPid, &childPid) == 2, "bootstrap checkpoint");
+        HANDLE boot = OpenProcess(SYNCHRONIZE, FALSE, bootPid);
+        HANDLE child = childPid ? OpenProcess(SYNCHRONIZE, FALSE, childPid) : nullptr;
+        check(boot && (!childPid || child), "capture bootstrap ownership handles");
+        check(TerminateProcess(pi.hProcess, 91), "crash supervisor during bootstrap");
+        check(WaitForSingleObject(pi.hProcess, 4000) == WAIT_OBJECT_0, "supervisor exits");
+        check(WaitForSingleObject(boot, 4000) == WAIT_OBJECT_0, "bootstrap must exit after supervisor loss");
+        if (child) { check(WaitForSingleObject(child, 4000) == WAIT_OBJECT_0, "suspended CLI must exit"); CloseHandle(child); }
+        DWORD available = 0;
+        const BOOL readable = PeekNamedPipe(outputReader, nullptr, 0, nullptr, &available, nullptr);
+        check((readable && available == 0) || (!readable && GetLastError() == ERROR_BROKEN_PIPE), "user CLI must never execute at bootstrap checkpoint");
+        check(WaitForSingleObject(unrelated.handle, 0) == WAIT_TIMEOUT, "unrelated process survives bootstrap failure");
+        CloseHandle(boot); CloseHandle(pi.hProcess); CloseHandle(control); CloseHandle(writer); CloseHandle(outputReader);
+        std::printf("PASS supervisor loss at %ls\n", mode); continue;
+      }
       if (conflictingJob) {
         check(WaitForSingleObject(pi.hProcess, 2000) == WAIT_OBJECT_0, "reject Job ownership failure");
         DWORD code; check(GetExitCodeProcess(pi.hProcess, &code) && code != 0, "Job failure must fail startup");
