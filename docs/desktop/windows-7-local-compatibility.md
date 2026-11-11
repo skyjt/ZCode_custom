@@ -53,6 +53,8 @@ CI 已复现 node-pty 1.1.0 的 WinPTY 在 shell 退出后未释放 ConoutConnec
 
 只在 Win7 构建和打包期间替换原生文件，使桌面和 Agent staging 使用同一兼容 binding，打包结束恢复安装目录的原文件。现有凭据加密所有者、cipher/密钥存储接口和目录摘要标识不变，不改成明文或另建凭据数据库。包内 smoke 分别加载桌面和 Agent binding，对唯一临时名称执行系统凭据库写/读/删，不接触用户现有条目；最终 PE 检查拒绝已知 Win8+ 静态导入。
 
+成品检查已确认 electron-builder 的默认过滤漏掉 Agent 顶层 `node_modules`。在共同的 `extraResources` 中把 Agent 主树与依赖树分开映射，沿用已有 CUA helper 的处理方式。smoke 由 Node 等待 Electron 子进程退出，同时要求退出码 0 和完整 PASS 标记；不能仅信 PowerShell 对 GUI exe 的 `$LASTEXITCODE`。各成品检查独立执行收集诊断，任何失败都阻止安装包上传。
+
 ### Agent 进程归属
 
 Windows 10+ 保持 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 创建时归组。Win7 不支持此属性，采用同一 helper 的短命 bootstrap 子进程，不能把普通 CLI spawn 后再 attach 当成安全实现。

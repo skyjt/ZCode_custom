@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCommand } from "../spawn-command.mjs";
+import { runRuntimeSmoke } from "./run-runtime-smoke.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 export const runtime = JSON.parse(
@@ -62,11 +63,7 @@ async function build() {
     throw new Error(`Unexpected extracted Electron version: ${version}`);
   env.ZCODE_WIN7_ELECTRON_DIST = dist;
   const electron = join(dist, "electron.exe");
-  runCommand(electron, [join(root, "scripts/win7/runtime-smoke.cjs"), root], {
-    cwd: root,
-    env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
-    timeout: 30000,
-  });
+  runRuntimeSmoke(electron, root, env);
   // 同版本预构建使用了 Win8+ 的 Rust 同步/随机 API；只替换试验版 staging，不改现代资产。
   runCommand(
     "rustup",

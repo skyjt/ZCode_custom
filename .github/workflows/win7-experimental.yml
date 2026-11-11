@@ -49,19 +49,18 @@ jobs:
           node scripts/windows-runtime-host/host-acceptance.cjs "$dir"
           exit $LASTEXITCODE
       - name: Build isolated experimental installer
+        id: package
         run: node scripts/win7/build.mjs
       - name: Packaged runtime smoke
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 1
-        shell: pwsh
-        run: |
-          $env:ELECTRON_RUN_AS_NODE = '1'
-          $app = Resolve-Path 'packages/desktop/dist/win7/win-unpacked'
-          & "$app/ZCode Win7 Experimental.exe" "$app/resources/win7/runtime-smoke.cjs" "$app/resources/app.asar"
-          exit $LASTEXITCODE
+        run: node scripts/win7/run-runtime-smoke.mjs "packages/desktop/dist/win7/win-unpacked/ZCode Win7 Experimental.exe" packages/desktop/dist/win7/win-unpacked/resources/app.asar
       - name: Packaged Agent storage and process ownership
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 2
         run: node scripts/win7/agent-smoke.cjs packages/desktop/dist/win7/win-unpacked .cache/runtime-host-acceptance/Release/adapter.cjs
       - name: Check Win7 native imports
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         shell: pwsh
         run: |
           $dumpbin = Get-ChildItem "${env:ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName | Select-Object -Last 1
@@ -93,6 +92,7 @@ jobs:
           "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$dist/build-info.txt"
           Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
       - name: Packaged application startup
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 3
         run: node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
       - uses: actions/upload-artifact@v4

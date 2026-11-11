@@ -2,8 +2,19 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { verifyRuntimeArchive, win7BuildEnv } from "../win7/build.mjs";
 import { configureWin7Environment } from "../win7/win7-environment.mjs";
+
+test("smoke launcher propagates a non-Electron runtime failure", () => {
+  const result = spawnSync(
+    process.execPath,
+    [join(import.meta.dirname, "../win7/run-runtime-smoke.mjs"), process.execPath, process.cwd()],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Runtime smoke must exit successfully/);
+});
 
 test("Win7 isolates Agent databases without redirecting Git or SSH home", () => {
   const env = {

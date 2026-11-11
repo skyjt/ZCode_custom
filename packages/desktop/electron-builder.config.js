@@ -869,6 +869,12 @@ export default {
       // 不再随包内置独立 Node 二进制。远端 SSH/WSL 仍走原生二进制（无 Electron）。
       from: `bundled-agents/${targetPlatform.key}/glm`,
       to: "glm",
+      filter: ["**/*", "!node_modules{,/**/*}", "!**/*.map"],
+    },
+    {
+      // 默认过滤会跳过 Agent 顶层依赖，导致成品缺 keyring；与 CUA helper 一样单独映射。
+      from: `bundled-agents/${targetPlatform.key}/glm/node_modules`,
+      to: "glm/node_modules",
       filter: ["**/*", "!**/*.map"],
     },
     {
