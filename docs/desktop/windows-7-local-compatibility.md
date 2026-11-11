@@ -45,6 +45,12 @@ CI 已复现 node-pty 1.1.0 的 WinPTY 在 shell 退出后未释放 ConoutConnec
 
 仓库的 ripgrep 14.1.1 Windows 预构建与该版本上游官方预构建均静态导入 `api-ms-win-core-synch-l1-2-0.dll` 的 `WaitOnAddress` / `WakeByAddress*` 和 `bcryptprimitives.dll` 的 `ProcessPrng`，不能在原生 Win7 加载（`llvm-objdump -p` 已确认）。试验构建使用 Rust 1.77.2、ripgrep 14.1.1 的发布 Cargo.lock、PCRE2 与静态 CRT，替换试验 staging 的 `rg.exe`；现代构建资产不变。包内 smoke 必须执行一次真实中文内容的 JSON 搜索。node-pty 的 WinPTY 组件与 ugrep 预构建未发现上述静态导入；这不替代真机加载测试。
 
+### 系统凭据
+
+`@napi-rs/keyring` 2.1.2 的 Windows 预构建还静态导入上述新 API 与 `GetSystemTimePreciseAsFileTime`。保留同版本、同 API、同 Windows Credential Manager 后端，按上游提交 `52184fbebffeef8a061234f60f313c479b954f9f` 重编译 binding。固定 `nightly-2026-11-01`，使用 [Rust 的 Win7 Tier 3 target](https://doc.rust-lang.org/rustc/platform-support/win7-windows-msvc.html) `x86_64-win7-windows-msvc` 和 `-Z build-std`、静态 CRT；源 archive 的 SHA-256 见 `scripts/win7/runtime.json`。
+
+只在 Win7 构建和打包期间替换原生文件，使桌面和 Agent staging 使用同一兼容 binding，打包结束恢复安装目录的原文件。现有凭据加密所有者、cipher/密钥存储接口和目录摘要标识不变，不改成明文或另建凭据数据库。包内 smoke 分别加载桌面和 Agent binding，对唯一临时名称执行系统凭据库写/读/删，不接触用户现有条目；最终 PE 检查拒绝已知 Win8+ 静态导入。
+
 ### Agent 进程归属
 
 Windows 10+ 保持 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 创建时归组。Win7 不支持此属性，采用同一 helper 的短命 bootstrap 子进程，不能把普通 CLI spawn 后再 attach 当成安全实现。

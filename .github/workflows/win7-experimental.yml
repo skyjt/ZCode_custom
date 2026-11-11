@@ -71,6 +71,8 @@ jobs:
             "$app/resources/tools/ripgrep/rg.exe",
             "$app/resources/tools/ugrep/ugrep.exe",
             "$app/resources/tools/runtime-host/zcode-runtime-host.exe",
+            "$app/resources/app.asar.unpacked/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
+            "$app/resources/glm/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/pty.node",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty.dll",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty-agent.exe"

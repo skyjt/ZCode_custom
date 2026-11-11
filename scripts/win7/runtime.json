@@ -5,5 +5,13 @@
   "sourceCommit": "1086a0a7c6b7105f300a4af8724e6d996ce3c347",
   "url": "https://github.com/e3kskoy7wqk/Electron-for-windows-7/releases/download/v44.2.0/dist.zip",
   "sha256": "c50ba2c10c87331ab961f60569e4d906c8514921ac17e138fd0da21ee4ddb2b1",
-  "ripgrep": { "version": "14.1.1", "rust": "1.77.2", "features": ["pcre2"], "crt": "static" }
+  "ripgrep": { "version": "14.1.1", "rust": "1.77.2", "features": ["pcre2"], "crt": "static" },
+  "keyring": {
+    "version": "2.1.2",
+    "sourceCommit": "52184fbebffeef8a061234f60f313c479b954f9f",
+    "url": "https://github.com/Brooooooklyn/keyring-node/archive/52184fbebffeef8a061234f60f313c479b954f9f.zip",
+    "sha256": "8e7a53f5213a797094f441cb09608b7e949597d29b90d83755bb9e295cc4d316",
+    "rust": "nightly-2026-11-01",
+    "target": "x86_64-win7-windows-msvc"
+  }
 }

@@ -1,5 +1,6 @@
 // ELECTRON_RUN_AS_NODE=1 electron.exe runtime-smoke.cjs <repo root | resources/app.asar>
 const assert = require("node:assert/strict");
+const { randomUUID } = require("node:crypto");
 const { createRequire } = require("node:module");
 const { mkdtemp, rm, writeFile } = require("node:fs/promises");
 const { execFileSync } = require("node:child_process");
@@ -25,6 +26,21 @@ const { DatabaseSync } = require("node:sqlite");
     reopened.close();
     const load = createRequire(join(resolve(process.argv[2]), "package.json"));
     if (process.argv[2].endsWith("app.asar")) {
+      for (const requireKeyring of [
+        load,
+        createRequire(join(dirname(resolve(process.argv[2])), "glm/zcode.cjs")),
+      ]) {
+        const { AsyncEntry } = requireKeyring("@napi-rs/keyring");
+        const entry = new AsyncEntry("ZCode Win7 runtime acceptance", randomUUID());
+        try {
+          await entry.setPassword("fictional-win7-smoke-value");
+          assert.equal(await entry.getPassword(), "fictional-win7-smoke-value");
+        } finally {
+          await entry.deleteCredential();
+        }
+        assert.equal(await entry.getPassword(), null);
+      }
+      console.log("PASS desktop and Agent Windows Credential Manager write/read/delete");
       const tools = join(dirname(resolve(process.argv[2])), "tools");
       await writeFile(join(folder, "搜索.txt"), "中文搜索验证\n");
       const result = execFileSync(

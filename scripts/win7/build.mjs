@@ -9,9 +9,9 @@ export const runtime = JSON.parse(
   await readFile(new URL("./runtime.json", import.meta.url), "utf8"),
 );
 
-export function verifyRuntimeArchive(bytes) {
-  if (createHash("sha256").update(bytes).digest("hex") !== runtime.sha256) {
-    throw new Error("Win7 Electron SHA-256 mismatch; refusing to package");
+export function verifyRuntimeArchive(bytes, expected = runtime.sha256) {
+  if (createHash("sha256").update(bytes).digest("hex") !== expected) {
+    throw new Error("Win7 archive SHA-256 mismatch; refusing to package");
   }
 }
 
@@ -29,29 +29,34 @@ export function win7BuildEnv(base = process.env) {
   };
 }
 
-async function build() {
-  if (process.platform !== "win32" || process.arch !== "x64") {
-    throw new Error("Build on Windows x64 (GitHub Actions windows-2022); target is Win7 SP1 x64");
-  }
-  const env = win7BuildEnv();
+async function extractPinnedZip(metadata, name) {
   const cache = join(root, ".cache/win7-runtime");
-  const archive = join(cache, `electron-${runtime.version}.zip`);
-  const dist = join(cache, "electron");
+  const archive = join(cache, `${name}-${metadata.version}.zip`);
+  const dist = join(cache, name);
   await mkdir(cache, { recursive: true });
   let bytes;
   try {
     bytes = await readFile(archive);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
-    const response = await fetch(runtime.url, { signal: AbortSignal.timeout(300000) });
-    if (!response.ok) throw new Error(`Electron download failed: ${response.status}`);
+    const response = await fetch(metadata.url, { signal: AbortSignal.timeout(300000) });
+    if (!response.ok) throw new Error(`${name} download failed: ${response.status}`);
     bytes = Buffer.from(await response.arrayBuffer());
   }
-  verifyRuntimeArchive(bytes);
+  verifyRuntimeArchive(bytes, metadata.sha256);
   await writeFile(archive, bytes);
   await rm(dist, { recursive: true, force: true });
   await mkdir(dist, { recursive: true });
   runCommand("tar", ["-xf", archive, "-C", dist]);
+  return dist;
+}
+
+async function build() {
+  if (process.platform !== "win32" || process.arch !== "x64") {
+    throw new Error("Build on Windows x64 (GitHub Actions windows-2022); target is Win7 SP1 x64");
+  }
+  const env = win7BuildEnv();
+  const dist = await extractPinnedZip(runtime, "electron");
   const version = (await readFile(join(dist, "version"), "utf8")).trim().replace(/^v/, "");
   if (version !== runtime.version)
     throw new Error(`Unexpected extracted Electron version: ${version}`);
@@ -62,7 +67,6 @@ async function build() {
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
     timeout: 30000,
   });
-  runCommand("pnpm", ["--filter", "@zcode/desktop", "build"], { cwd: root, env });
   // 同版本预构建使用了 Win8+ 的 Rust 同步/随机 API；只替换试验版 staging，不改现代资产。
   runCommand(
     "rustup",
@@ -89,28 +93,79 @@ async function build() {
       env: { ...env, RUSTFLAGS: "-C target-feature=+crt-static" },
     },
   );
-  await copyFile(
-    join(searchRoot, "bin/rg.exe"),
-    join(root, "packages/desktop/bundled-tools/win32-x64/ripgrep/rg.exe"),
-  );
-  await copyFile(
-    join(root, "scripts/win7/bootstrap.mjs"),
-    join(root, "packages/desktop/out/win7-bootstrap.mjs"),
+  const keyring = runtime.keyring;
+  const keyringRoot = join(
+    await extractPinnedZip(keyring, "keyring"),
+    `keyring-node-${keyring.sourceCommit}`,
   );
   runCommand(
-    "pnpm",
+    "rustup",
     [
-      "exec",
-      "electron-builder",
-      "--config",
-      join(root, "scripts/win7/electron-builder.config.mjs"),
-      "--win",
-      "--x64",
-      "--publish",
-      "never",
+      "toolchain",
+      "install",
+      keyring.rust,
+      "--profile",
+      "minimal",
+      "--component",
+      "rust-src",
+      "--no-self-update",
     ],
-    { cwd: join(root, "packages/desktop"), env },
+    { cwd: root, env },
   );
+  runCommand(
+    "cargo",
+    [
+      `+${keyring.rust}`,
+      "build",
+      "--locked",
+      "--release",
+      "--target",
+      keyring.target,
+      "-Z",
+      "build-std",
+    ],
+    {
+      cwd: keyringRoot,
+      env: { ...env, RUSTFLAGS: "-C target-feature=+crt-static" },
+    },
+  );
+  const binding = join(
+    root,
+    "node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
+  );
+  const original = await readFile(binding);
+  try {
+    await copyFile(
+      join(keyringRoot, "target", keyring.target, "release/napi_keyring.dll"),
+      binding,
+    );
+    // Agent staging 会复制凭据绑定，必须在桌面构建前替换，避免只修好主进程。
+    runCommand("pnpm", ["--filter", "@zcode/desktop", "build"], { cwd: root, env });
+    await copyFile(
+      join(searchRoot, "bin/rg.exe"),
+      join(root, "packages/desktop/bundled-tools/win32-x64/ripgrep/rg.exe"),
+    );
+    await copyFile(
+      join(root, "scripts/win7/bootstrap.mjs"),
+      join(root, "packages/desktop/out/win7-bootstrap.mjs"),
+    );
+    runCommand(
+      "pnpm",
+      [
+        "exec",
+        "electron-builder",
+        "--config",
+        join(root, "scripts/win7/electron-builder.config.mjs"),
+        "--win",
+        "--x64",
+        "--publish",
+        "never",
+      ],
+      { cwd: join(root, "packages/desktop"), env },
+    );
+  } finally {
+    await writeFile(binding, original);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href)
