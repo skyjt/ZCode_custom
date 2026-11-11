@@ -106,9 +106,13 @@ sequenceDiagram
 | OFF-04 | PDF/CSV/JSON/ZIP/SQLite | 随包库/标准库运行，PDF 写后可读取 |
 | OFF-05 | SSH/SFTP | 本地 fixture 服务真实协议验证 exec、文件往返，错误主机指纹失败 |
 | OFF-06 | 内置技能/Office 面板 | Agent 能列出离线技能；Office 技能进入离线分支；预览原产物可用 |
-| OFF-07 | 断公网启动及内网模型 | CI 阻断成品出站，等初始化退出，经 API Key→跳过进入工作区 sidebar；不能只认初始化页面文字。用户填内网 API 后再验对话/工具调用 |
+| OFF-07 | 断公网启动及内网模型 | CI 确认防火墙服务与全部 profile 已启用，再阻断成品出站，等初始化退出，经 API Key→跳过进入工作区 sidebar，登录层须消失；不能只认初始化页面文字或仅创建未生效的防火墙规则。用户填内网 API 后再验对话/工具调用 |
 | OFF-08 | Win7 安装和终端 | 用户真机安装、Python/Office、SSH/SFTP；保留诊断与退出码 |
 
 无需新增交互 E2E：复用原 UI；新增工程打包探针在最终产物上运行。覆盖矩阵如上；复杂 Office/本地模型列入决策待办，不作为已完成能力。构建信息、版本/摘要、许可和测试指南一起交付。实际验证结果记录在本节下方，现代 Windows CI 与 Win7 实测分开。
 
 首次离线 CI（42987122328）在 Python 探针清理目录时暴露 Windows 句柄问题：sqlite3 连接上下文只处理事务、不关闭数据库，导致 WinError 32。探针改用显式 closing，同时释放 Pillow 图片句柄；仍要求临时目录成功清理。requests 对自动解析到的 chardet 7 发出版本警告，传递依赖改为锁定兼容的 chardet 5.2.0。
+
+第二次离线 CI（42987705890）已通过打包、Python 文档探针和原生运行时检查；SFTP fixture 超时，尚未通过。GUI 已完成初始化和 API Key 跳过，但首次使用还有职业引导，探针应通过既有关闭入口退出后再检查工作区。探针从临时目录启动，防止源码仓库 cwd 让 Agent resolver 误用构建树；失败时保留页面文字和截图。
+
+同版本 PuTTY 0.85 本地复现定位：SFTP 数据已传完，客户端发送 CHANNEL_EOF 后等待服务器关闭，而 fixture 未处理 SFTP `end` 事件。fixture 收到 EOF 后调用既有 `sftp.end()` 完成关闭，不改客户端、不放宽超时；文件字节核对和错误指纹拒绝仍是必过项。

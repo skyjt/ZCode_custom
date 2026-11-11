@@ -51,6 +51,8 @@ const server = new ssh2.Server({ hostKeys: [privateKey] }, (client) => {
       });
       session.on("sftp", (accept) => {
         const sftp = accept();
+        // PuTTY 传输完成后先发 EOF 等待服务端关闭；fixture 不响应会令客户端一直等到超时。
+        sftp.on("end", () => sftp.end());
         const handles = new Map();
         let next = 0;
         sftp.on("REALPATH", (id, path) =>

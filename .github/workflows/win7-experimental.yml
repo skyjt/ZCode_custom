@@ -115,12 +115,22 @@ jobs:
         run: |
           $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/ZCode Win7 Experimental.exe").Path
           $rule = "ZCode-offline-smoke-$env:GITHUB_RUN_ID"
-          New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block | Out-Null
+          $profiles = Get-NetFirewallProfile | Select-Object Name,Enabled
           try {
+            # 仅创建规则不能证明断网；profile 关闭时规则不会生效。
+            Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+            if ((Get-Service MpsSvc).Status -ne 'Running') { throw 'Windows Firewall service is not running' }
+            $activeProfiles = Get-NetFirewallProfile -PolicyStore ActiveStore
+            $activeProfiles | Select-Object Name,Enabled | ConvertTo-Json | Set-Content .cache/win7-acceptance/firewall.json
+            if (@($activeProfiles | Where-Object { $_.Enabled -ne 'True' }).Count) { throw 'Windows Firewall profile is disabled' }
+            New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block -Enabled True -Profile Any | Out-Null
+            $activeRule = Get-NetFirewallRule -DisplayName $rule -PolicyStore ActiveStore
+            if ($activeRule.Enabled -ne 'True' -or $activeRule.Action -ne 'Block') { throw 'Offline firewall rule is not active' }
             node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
             if ($LASTEXITCODE) { throw 'Offline packaged startup failed' }
           } finally {
-            Remove-NetFirewallRule -DisplayName $rule
+            Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
+            foreach ($profile in $profiles) { Set-NetFirewallProfile -Name $profile.Name -Enabled $profile.Enabled }
           }
       - uses: actions/upload-artifact@v4
         if: always()
