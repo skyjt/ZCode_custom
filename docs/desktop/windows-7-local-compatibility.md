@@ -130,4 +130,6 @@ set ELECTRON_RUN_AS_NODE=
 
 2026-11-11：基础试验版提交 `963f232e` 在 [Actions 42983164613](https://github.com/skyjt/ZCode_custom/actions/runs/42983164613) 全部通过：现代/强制 legacy Job 归属与 supervisor 丢失场景、实际打包 SQLite/WinPTY/双 keyring/中文搜索、Agent 真实数据库迁移和独立路径、PE 筛查、GUI + preload 初始化页面。复查 `startup.json` 确认该 GUI 探针停在初始化页，不能证明工作区已就绪；离线版收紧到初始化完成并跳过云登录进入工作区。产物为当时的 `ZCode-Win7-Experimental-x64`，未含后续离线工具包。
 
+离线版提交 `6f555881` 的 [Actions 42992194931](https://github.com/skyjt/ZCode_custom/actions/runs/42992194931) 已全部通过，包含随包 Python/Office、SSH/SFTP、技能加载和有效防火墙阻断下的真实工作区启动。下载、摘要、能力范围和未验收项目见 [离线工具包交付记录](windows-7-offline-toolkit.md#验收目录与交付)。
+
 本机完整 pre-push 门禁使用明确 base `b95ebaffeab641907b38652f45c1502bd762972d` 通过；affected engineering 因覆盖 169/169 文件由既有策略跳过，不能算全量测试通过。目标工程探针实际执行。基础与离线版都仍需用户 Win7 SP1 x64 真机验收，Windows Server 2022 CI 不构成 Win7 已兼容的结论。

@@ -109,6 +109,12 @@ sequenceDiagram
 
 ## 验收目录与交付
 
+2026-11-11 最终交付：提交 `6f555881e4534f96e9cdd6baba3cda4a6d9a3d83` 的 [Actions 42992194931](https://github.com/skyjt/ZCode_custom/actions/runs/42992194931) 全部通过。[下载离线试验包](https://github.com/skyjt/ZCode_custom/actions/runs/42992194931/artifacts/13843692034)（566,723,029 bytes，保留至 2026-11-25），包含 `ZCode-Win7-Offline-Experimental-3.18.0-x64.exe`、程序 ZIP、指南、版本与 SHA-256 清单。外层 artifact SHA-256：`92f582975bf898c1952445927745f2e528048ad4c34b3255e1f4d0039f6b3c42`。
+
+Windows Server 2022 CI 已实际执行：工程回归、现代/强制 Win7 Job 归属、SQLite/WinPTY/双 keyring/中文搜索、成品 Agent 迁移与隔离、原生导入筛查、随包 Python 文档及数据操作、SSH 命令/错误指纹拒绝/SFTP 文件往返、六个离线技能加载、断网 GUI 初始化并跳过登录/关闭职业引导进入工作区。已复查 `startup.png`、`startup.json`、`firewall.json`；全部防火墙 profile 启用，Agent 路径为成品 `resources/glm/zcode.cjs`。[诊断产物](https://github.com/skyjt/ZCode_custom/actions/runs/42992194931/artifacts/13843104105)与安装包同为 14 天保留。
+
+本地 root 与 CLI 类型检查、Lint 通过，保留存量告警（root 538、CLI 86）；最新工程探针 9 项、CLI 插件/技能回归 62 项通过，完整 pre-push 门禁通过。affected engineering 因既有策略选中全套 169/169 而跳过，不能算全量业务/工程测试通过。**Win7 SP1 x64 真机、真实内网模型、真实 Linux 服务、Office 预览的视觉结果仍未验收**；CI 结果不等于 Win7 已验证兼容。
+
 | ID | 场景 | 执行方式/期望 |
 | --- | --- | --- |
 | OFF-01 | 摘要损坏/依赖缺失 | 构建立即失败，不能产出缺件包 |
