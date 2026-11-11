@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import zipfile
+from contextlib import closing
 
 from docx import Document
 from openpyxl import Workbook, load_workbook
@@ -67,8 +68,10 @@ with tempfile.TemporaryDirectory(prefix="ZCode 离线 ") as folder:
     writer.write(root / "编辑.pdf")
     assert len(PdfReader(root / "编辑.pdf").pages) == 1
     Image.new("RGB", (10, 10), "blue").save(root / "图片.png")
-    assert Image.open(root / "图片.png").size == (10, 10)
-    with sqlite3.connect(root / "数据.sqlite") as db:
+    with Image.open(root / "图片.png") as image:
+        assert image.size == (10, 10)
+    # sqlite3 的 with 只提交事务，不关闭连接；Windows 删除临时目录前必须释放句柄。
+    with closing(sqlite3.connect(root / "数据.sqlite")) as db:
         assert db.execute("select 1").fetchone()[0] == 1
     with zipfile.ZipFile(root / "归档.zip", "w") as archive:
         archive.write(root / "编辑.docx", "编辑.docx")

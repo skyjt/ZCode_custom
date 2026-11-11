@@ -110,3 +110,5 @@ sequenceDiagram
 | OFF-08 | Win7 安装和终端 | 用户真机安装、Python/Office、SSH/SFTP；保留诊断与退出码 |
 
 无需新增交互 E2E：复用原 UI；新增工程打包探针在最终产物上运行。覆盖矩阵如上；复杂 Office/本地模型列入决策待办，不作为已完成能力。构建信息、版本/摘要、许可和测试指南一起交付。实际验证结果记录在本节下方，现代 Windows CI 与 Win7 实测分开。
+
+首次离线 CI（42987122328）在 Python 探针清理目录时暴露 Windows 句柄问题：sqlite3 连接上下文只处理事务、不关闭数据库，导致 WinError 32。探针改用显式 closing，同时释放 Pillow 图片句柄；仍要求临时目录成功清理。requests 对自动解析到的 chardet 7 发出版本警告，传递依赖改为锁定兼容的 chardet 5.2.0。
