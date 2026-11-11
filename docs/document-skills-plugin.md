@@ -49,3 +49,7 @@ filesystem seed、SEA、Electron Node bundle、remote prebuild、server remote �
 内置 skill 不等于内置系统依赖。LibreOffice、Poppler、Playwright、ReportLab、Tectonic、
 python-pptx、openpyxl 等由运行环境提供或按上游 skill 的环境检查安装。
 脚本相对路径以 Skill 工具返回的 base directory 为准。
+
+## Win7 内网离线版
+
+2026-11-11：documents/presentations/spreadsheets 0.2.3、pdf 0.2.4 增加离线分支。`ZCODE_OFFLINE_TOOLS` 存在时，先读取随包 `office.md`，使用内置 Python 库而非在线 setup；未设置的现代版保持原指南。文件编辑与只读查看器边界不变，默认另存验证。版本与 package、manifest、Bootstrap、SEA 同步。详见 [离线工具包规格](desktop/windows-7-offline-toolkit.md)。

@@ -95,7 +95,7 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ## Win7 真机验收清单（由用户执行）
 
-从本次 Actions 的 `ZCode-Win7-Experimental-x64` artifact 下载并解压，先安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
+从本次 Actions 的 `ZCode-Win7-Offline-Experimental-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
 现有进程资源统计、浏览器发现等辅助逻辑使用 `Get-CimInstance`，Hook 陈旧锁探测使用较新的 PowerShell/.NET 语法。Win7 自带 PowerShell 2.0 不覆盖这些能力；如需验收这些功能，可按 [Microsoft WMF 5.1 说明](https://learn.microsoft.com/en-us/powershell/scripting/windows-powershell/wmf-overview)准备系统环境。安装器不自动更改 PowerShell 或 .NET；上述辅助功能在 Win7 上仍未验证。
 
@@ -126,4 +126,8 @@ set ELECTRON_RUN_AS_NODE=
 
 ## 验证记录
 
-基线 freshness 通过。已按 mise.toml 安装 Node 24.14.0 / pnpm 10.33.2 的冻结依赖；架构基线 0 违规。社区 zip 已在 macOS 下载并校验 SHA-256。实现、CI 结果与未通过项在交付时补录；这些准备步骤不构成 Win7 运行验证。
+基线 freshness 通过。使用 mise.toml 指定的 Node 24.14.0 / pnpm 10.33.2；架构检查 0 违规，typecheck/lint 通过（Lint 存量 538 warnings）。社区 zip 已校验 SHA-256。
+
+2026-11-11：基础试验版提交 `963f232e` 在 [Actions 42983164613](https://github.com/skyjt/ZCode_custom/actions/runs/42983164613) 全部通过：现代/强制 legacy Job 归属与 supervisor 丢失场景、实际打包 SQLite/WinPTY/双 keyring/中文搜索、Agent 真实数据库迁移和独立路径、PE 筛查、GUI + preload 启动。产物为当时的 `ZCode-Win7-Experimental-x64`，未含后续离线工具包。
+
+本机完整 pre-push 门禁使用明确 base `b95ebaffeab641907b38652f45c1502bd762972d` 通过；affected engineering 因覆盖 169/169 文件由既有策略跳过，不能算全量测试通过。目标工程探针实际执行。基础与离线版都仍需用户 Win7 SP1 x64 真机验收，Windows Server 2022 CI 不构成 Win7 已兼容的结论。

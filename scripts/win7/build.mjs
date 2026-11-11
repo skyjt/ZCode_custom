@@ -4,6 +4,7 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCommand } from "../spawn-command.mjs";
 import { runRuntimeSmoke } from "./run-runtime-smoke.mjs";
+import { prepareOfflineTools } from "./prepare-offline-tools.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 export const runtime = JSON.parse(
@@ -22,6 +23,9 @@ export function win7BuildEnv(base = process.env) {
     ZCODE_ENV: "production",
     ZCODE_PREVIEW_IDENTITY: "1",
     ZCODE_AUTO_UPDATE: "0",
+    ZCODE_ARMS_RUM_ENDPOINT: "",
+    ZCODE_TELEMETRY_REPORT_ENDPOINT: "",
+    ZCODE_MODEL_TELEMETRY_ENABLED: "false",
     ZCODE_TARGET_OS: "win32",
     ZCODE_TARGET_ARCH: "x64",
     CSC_IDENTITY_AUTO_DISCOVERY: "false",
@@ -57,6 +61,7 @@ async function build() {
     throw new Error("Build on Windows x64 (GitHub Actions windows-2022); target is Win7 SP1 x64");
   }
   const env = win7BuildEnv();
+  await prepareOfflineTools(root, env);
   const dist = await extractPinnedZip(runtime, "electron");
   const version = (await readFile(join(dist, "version"), "utf8")).trim().replace(/^v/, "");
   if (version !== runtime.version)

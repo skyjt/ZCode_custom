@@ -1079,6 +1079,8 @@ nodes:
       - "docs/product-capability-map-office-computer-use.md"
       - "docs/document-skills-plugin.md"
 
+      - "docs/desktop/windows-7-offline-toolkit.md"
+
   - id: "capability.pptx-element-reference"
     kind: "capability"
     label: "PPTX preview element reference and verified OOXML update"

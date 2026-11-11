@@ -7,6 +7,11 @@ description: "Professional PDF toolkit covering four production workflows: repor
 license: Proprietary. LICENSE.txt has complete terms
 ---
 
+## Win7 offline edition
+
+Before dependency setup, check `ZCODE_OFFLINE_TOOLS` (for example `python -c "import os; print(os.environ.get('ZCODE_OFFLINE_TOOLS', ''))"`). If set, read `office.md` in that directory and follow it instead of the online setup, installation, renderer and conversion requirements below. Use the bundled Python libraries and existing viewer; never download missing dependencies. Report unavailable conversion/recalculation honestly. If unset, follow the standard workflow below.
+
+
 # PDF - Document Production Workbench
 
 ## Quick Setup

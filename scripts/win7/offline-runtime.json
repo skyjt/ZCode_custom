@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "python": "3.11.18",
+  "putty": "0.85",
+  "assets": [
+    {
+      "name": "python-3.11.18-embed-amd64.zip",
+      "url": "https://github.com/adang1345/PythonVista/releases/download/v3.11.18/python-3.11.18-embed-amd64.zip",
+      "sha256": "184424242da4f7aeeaee902234060135b4b84a0770cce12b830898b76388b2eb",
+      "destination": "python",
+      "extract": true
+    },
+    {
+      "name": "putty-0.85.zip",
+      "url": "https://the.earth.li/~sgtatham/putty/0.85/w64/putty.zip",
+      "sha256": "e0b36e5381ecc78dd06a291bab25fb9d95bc991d0d864cf2741a5bde82816668",
+      "destination": "putty",
+      "extract": true
+    },
+    {
+      "name": "Pillow-9.5.0-cp311-cp311-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/0c/02/7729c8aecbc525b560c7eb283ffa34c6f5a6d0ed6d1339570c65a3e63088/Pillow-9.5.0-cp311-cp311-win_amd64.whl",
+      "sha256": "cfa4561277f677ecf651e2b22dc43e8f5368b74a25a8f7d1d4a3a243e573f2d4",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "PyYAML-6.0.2-cp311-cp311-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/ed/23/8da0bbe2ab9dcdd11f4f4557ccaf95c10b9811b13ecced089d43ce59c3c8/PyYAML-6.0.2-cp311-cp311-win_amd64.whl",
+      "sha256": "e10ce637b18caea04431ce14fabcf5c64a1c61ec9c56b071a4b7ca131ca52d44",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "certifi-2026.10.23-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/32/d1/a3652fe2c19134d0d15922177821d863cbd7e842d53a21bbe7e8e3a1b5ac/certifi-2026.10.23-py3-none-any.whl",
+      "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "chardet-7.7.0-cp311-cp311-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/0c/f0/ce33a549471c4b408d40b2ed061be5d4f12265934fc4ef100e3cbaa1bf68/chardet-7.7.0-cp311-cp311-win_amd64.whl",
+      "sha256": "6f70dbc2dd14145d9b4011bce5a207f7ecc26e6bea49b5e87f6cac3b84261089",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/e8/fc/fdf8cf52ff21cd5bf158f20978991cf985325842f74283eb6df26c8a39d8/charset_normalizer-3.5.2-cp311-cp311-win_amd64.whl",
+      "sha256": "87e50a3e7cb90af586b6c5faf23e302a970415ac73bd7bd90a515a04b427ef96",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "et_xmlfile-2.0.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl",
+      "sha256": "7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "idna-3.20-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl",
+      "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "lxml-4.9.4-cp311-cp311-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/00/c3/0e6e18ac7fbf9687440c7d54fb2f39055d61ade32545ab305e7e3186be73/lxml-4.9.4-cp311-cp311-win_amd64.whl",
+      "sha256": "c7721a3ef41591341388bb2265395ce522aba52f969d33dacd822da8f018aff8",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "openpyxl-3.1.5-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl",
+      "sha256": "5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "pypdf-5.1.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/04/fc/6f52588ac1cb4400a7804ef88d0d4e00cfe57a7ac6793ec3b00de5a8758b/pypdf-5.1.0-py3-none-any.whl",
+      "sha256": "3bd4f503f4ebc58bae40d81e81a9176c400cbbac2ba2d877367595fb524dfdfc",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "python_docx-1.1.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/3e/3d/330d9efbdb816d3f60bf2ad92f05e1708e4a1b9abe80461ac3444c83f749/python_docx-1.1.2-py3-none-any.whl",
+      "sha256": "08c20d6058916fb19853fcf080f7f42b6270d89eac9fa5f8c15f691c0017fabe",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "python_pptx-1.0.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d9/4f/00be2196329ebbff56ce564aa94efb0fbc828d00de250b1980de1a34ab49/python_pptx-1.0.2-py3-none-any.whl",
+      "sha256": "160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "reportlab-4.2.5-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/73/12/6444906db1bc65d3a8118afb089d53c7eeca0726164f51eb3599de1d0665/reportlab-4.2.5-py3-none-any.whl",
+      "sha256": "eb2745525a982d9880babb991619e97ac3f661fae30571b7d50387026ca765ee",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "requests-2.32.3-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl",
+      "sha256": "70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "typing_extensions-4.16.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "urllib3-2.8.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "xlsxwriter-3.3.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/88/eb/1e6af9959a567901a7e7c7cef2e75883e487df223ed67f9a8977ff863bd8/xlsxwriter-3.3.1-py3-none-any.whl",
+      "sha256": "8e2c89e59d733fe59e112317218c64fbbc276d90a8c144ebd6f7fa15e7ab184a",
+      "destination": "python/Lib/site-packages",
+      "extract": true
+    },
+    {
+      "name": "Windows6.1-KB3063858-x64.msu",
+      "url": "https://download.microsoft.com/download/0/8/E/08E0386B-F6AF-4651-8D1B-C0A95D2731F0/Windows6.1-KB3063858-x64.msu",
+      "sha256": "6fec4e38cdcbdaa334937a2ef38bad6800e9c80cb513183451b4049e84479a85",
+      "destination": "prerequisites",
+      "extract": false
+    },
+    {
+      "name": "vc_redist.x64.exe",
+      "url": "https://download.visualstudio.microsoft.com/download/pr/c5b955f2-cdce-405d-9f80-47276eb42576/6AFAE68A783F11292149175844AED0E2CE3F247BC0250F6CB18C931295B3F399/VC_redist.x64.exe",
+      "sha256": "6afae68a783f11292149175844aed0e2ce3f247bc0250f6cb18c931295b3f399",
+      "destination": "prerequisites",
+      "extract": false
+    },
+    {
+      "name": "path-shim-source-fc05a4ce6093fd6355755f70911c0dc203d554c7.zip",
+      "url": "https://github.com/adang1345/api-ms-win-core-path/archive/fc05a4ce6093fd6355755f70911c0dc203d554c7.zip",
+      "sha256": "b22c776c125bdad62e1f4350261682e4874201ff071436c0f327539806b3a1ec",
+      "destination": "licenses",
+      "extract": false
+    }
+  ]
+}

@@ -76,6 +76,7 @@ jobs:
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty.dll",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty-agent.exe"
           )
+          $binaries += Get-ChildItem "$app/resources/offline-tools/python","$app/resources/offline-tools/putty" -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll','.pyd' } | ForEach-Object { $_.FullName }
           New-Item .cache/win7-acceptance -ItemType Directory -Force | Out-Null
           foreach ($binary in $binaries) {
             $imports = & $dumpbin.FullName /imports $binary | Out-String
@@ -83,18 +84,41 @@ jobs:
             $imports | Add-Content .cache/win7-acceptance/pe-imports.txt
             if ($imports -match '\b(WaitOnAddress|WakeByAddressAll|WakeByAddressSingle|ProcessPrng|GetSystemTimePreciseAsFileTime|GetTempPath2W|SetThreadDescription|CreatePseudoConsole)\b') { throw "Win8+ static API in $binary" }
           }
+      - name: Packaged offline Office and SSH SFTP
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $tools = Resolve-Path packages/desktop/dist/win7/win-unpacked/resources/offline-tools
+          & "$tools/python/python.exe" -B -X utf8 "$tools/smoke.py"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/ssh-smoke.mjs "$tools"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/skills-smoke.mjs packages/desktop/dist/win7/win-unpacked
+          exit $LASTEXITCODE
       - name: Record checksums and test instructions
         shell: pwsh
         run: |
           $dist = 'packages/desktop/dist/win7'
           Copy-Item docs/desktop/windows-7-local-compatibility.md "$dist/Win7-test-guide.md"
+          Copy-Item docs/desktop/windows-7-offline-toolkit.md "$dist/Win7-offline-guide.md"
           Copy-Item scripts/win7/runtime.json "$dist/runtime.json"
           "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$dist/build-info.txt"
           Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 3
-        run: node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/ZCode Win7 Experimental.exe").Path
+          $rule = "ZCode-offline-smoke-$env:GITHUB_RUN_ID"
+          New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block | Out-Null
+          try {
+            node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
+            if ($LASTEXITCODE) { throw 'Offline packaged startup failed' }
+          } finally {
+            Remove-NetFirewallRule -DisplayName $rule
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,7 +128,7 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: ZCode-Win7-Experimental-x64
+          name: ZCode-Win7-Offline-Experimental-x64
           retention-days: 14
           if-no-files-found: error
           path: |

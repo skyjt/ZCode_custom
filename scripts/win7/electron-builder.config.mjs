@@ -28,12 +28,22 @@ export default {
     ...base.extraResources,
     { from: resolve(import.meta.dirname, "runtime-smoke.cjs"), to: "win7/runtime-smoke.cjs" },
     { from: resolve(import.meta.dirname, "runtime.json"), to: "win7/runtime.json" },
+    {
+      from: resolve(import.meta.dirname, "../../.cache/win7-offline-tools"),
+      to: "offline-tools",
+      filter: ["**/*"],
+    },
+    {
+      from: resolve(import.meta.dirname, "offline-skills"),
+      to: "glm/packages/bundled-skills/skills",
+      filter: ["**/*"],
+    },
   ],
   win: {
     ...base.win,
     executableName: "ZCode Win7 Experimental",
     target: ["nsis", "zip"],
-    artifactName: "ZCode-Win7-Experimental-${version}-${arch}.${ext}",
+    artifactName: "ZCode-Win7-Offline-Experimental-${version}-${arch}.${ext}",
   },
   nsis: { ...base.nsis, runAfterFinish: false, deleteAppDataOnUninstall: false },
   publish: null,
