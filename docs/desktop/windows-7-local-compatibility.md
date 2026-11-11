@@ -8,7 +8,7 @@
 
 保留 React、Tailwind、Node SQLite、现有 Host/Agent 和业务依赖。官方 Electron 23 起不支持 Win7；降级 Electron 22 会同时退回 Node 16 / Chromium 108，无法直接运行当前 ESM、`node:sqlite` 与 Tailwind 4。Tauri/WebView2 109 也不解决本机 Node 后端问题。[Electron 公告](https://www.electronjs.org/blog/windows-7-to-8-1-deprecation-notice)、[Node SQLite](https://nodejs.org/api/sqlite.html)、[Tailwind 浏览器要求](https://tailwindcss.com/docs/upgrade-guide)。
 
-固定试验运行时，不修改现代版 Electron 44.7.0 与锁文件：
+固定试验运行时，不降级现代版 Electron 44.7.0 或业务依赖；锁文件只新增下述 node-pty 补丁记录：
 
 | 项       | 固定值                                                                                                                   |
 | -------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -95,7 +95,9 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 从本次 Actions 的 `ZCode-Win7-Experimental-x64` artifact 下载并解压，先安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
-若启动或终端失败，在应用安装/解压目录打开 `cmd.exe`，执行以下命令，将 `%TEMP%/zcode-win7-check.txt` 中的错误提供给维护者。诊断使用包内 Electron，无需另装 Node，也不会请求模型或读取凭据：
+现有进程资源统计、浏览器发现等辅助逻辑使用 `Get-CimInstance`，Hook 陈旧锁探测使用较新的 PowerShell/.NET 语法。Win7 自带 PowerShell 2.0 不覆盖这些能力；如需验收这些功能，可按 [Microsoft WMF 5.1 说明](https://learn.microsoft.com/en-us/powershell/scripting/windows-powershell/wmf-overview)准备系统环境。安装器不自动更改 PowerShell 或 .NET；上述辅助功能在 Win7 上仍未验证。
+
+若启动或终端失败，在应用安装/解压目录打开 `cmd.exe`，执行以下命令，将 `%TEMP%/zcode-win7-check.txt` 中的错误提供给维护者。诊断使用包内 Electron，无需另装 Node，不请求模型、不读取已有凭据；会写入、读回并删除独立的临时测试凭据：
 
 ```bat
 set ELECTRON_RUN_AS_NODE=1
