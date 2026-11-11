@@ -1,0 +1,75 @@
+name: Win7 experimental x64
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/win7-experimental]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.repository != 'zai-org/ZCode'
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Engineering regression
+        run: node --test scripts/test/win7-build.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+      - name: Native process ownership (modern and Win7 path)
+        shell: pwsh
+        run: |
+          cmake -S scripts/windows-runtime-host -B .cache/runtime-host-acceptance -G "Visual Studio 17 2022" -A x64
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build .cache/runtime-host-acceptance --config Release --target zcode-runtime-host zcode-runtime-host-legacy zcode-runtime-host-acceptance
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $dir = Resolve-Path .cache/runtime-host-acceptance/Release
+          & "$dir/zcode-runtime-host-acceptance.exe" "$dir/zcode-runtime-host.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$dir/zcode-runtime-host-acceptance.exe" "$dir/zcode-runtime-host-legacy.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm exec esbuild packages/services/src/windows-runtime-host/index.ts --bundle --platform=node --format=cjs --outfile=.cache/runtime-host-acceptance/Release/adapter.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/windows-runtime-host/host-acceptance.cjs "$dir"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$dir/zcode-runtime-host-legacy.exe" "$dir/zcode-runtime-host.exe" -Force
+          node scripts/windows-runtime-host/host-acceptance.cjs "$dir"
+          exit $LASTEXITCODE
+      - name: Build isolated experimental installer
+        run: node scripts/win7/build.mjs
+      - name: Packaged runtime smoke
+        shell: pwsh
+        run: |
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          $app = Resolve-Path 'packages/desktop/dist/win7/win-unpacked'
+          & "$app/ZCode Win7 Experimental.exe" "$app/resources/win7/runtime-smoke.cjs" "$app/resources/app.asar"
+          exit $LASTEXITCODE
+      - name: Record checksums and test instructions
+        shell: pwsh
+        run: |
+          $dist = 'packages/desktop/dist/win7'
+          Copy-Item docs/desktop/windows-7-local-compatibility.md "$dist/Win7-test-guide.md"
+          Copy-Item scripts/win7/runtime.json "$dist/runtime.json"
+          "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$dist/build-info.txt"
+          Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZCode-Win7-Experimental-x64
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            packages/desktop/dist/win7/*.exe
+            packages/desktop/dist/win7/*.zip
+            packages/desktop/dist/win7/*.txt
+            packages/desktop/dist/win7/*.md
+            packages/desktop/dist/win7/runtime.json

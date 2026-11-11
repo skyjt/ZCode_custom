@@ -59,10 +59,11 @@ export function resolveTerminalWindowsPtyInfo(
   releaseText: string = release(),
 ): TerminalWindowsPtyInfo | undefined {
   if (platform !== "win32") return undefined;
-
+  const buildNumber = parseWindowsBuildNumber(releaseText);
   return {
-    backend: "conpty",
-    buildNumber: parseWindowsBuildNumber(releaseText),
+    // Win7 无 ConPTY；阈值与锁定的 node-pty 1.1.0 WindowsPtyAgent 保持一致。
+    backend: buildNumber !== undefined && buildNumber >= 18309 ? "conpty" : "winpty",
+    buildNumber,
   };
 }
 
@@ -255,7 +256,7 @@ function spawnTerminalProcess(params: {
   }
 
   const windowsBaseOptions = {
-    useConpty: true,
+    useConpty: resolveTerminalWindowsPtyInfo()?.backend === "conpty",
     name: "xterm-256color",
     cols,
     rows,
@@ -263,6 +264,11 @@ function spawnTerminalProcess(params: {
     env,
     encoding: "utf8",
   } satisfies PtySpawnOptions;
+
+  if (!windowsBaseOptions.useConpty) {
+    // WinPTY 不能加载 ConPTY DLL；旧系统必须在创建终端前选择，不能靠 DLL 异常重试。
+    return nodePty.spawn(shell, [], { ...windowsBaseOptions, useConptyDll: false });
+  }
 
   try {
     return nodePty.spawn(shell, [], {

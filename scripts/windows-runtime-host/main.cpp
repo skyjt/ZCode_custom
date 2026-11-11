@@ -11,6 +11,7 @@ constexpr ULONGLONG kGraceMs = 1800;
 struct Handle {
   HANDLE value = nullptr;
   ~Handle() { if (value && value != INVALID_HANDLE_VALUE) CloseHandle(value); }
+  void close() { if (value && value != INVALID_HANDLE_VALUE) CloseHandle(value); value = nullptr; }
 };
 bool send(HANDLE pipe, const std::string& message) {
   const auto frame = message + "\n";
@@ -34,9 +35,104 @@ int fail(const char* stage) {
   std::fprintf(stderr, "[windows-runtime-host] %s failed (%lu)\n", stage, GetLastError());
   return 1;
 }
+
+// Win7 不支持 JOB_LIST；bootstrap 先把自己归组，再由内核把 CLI 继承到同一 Job。
+// supervisor 若在归组前退出，bootstrap 关闭继承的最后一个 Job 句柄会终止自己，不能遗留 CLI。
+bool createWithHandles(std::wstring command, const std::vector<HANDLE>& handles,
+                       DWORD flags, PROCESS_INFORMATION& pi) {
+  SIZE_T size = 0;
+  InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
+  std::vector<unsigned char> storage(size);
+  auto attrs = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage.data());
+  if (!InitializeProcThreadAttributeList(attrs, 1, 0, &size)) return false;
+  BOOL ok = UpdateProcThreadAttribute(attrs, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+      const_cast<HANDLE*>(handles.data()), handles.size() * sizeof(HANDLE), nullptr, nullptr);
+  if (ok) {
+    STARTUPINFOEXW si{};
+    si.StartupInfo.cb = sizeof(si);
+    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    si.StartupInfo.hStdInput = handles[0];
+    si.StartupInfo.hStdOutput = handles[1];
+    si.StartupInfo.hStdError = handles[2];
+    si.lpAttributeList = attrs;
+    ok = CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
+        flags | EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW, nullptr, nullptr, &si.StartupInfo, &pi);
+  }
+  const DWORD error = GetLastError();
+  DeleteProcThreadAttributeList(attrs);
+  SetLastError(error);
+  return ok != FALSE;
+}
+
+struct BootstrapResult { HANDLE process; HANDLE thread; DWORD pid; };
+
+int bootstrap(int argc, wchar_t** argv) {
+  if (argc < 6) return fail("bootstrap arguments");
+  Handle job{reinterpret_cast<HANDLE>(wcstoull(argv[2], nullptr, 10))};
+  Handle supervisor{reinterpret_cast<HANDLE>(wcstoull(argv[3], nullptr, 10))};
+  Handle resultPipe{reinterpret_cast<HANDLE>(wcstoull(argv[4], nullptr, 10))};
+  if (WaitForSingleObject(supervisor.value, 0) != WAIT_TIMEOUT ||
+      !AssignProcessToJobObject(job.value, GetCurrentProcess())) return fail("bootstrap self-assign");
+  job.close();
+  std::wstring command;
+  for (int i = 5; i < argc; ++i) command += (i == 5 ? L"" : L" ") + quote(argv[i]);
+  PROCESS_INFORMATION pi{};
+  if (!createWithHandles(command, {GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
+      GetStdHandle(STD_ERROR_HANDLE)}, CREATE_SUSPENDED, pi)) return fail("bootstrap create CLI");
+  Handle root{pi.hProcess}, thread{pi.hThread};
+  BootstrapResult result{};
+  result.pid = pi.dwProcessId;
+  if (!DuplicateHandle(GetCurrentProcess(), root.value, supervisor.value, &result.process,
+                       0, FALSE, DUPLICATE_SAME_ACCESS) ||
+      !DuplicateHandle(GetCurrentProcess(), thread.value, supervisor.value, &result.thread,
+                       0, FALSE, DUPLICATE_SAME_ACCESS)) return fail("bootstrap transfer handles");
+  DWORD written = 0;
+  if (!WriteFile(resultPipe.value, &result, sizeof(result), &written, nullptr) || written != sizeof(result))
+    return fail("bootstrap result");
+  return 0;
+}
+
+bool createLegacyCli(HANDLE job, const HANDLE (&stdioHandles)[3], const std::wstring& command,
+                     PROCESS_INFORMATION& pi) {
+  Handle inheritedJob, supervisor, reader, writer;
+  if (!DuplicateHandle(GetCurrentProcess(), job, GetCurrentProcess(), &inheritedJob.value,
+      JOB_OBJECT_ASSIGN_PROCESS, TRUE, 0) ||
+      !DuplicateHandle(GetCurrentProcess(), GetCurrentProcess(), GetCurrentProcess(), &supervisor.value,
+      PROCESS_DUP_HANDLE | SYNCHRONIZE, TRUE, 0)) return false;
+  SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
+  if (!CreatePipe(&reader.value, &writer.value, &sa, 0) ||
+      !SetHandleInformation(reader.value, HANDLE_FLAG_INHERIT, 0)) return false;
+  wchar_t path[32768];
+  const auto length = GetModuleFileNameW(nullptr, path, 32768);
+  if (!length || length >= 32768) return false;
+  const auto handleArg = [](HANDLE h) { return std::to_wstring(reinterpret_cast<ULONG_PTR>(h)); };
+  auto childCommand = quote(path) + L" --bootstrap " + handleArg(inheritedJob.value) + L" " +
+      handleArg(supervisor.value) + L" " + handleArg(writer.value) + L" " + command;
+  BOOL inJob = FALSE;
+  if (!IsProcessInJob(GetCurrentProcess(), nullptr, &inJob)) return false;
+  PROCESS_INFORMATION boot{};
+  if (!createWithHandles(childCommand, {stdioHandles[0], stdioHandles[1], stdioHandles[2],
+      inheritedJob.value, supervisor.value, writer.value}, inJob ? CREATE_BREAKAWAY_FROM_JOB : 0, boot)) return false;
+  Handle bootProcess{boot.hProcess}, bootThread{boot.hThread};
+  inheritedJob.close(); writer.close(); supervisor.close();
+  if (WaitForSingleObject(bootProcess.value, 10000) != WAIT_OBJECT_0) {
+    // 这里只界定启动失败；归属仍由 Job 句柄维持，不能把超时当作 Job 已清空。
+    TerminateProcess(bootProcess.value, 1);
+    WaitForSingleObject(bootProcess.value, INFINITE);
+    SetLastError(ERROR_TIMEOUT); return false;
+  }
+  DWORD code = 1, count = 0, available = 0;
+  BootstrapResult result{};
+  if (!GetExitCodeProcess(bootProcess.value, &code) || code != 0 ||
+      !PeekNamedPipe(reader.value, nullptr, 0, nullptr, &available, nullptr) || available != sizeof(result) ||
+      !ReadFile(reader.value, &result, sizeof(result), &count, nullptr) || count != sizeof(result)) return false;
+  pi.hProcess = result.process; pi.hThread = result.thread; pi.dwProcessId = result.pid;
+  return true;
+}
 }
 
 int wmain(int argc, wchar_t** argv) {
+  if (argc > 1 && std::wstring(argv[1]) == L"--bootstrap") return bootstrap(argc, argv);
   if (argc == 2 && std::wstring(argv[1]) == L"--version") {
     std::puts("zcode-runtime-host 1"); return 0;
   }
@@ -66,7 +162,7 @@ int wmain(int argc, wchar_t** argv) {
 
   // 原因：spawn 后再 attach 有派生窗口，退出后按 PPID 补查又可能误认复用的 PID。
   // 只传递三条 stdio，并通过创建属性加入 Job，避免 helper 在 create/assign 之间崩溃。
-  // CLI 在 Host 接管前始终保持 suspended；不支持 Job 属性时明确拒绝启动。
+  // CLI 在 Host 接管前始终保持 suspended；Win7 通过已归组的 bootstrap 内核继承。
   Handle input, output, error;
   HANDLE inherited[3];
   Handle* copies[] = {&input, &output, &error};
@@ -85,10 +181,19 @@ int wmain(int argc, wchar_t** argv) {
                                   inherited, sizeof(inherited), nullptr, nullptr)) {
     DeleteProcThreadAttributeList(attributes); return fail("inherit list");
   }
+  bool legacy = false;
+#ifdef ZCODE_FORCE_LEGACY_JOB
+  legacy = true;
+#else
   if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST,
                                   &job.value, sizeof(job.value), nullptr, nullptr)) {
-    DeleteProcThreadAttributeList(attributes); return fail("creation Job attribute");
+    const auto error = GetLastError();
+    if (error != ERROR_NOT_SUPPORTED && error != ERROR_INVALID_PARAMETER) {
+      DeleteProcThreadAttributeList(attributes); return fail("creation Job attribute");
+    }
+    legacy = true;
   }
+#endif
   STARTUPINFOEXW si{};
   si.StartupInfo.cb = sizeof(si);
   si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -102,7 +207,8 @@ int wmain(int argc, wchar_t** argv) {
     command += quote(argv[i]);
   }
   PROCESS_INFORMATION pi{};
-  const BOOL created = CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
+  const BOOL created = legacy ? createLegacyCli(job.value, inherited, command, pi) :
+      CreateProcessW(nullptr, command.data(), nullptr, nullptr, TRUE,
       CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
       nullptr, nullptr, &si.StartupInfo, &pi);
   const DWORD createError = GetLastError();
