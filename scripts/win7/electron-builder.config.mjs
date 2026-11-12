@@ -21,6 +21,7 @@ export default {
   extraMetadata: {
     ...base.extraMetadata,
     name: "zcode-win7-experimental",
+    description: "aibuddy7se · Win7 特别版",
     main: "out/win7-bootstrap.mjs",
     zcodeWin7Runtime: runtime,
   },

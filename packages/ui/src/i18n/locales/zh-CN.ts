@@ -1,6 +1,8 @@
 import { requestSecurityMessagesZhCN } from "@/request-security-edition/messages.js";
 /** 中文翻译 */
 const zhCN: Record<string, string> = {
+  "settings.selfTest.summary":
+    "通过 {passed} · 失败 {failed} · 注意 {warnings} · 未测试 {untested}",
   "settings.selfTest.title": "系统能力自测 · Win7 特别版",
   "settings.selfTest.description":
     "手动检测本机兼容性，不联网、不调用模型。通常几十秒，最多约两分钟。",

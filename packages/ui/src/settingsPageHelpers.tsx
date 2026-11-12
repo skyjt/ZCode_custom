@@ -1021,6 +1021,7 @@ function SystemCompatibilityCheck() {
   const save = async () => {
     if (!report || !platform.saveFile) return;
     setError(false);
+    setSaved(false);
     try {
       const result = await platform.saveFile({
         suggestedName: "aibuddy7se-system-test.json",
@@ -1061,6 +1062,17 @@ function SystemCompatibilityCheck() {
         )}
         {report && (
           <div data-testid="system-self-test-results" className="space-y-3">
+            <p className="font-medium">
+              {intl.formatMessage(
+                { id: "settings.selfTest.summary" },
+                {
+                  passed: report.checks.filter((check) => check.status === "pass").length,
+                  failed: report.checks.filter((check) => check.status === "fail").length,
+                  warnings: report.checks.filter((check) => check.status === "warn").length,
+                  untested: report.checks.filter((check) => check.status === "not-tested").length,
+                },
+              )}
+            </p>
             <p className="text-muted-foreground">
               {report.system.release} · Electron {report.system.electron} · Node{" "}
               {report.system.node}

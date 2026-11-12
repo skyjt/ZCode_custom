@@ -1,6 +1,8 @@
 import { requestSecurityMessagesEnUS } from "@/request-security-edition/messages.js";
 /** English translations */
 const enUS: Record<string, string> = {
+  "settings.selfTest.summary":
+    "Passed {passed} · Failed {failed} · Attention {warnings} · Not tested {untested}",
   "settings.selfTest.title": "System self-test · Win7 edition",
   "settings.selfTest.description":
     "Check local compatibility on demand. No network or model requests. Usually seconds; up to about two minutes.",
