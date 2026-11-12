@@ -87,6 +87,16 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ## 修改覆盖面与验证
 
+### 离线打包耗时（2026-11-12）
+
+基线 [Actions 43159673571](https://github.com/skyjt/ZCode_custom/actions/runs/43159673571) 共 18 分 20 秒，构建步骤 14 分 31 秒；ZIP 压缩阶段约 3 分 57 秒，两个 Rust 组件编译分别约 71/66 秒。包仍同时提供完整 NSIS 安装器和便携 ZIP。
+
+构建脚本是 Win7 打包环境的唯一所有者：仅此版本把 electron-builder 压缩等级固定为 5，覆盖外部同名环境变量；现代版本沿用原值。采用现有压缩器和格式，允许包体略增换取较短等待，不删除运行资源或关闭校验。工程回归直接验证当前安装的压缩器收到等级 5，现代默认不受影响。
+
+Actions 缓存仅包含 Electron/凭据源码 ZIP 与离线工具下载档案，以 Windows runner/架构及两份固定资产清单的摘要为 key，不做前缀回退。命中后仍逐一校验 SHA-256、重新展开并构建；不缓存应用产物、凭据或用户数据。上传 EXE/ZIP 时使用 `compression-level: 0`，避免再次压缩已压缩内容。首次执行会建立缓存，后续命中收益需另次执行确认。
+
+验收：Office 文件保护回归、全部既有成包检查及断网启动必须通过才能上传交付物；比较实际构建时间、包体及 SHA-256，并核对包内 Office 2013 辅助脚本。现代 Windows CI 不替代 Win7/Office 2013 真机验收。
+
 - 平台：`terminalService.ts` 的统一选择；native `main.cpp` / CMake、现有 native 与 Host acceptance。
 - 隔离：打包入口与配置，早期数据设置和默认工作区读取；复用现有身份/路径 override。
 - 分发：独立构建脚本、固定运行时清单、GitHub Actions；复用已有 runtime staging 与 builder 校验。

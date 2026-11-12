@@ -26,6 +26,13 @@ jobs:
         with:
           node-version: 24.14.0
           cache: pnpm
+      - name: Cache pinned Win7 downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/win7-runtime/*.zip
+            .cache/win7-offline-downloads
+          key: win7-downloads-windows-2022-${{ runner.arch }}-${{ hashFiles('scripts/win7/runtime.json', 'scripts/win7/offline-runtime.json') }}
       - name: Install pinned dependencies
         shell: pwsh
         env:
@@ -37,6 +44,8 @@ jobs:
           exit $LASTEXITCODE
       - name: Engineering regression
         run: node --test scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+      - name: Office tool file safety and Windows registration probe
+        run: python -B scripts/test/win7-office-native.test.py
       - name: Legacy Windows system API acceptance
         timeout-minutes: 3
         run: node scripts/win7/compat-smoke.mjs
@@ -106,6 +115,8 @@ jobs:
           $tools = Resolve-Path packages/desktop/dist/win7/win-unpacked/resources/offline-tools
           & "$tools/python/python.exe" -B -X utf8 "$tools/smoke.py"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$tools/python/python.exe" -B -X utf8 "$tools/office_native.py" probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node scripts/win7/ssh-smoke.mjs "$tools"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node scripts/win7/skills-smoke.mjs packages/desktop/dist/win7/win-unpacked
@@ -116,6 +127,7 @@ jobs:
           $dist = 'packages/desktop/dist/win7'
           Copy-Item docs/desktop/windows-7-local-compatibility.md "$dist/Win7-test-guide.md"
           Copy-Item docs/desktop/windows-7-offline-toolkit.md "$dist/Win7-offline-guide.md"
+          Copy-Item docs/desktop/windows-7-office2013.md "$dist/Office2013-guide.md"
           Copy-Item scripts/win7/runtime.json "$dist/runtime.json"
           "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$dist/build-info.txt"
           Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
@@ -153,6 +165,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: aibuddy7se-Win7-Offline-x64
+          compression-level: 0
           retention-days: 14
           if-no-files-found: error
           path: |

@@ -4,7 +4,9 @@
 
 用户已选择 Win7 SP1 x64、本机 Agent、社区运行时和 GitHub Actions 打包，并要求内网离线部署、Office 编辑、SSH/SFTP、内置 Python 与常用技能。
 
-2026-11-12 用户确认：模型连接内网已有 API，程序和依赖离线部署，安装包不包含模型权重。Office 优先 DOCX/XLSX/PPTX 内容编辑、表格处理和批量生成，不要求所见即所得编辑器；继续由 Agent 调用随包 Python 库处理，复用现有只读预览，无需本机 Office。旧二进制 DOC/XLS/PPT、宏执行、复杂版式保真、公式计算、Office→PDF 转换仍不作为已支持能力。
+2026-11-12 用户确认：模型连接内网已有 API，程序和依赖离线部署，安装包不包含模型权重。Office 优先 DOCX/XLSX/PPTX 内容编辑、表格处理和批量生成，不要求所见即所得编辑器；由 Agent 调用随包 Python 库处理，复用现有只读预览，这部分无需本机 Office。
+
+后续用户确认目标机器已有 Office 2013，增加原生旧格式转换、Excel 重算和三类 PDF 导出工具，详见 [Office 2013 增强规格](windows-7-office2013.md)。新增路径依赖对应 Office 组件，不随包安装另一套办公软件；仍需 Win7/Office 真机验收。宏执行、完整排版保真和复杂数据连接不在支持承诺内。
 
 “离线部署”指安装、首次启动、内置技能和工具依赖不要求公网；模型和 SSH/SFTP 可以访问用户指定的内网地址。并非保证应用所有可选联网功能均无网络请求。内网版移除云登录、套餐/奖励/营销、手机云推送/远控、分享和在线反馈入口，停用自有云配置及官方插件目录刷新；网页搜索或手动添加的网络插件仍需要用户指定的服务。自动升级及遥测编译端点关闭。
 
@@ -17,7 +19,7 @@
 5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
 6. 用测试文档和测试 Linux 账号验收聊天中的 `docx` / `xlsx` / `pptx` / `pdf`、`ssh-sftp`、`offline-toolkit`。SSH 首连先向服务器管理员核实主机指纹；私钥和密码留在本机，不粘贴到模型消息中。
 
-Office 编辑由 Agent 调用本机库完成，预览面板仍为只读，不提供类似 Word 的所见即所得编辑界面。Git 未随包提供，需要时另行准备 Win7 兼容版本。启动失败的独立诊断和日志位置见 [Win7 真机验收清单](windows-7-local-compatibility.md#win7-真机验收清单由用户执行)。
+Office 内容编辑由 Agent 调用本机库完成，原生转换/重算/PDF 使用已安装 Office 2013；预览面板仍为只读，不提供类似 Word 的所见即所得编辑界面。Git 未随包提供，需要时另行准备 Win7 兼容版本。启动失败的独立诊断和日志位置见 [Win7 真机验收清单](windows-7-local-compatibility.md#win7-真机验收清单由用户执行)。
 
 ## 构建与执行契约
 

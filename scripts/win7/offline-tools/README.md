@@ -22,6 +22,8 @@ python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['Z
 
 Office 操作见 `office.md`；SSH/SFTP 在聊天中使用 `ssh-sftp` 内置技能，或直接打开 `putty/PUTTY.EXE`。安装目录只读，所有文档和脚本输出到自己的工作区。
 
-包含 DOCX/XLSX/PPTX 内容编辑、PDF 读写/拆合、图片、CSV/JSON/YAML、SQLite、ZIP 与 SHA256。公式文本可以保留但不计算；没有内置 LibreOffice、Microsoft Office、Poppler、OCR 或模型权重。既有预览不等于完整 Office 编辑器。详细能力和验收见交付包的 `Win7-offline-guide.md`。
+已有 Microsoft Office 2013 时，可用 `office_native.py` 做 DOC/XLS/PPT 转新格式、Excel 公式重算和三类 PDF 导出。该工具不需要安装 LibreOffice 或 pywin32，先运行 `probe` 检查组件注册，再按 `office.md` 做真机验收；操作前保存并关闭对应 Office 组件。现有 Python 内容编辑无需 Office。
+
+包含 DOCX/XLSX/PPTX 内容编辑、PDF 读写/拆合、图片、CSV/JSON/YAML、SQLite、ZIP 与 SHA256。Python 库只保留公式文本，计算需调用已安装 Excel；没有内置 LibreOffice、Microsoft Office、Poppler、OCR 或模型权重。既有预览不等于完整 Office 编辑器。详细能力和验收见交付包的 `Win7-offline-guide.md`。
 
 许可：Python 自带 LICENSE.txt；Python 库的许可保留在各 `.dist-info` 目录；PuTTY、PythonVista、路径兼容 shim 许可见 `licenses`。前置包保留微软原安装器及其许可。此包中为兼容性固定了部分旧库，更新时必须重新通过 Win7 和文档回归。

@@ -32,6 +32,8 @@ export function win7BuildEnv(base = process.env) {
     CSC_IDENTITY_AUTO_DISCOVERY: "false",
     ZCODE_ENABLE_WINDOWS_SIGN: "0",
     ZCODE_DESKTOP_DIST_DIR: "dist/win7",
+    // CI 的默认 ZIP/7z 高压缩占用数分钟；只降低试验离线包压缩强度，保留全部资源。
+    ELECTRON_BUILDER_COMPRESSION_LEVEL: "5",
   };
 }
 

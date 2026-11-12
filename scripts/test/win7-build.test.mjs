@@ -10,6 +10,22 @@ import { offlineRuntime, prepareOfflineTools } from "../win7/prepare-offline-too
 import { verifyRuntimeArchive, win7BuildEnv } from "../win7/build.mjs";
 import { configureWin7Environment, configureOfflineTools } from "../win7/win7-environment.mjs";
 import { patchPnpmInstallSource } from "../win7/patch-pnpm.mjs";
+import { compute7zCompressArgs } from "app-builder-lib/out/targets/archive.js";
+
+test("Win7 packaging uses level 5 with the installed compressor without changing modern defaults", () => {
+  const previous = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
+  try {
+    delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
+    assert.ok(compute7zCompressArgs("zip").includes("-mx=7"));
+    process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = win7BuildEnv({
+      ELECTRON_BUILDER_COMPRESSION_LEVEL: "9",
+    }).ELECTRON_BUILDER_COMPRESSION_LEVEL;
+    for (const format of ["zip", "7z"]) assert.ok(compute7zCompressArgs(format).includes("-mx=5"));
+  } finally {
+    if (previous === undefined) delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
+    else process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = previous;
+  }
+});
 
 test("CI pnpm fix passes only absolute destinations to hoisted copy workers", () => {
   const source =
