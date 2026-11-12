@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useInterfaceModeTelemetry } from "@/lib/appTelemetry.js";
 import { ProjectDirectoryProvider } from "@/project-sidebar/ProjectDirectoryProvider.js";
 import { DataSyncDialogProvider } from "@/data-sync/index.js";
@@ -171,12 +172,16 @@ export function Root(props: RootProps) {
           <PlatformProvider platform={props.platform}>
             <StoreProvider
               broadcastService={props.services.broadcastService}
-              initialIsRestoringOAuthSession
+              initialIsRestoringOAuthSession={!ZCODE_WIN7_EDITION}
             >
               <TabStoreProvider>
                 <ProjectDirectoryProvider isDesktop={props.isDesktop}>
                   <DiffsWorkerPoolProvider>
-                    <WebRemoteControlFeatureProvider enabled={props.webRemoteControlFeatureEnabled}>
+                    <WebRemoteControlFeatureProvider
+                      enabled={
+                        !ZCODE_WIN7_EDITION && props.webRemoteControlFeatureEnabled !== false
+                      }
+                    >
                       <AssistantCodeCommentFeatureProvider
                         enabled={props.assistantCodeCommentCardsEnabled}
                       >
@@ -598,6 +603,7 @@ function RootInner({
   });
   const isWebRemoteControlRoot = Boolean(webRemoteControlWorkspaceSwitcher);
   const providerAvailabilityLoginEntryGuardEnabled =
+    !ZCODE_WIN7_EDITION &&
     shouldEnableProviderAvailabilityLoginEntryGuard({
       isWebRemoteControlRoot,
     });
@@ -1522,8 +1528,8 @@ function RootInner({
     onCreateTask: handleCreateTask,
     onOpenWorkspace: handleOpenWorkspace,
     allowOpenWorkspace,
-    onLogin: !user ? handleOpenLoginEntry : undefined,
-    onLogout: user ? handleLogout : undefined,
+    onLogin: !ZCODE_WIN7_EDITION && !user ? handleOpenLoginEntry : undefined,
+    onLogout: !ZCODE_WIN7_EDITION && user ? handleLogout : undefined,
     user,
   };
 
@@ -1545,7 +1551,7 @@ function RootInner({
     );
   }
 
-  if (welcomeScreenOpenReason) {
+  if (!ZCODE_WIN7_EDITION && welcomeScreenOpenReason) {
     return (
       <RootShell>
         {rootModelSelectionErrorNode}
@@ -1664,8 +1670,8 @@ function RootInner({
                 allowRemoteWorkspace={allowRemoteWorkspace}
                 handleBackFromSettings={handleBackFromSettings}
                 handleOpenTaskFromSettings={handleOpenTaskFromSettings}
-                handleLogout={user ? handleLogout : undefined}
-                onLogin={!user ? handleOpenLoginEntry : undefined}
+                handleLogout={!ZCODE_WIN7_EDITION && user ? handleLogout : undefined}
+                onLogin={!ZCODE_WIN7_EDITION && !user ? handleOpenLoginEntry : undefined}
                 user={user}
                 reconnectingRemoteWorkspaceKeys={reconnectingRemoteWorkspaceKeys}
                 remoteWorkspaceRecoveryByWorkspaceKey={remoteWorkspaceRecoveryByWorkspaceKey}

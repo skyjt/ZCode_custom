@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { SidebarNativeTooltip } from "@/ControlHintTooltip.js";
 import type { ProjectTask as ZCodeTaskMeta } from "@/project-sidebar/contract.js";
 
@@ -211,10 +212,14 @@ export function GroupedTaskContextMenuContent({
           {intl.formatMessage({ id: "appHeader.goToProviderConfig" })}
         </span>
       </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={onOpenTaskFeedback}>
-        {intl.formatMessage({ id: "taskList.feedback" })}
-      </ContextMenuItem>
+      {!ZCODE_WIN7_EDITION ? (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={onOpenTaskFeedback}>
+            {intl.formatMessage({ id: "taskList.feedback" })}
+          </ContextMenuItem>
+        </>
+      ) : null}
     </ContextMenuContent>
   );
 }

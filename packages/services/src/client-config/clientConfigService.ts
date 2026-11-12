@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   buildZCodeEndpointUrls,
   clientConfigReadOptionsSchema,
@@ -72,6 +73,9 @@ export function createClientConfigService(dependencies: {
   return {
     async getSnapshot(options = {}) {
       const { forceRefresh } = clientConfigReadOptionsSchema.parse(options);
+      // 内网版使用随包目录，不以失败重试代替停用公网配置请求。
+      if (ZCODE_WIN7_EDITION)
+        return { pluginStoreOrder: null, zsrcUrl: null, uiPluginRecommendations: [] };
       const context = await dependencies.resolveRequestContext();
       const authorization = await resolveOptionalZCodeAuthorization(
         dependencies.resolveZcodeJwtToken,

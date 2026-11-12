@@ -114,6 +114,39 @@ describe("ZCode official marketplace partitions", () => {
     expect(await actual.readdir(root)).toEqual(["manifest.json"]);
   });
 
+  it("Win7 skips official refresh while preserving explicit personal sources", async () => {
+    const storageRoot = await makeStorageRoot();
+    const requests: string[] = [];
+    const server = createServer((request, response) => {
+      requests.push(request.url ?? "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ name: "intranet-personal", plugins: [] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    vi.stubEnv("ZCODE_WIN7_EDITION", "1");
+    vi.resetModules();
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("missing test port");
+      const ids = ["zcode-plugins-official", "claude-plugins-official", "intranet-personal"];
+      await writeFile(join(storageRoot, "known_marketplaces.json"), JSON.stringify({
+        version: 1,
+        marketplaces: ids.map((id) => ({
+          id, name: id, pluginCount: 0, addedAt: "2026-01-01T00:00:00.000Z",
+          source: { source: "url", url: `http://127.0.0.1:${address.port}/${id}` },
+        })),
+      }));
+      const intranet = await import("../src/plugins/marketplace.js");
+      const updated = await intranet.updateMarketplace({ storageRoot });
+      expect(updated.map((record) => record.id).sort()).toEqual(ids.sort());
+      expect(requests).toEqual(["/intranet-personal"]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   async function makeStorageRoot(): Promise<string> {
     const storageRoot = await mkdtemp(join(tmpdir(), "zcode-official-marketplace-"));
     cleanups.push(storageRoot);

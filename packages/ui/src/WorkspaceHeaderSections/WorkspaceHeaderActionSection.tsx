@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { WorkspaceEditorButtonGroup } from "@/WorkspaceEditorButtonGroup.js";
 import { WorkspaceSidePaneToggleButton } from "@/WorkspaceSidePaneToggleButton.js";
 import { WorkspaceTerminalToggleButton } from "@/WorkspaceTerminalToggleButton.js";
@@ -49,7 +50,8 @@ export function WorkspaceHeaderActionSection({
         />
       ) : null}
       {/* 分享发布接口依赖登录态；未登录时隐藏入口，避免用户打开后只能得到鉴权失败。 */}
-      {activeTaskId &&
+      {!ZCODE_WIN7_EDITION &&
+      activeTaskId &&
       user &&
       isDesktop !== false &&
       !isWebRemoteControl &&

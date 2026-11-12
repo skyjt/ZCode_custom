@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useSetInterfaceModeWithTelemetry } from "@/lib/appTelemetry.js";
 import { useOnboardingTelemetry } from "@/onboarding/useOnboardingTelemetry.js";
 import { OnboardingHeader } from "@/onboarding/OnboardingHeader.js";
@@ -33,7 +34,12 @@ async function appendOnboardingRecord(
   ]);
 }
 
-export function OccupationOnboarding({
+export function OccupationOnboarding(props: Parameters<typeof OccupationOnboardingContent>[0]) {
+  if (ZCODE_WIN7_EDITION) return props.children;
+  return <OccupationOnboardingContent {...props} />;
+}
+
+function OccupationOnboardingContent({
   children,
   showWindowControls = false,
   showChildrenWhileLoading = false,

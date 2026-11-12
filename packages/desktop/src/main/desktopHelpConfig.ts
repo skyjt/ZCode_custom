@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { net } from "electron";
 import {
   buildHelpAppConfigUrl,
@@ -20,6 +21,7 @@ export function createDesktopHelpConfigReader(options: {
     fetchImpl: (input, init) => net.fetch(input instanceof URL ? input.href : input, init),
   });
   return async () => {
+    if (ZCODE_WIN7_EDITION) return {};
     const endpointOrigin = await options.resolveEndpointOrigin();
     const authorization = await resolveOptionalZCodeAuthorization(options.resolveZcodeJwtToken);
     return read(

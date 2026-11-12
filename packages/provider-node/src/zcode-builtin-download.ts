@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { z } from "zod";
 import { resolveOptionalZCodeAuthorization, type ZCodeJwtTokenResolver } from "@zcode/shared";
 import { decodeZCodeBuiltinRelease, type ZCodeBuiltinRelease } from "./zcode-builtin-release.js";
@@ -42,6 +43,7 @@ export interface ZCodeBuiltinDownloadOptions {
 export async function downloadZCodeBuiltinRelease(
   options: ZCodeBuiltinDownloadOptions,
 ): Promise<ZCodeBuiltinRelease | null> {
+  if (ZCODE_WIN7_EDITION) return null;
   const controller = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {

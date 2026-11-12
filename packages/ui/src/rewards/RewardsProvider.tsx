@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   createContext,
   useCallback,
@@ -17,13 +18,12 @@ import { logger } from "@/logger.js";
 
 const RewardsContext = createContext<(() => Promise<void>) | null>(null);
 export const useOpenRewards = () => useContext(RewardsContext);
-export function RewardsProvider({
-  children,
-  desktop,
-}: {
-  children: ReactNode;
-  desktop: boolean;
-}) {
+export function RewardsProvider(props: Parameters<typeof RewardsProviderContent>[0]) {
+  if (ZCODE_WIN7_EDITION) return props.children;
+  return <RewardsProviderContent {...props} />;
+}
+
+function RewardsProviderContent({ children, desktop }: { children: ReactNode; desktop: boolean }) {
   const [opened, setOpened] = useState(false);
   const platform = usePlatform();
   const { locale } = useZCodeIntl();

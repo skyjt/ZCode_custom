@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 const REFRESH_INTERVAL_MS = 10 * 60_000;
 const REFRESH_TIMEOUT_MS = 10_000;
 interface Flight {
@@ -21,6 +22,7 @@ export class OfficialPluginCatalogRefresh {
     options: { force: boolean; signal: AbortSignal },
   ): Promise<{ stale: boolean }> {
     options.signal.throwIfAborted();
+    if (ZCODE_WIN7_EDITION) return { stale: false };
     let entry = this.entries.get(key);
     const updatedAt = lastUpdated ? Date.parse(lastUpdated) : NaN;
     if (!entry) {

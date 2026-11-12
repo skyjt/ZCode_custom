@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   resolveHighspeedProviderId,
   resolveHighspeedDrawProviderId,
@@ -311,7 +312,7 @@ export class HighspeedCardService implements IHighspeedCardService {
 
   async healthy(cardId: string, ownerKey?: string): Promise<HighspeedCardUsage | null> {
     // 旧卡不能由当前登录认领；请求只使用归属一致的原子主身份快照。
-    if (!ownerKey) return null;
+    if (ZCODE_WIN7_EDITION || !ownerKey) return null;
     const identity = await this.#resolveHealthyIdentity();
     if (!identity || identity.ownerKey !== ownerKey) return null;
     const usage = await this.transport.healthy(cardId, {
@@ -354,6 +355,7 @@ export class HighspeedCardService implements IHighspeedCardService {
   }
 
   private async isCodingPlanSupported(): Promise<boolean> {
+    if (ZCODE_WIN7_EDITION) return false;
     try {
       return await this.resolveCodingPlanSupported();
     } catch {

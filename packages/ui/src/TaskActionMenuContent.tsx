@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 interface TaskActionMenuItemProps {
   children: React.ReactNode;
   "data-testid"?: string;
@@ -221,7 +222,7 @@ export function TaskActionMenuContent({
           </Item>
         </>
       ) : null}
-      {onOpenTaskFeedback ? (
+      {!ZCODE_WIN7_EDITION && onOpenTaskFeedback ? (
         <>
           <Separator />
           <Item disabled={taskTargetActionsDisabled} onSelect={onOpenTaskFeedback}>

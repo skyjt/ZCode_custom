@@ -277,10 +277,14 @@ function buildApplicationMenuTemplate(options: {
               { type: "separator" as const },
             ]
           : []),
-        {
-          label: getLabel(desktopMenuMessageIds.helpWhatsNew),
-          click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenChangelog),
-        },
+        ...(!ZCODE_WIN7_EDITION
+          ? [
+              {
+                label: getLabel(desktopMenuMessageIds.helpWhatsNew),
+                click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenChangelog),
+              },
+            ]
+          : []),
         { type: "separator" as const },
         ...(isLocalDevelopmentRuntime && stdioTapState.visible
           ? [
@@ -346,10 +350,14 @@ function buildApplicationMenuTemplate(options: {
           click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenResourceManager),
         },
         { type: "separator" as const },
-        {
-          label: getLabel(desktopMenuMessageIds.helpFeedback),
-          click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
-        },
+        ...(!ZCODE_WIN7_EDITION
+          ? [
+              {
+                label: getLabel(desktopMenuMessageIds.helpFeedback),
+                click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
+              },
+            ]
+          : []),
         {
           label: getLabel(desktopMenuMessageIds.helpExportLogs),
           click: () => void options.executeDesktopCommand(DesktopCommandIds.ExportLogs),

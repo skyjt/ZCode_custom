@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getModelProviderFamilySpec,
@@ -97,6 +98,7 @@ export function useEnterpriseCodingPlanProducts({
   authenticated: boolean;
   family?: ProviderFamilyDomain;
 }) {
+  enabled = enabled && !ZCODE_WIN7_EDITION;
   const services = useOptionalServices();
   const service = services?.codingPlanSubscriptionService;
   const authScope = useZCodeStoreWithDefault(

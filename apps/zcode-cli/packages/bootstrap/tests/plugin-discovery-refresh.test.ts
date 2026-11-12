@@ -72,3 +72,23 @@ describe("official catalog refresh", () => {
     expect(await b).toEqual({ stale: false });
   });
 });
+
+// 内网版即使点击刷新也使用随包目录，不能先尝试公网再把错误吞掉。
+it("keeps the bundled catalog without an official network refresh in Win7 edition", async () => {
+  vi.stubEnv("ZCODE_WIN7_EDITION", "1");
+  vi.resetModules();
+  try {
+    const { OfficialPluginCatalogRefresh: OfflineRefresh } = await import("../src/plugin-discovery/refresh.js");
+    const update = vi.fn(async () => { throw new Error("must not contact official catalog"); });
+    const refresh = new OfflineRefresh();
+    for (const force of [false, true]) {
+      expect(await refresh.ensure("offline-root", undefined, update, {
+        force, signal: new AbortController().signal,
+      })).toEqual({ stale: false });
+    }
+    expect(update).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  }
+});

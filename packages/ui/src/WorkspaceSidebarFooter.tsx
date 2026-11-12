@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { ZCODE_APP_DISPLAY_NAME } from "@zcode/shared";
 import { useSetInterfaceModeWithTelemetry } from "@/lib/appTelemetry.js";
 import { SidebarNativeTooltip, ControlHintTooltip } from "@/ControlHintTooltip.js";
@@ -141,12 +142,14 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const zoomOutShortcutLabel = useShortcutCommandLabel("zoomOut");
   const resetZoomShortcutLabel = useShortcutCommandLabel("resetZoom");
   const isRestoringOAuthSession = useZCodeStore((state) => state.isRestoringOAuthSession);
-  const profileBadge = getSidebarProfileBadge(user, intl.formatMessage);
+  const profileBadge = ZCODE_WIN7_EDITION
+    ? ZCODE_APP_DISPLAY_NAME
+    : getSidebarProfileBadge(user, intl.formatMessage);
   const avatarFallbackText = getAvatarFallbackText(user);
   const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
   const showAuthRestoreLoading = !user && isRestoringOAuthSession;
   const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
+    enabled: !ZCODE_WIN7_EDITION,
     workspaceIdentity,
     workspacePath,
   });
@@ -159,12 +162,17 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
       toast(intl.formatMessage({ id: "sidebar.profile.userIdCopyFailed" }));
     }
   };
-  const profileContent = (
+  const profileContent = ZCODE_WIN7_EDITION ? (
+    <span className="flex items-center gap-2">
+      <Settings className="size-4" />
+      {ZCODE_APP_DISPLAY_NAME}
+    </span>
+  ) : (
     <>
       <Avatar key={avatarKey} size="default">
         {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={profileBadge} /> : null}
         <AvatarFallback className="bg-background text-foreground">
-          {user ? (
+          {!ZCODE_WIN7_EDITION && user ? (
             avatarFallbackText
           ) : showAuthRestoreLoading ? (
             <>
@@ -259,7 +267,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
             className="w-max min-w-50 max-w-[calc(100vw-2rem)]"
             forceMount
           >
-            {user ? (
+            {!ZCODE_WIN7_EDITION && user ? (
               <>
                 <div
                   data-testid="profile-menu-header"
@@ -428,12 +436,14 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
               </DropdownMenuSub>
             ) : null}
             {/* Bugfix: 升级入口状态不再以菜单开关为生命周期边界。 */}
-            <WorkspaceSidebarFooterUsageSummaryContent
-              state={usageSummaryState}
-              onUsageClick={usageButtonClick}
-              onUpgradeClick={onUpgradeClick}
-            />
-            {user ? (
+            {!ZCODE_WIN7_EDITION && (
+              <WorkspaceSidebarFooterUsageSummaryContent
+                state={usageSummaryState}
+                onUsageClick={usageButtonClick}
+                onUpgradeClick={onUpgradeClick}
+              />
+            )}
+            {!ZCODE_WIN7_EDITION && user ? (
               <DropdownMenuItem onSelect={() => openRewards?.()} data-testid="rewards-menu-item">
                 <Gift className="size-4" />
                 {intl.formatMessage({ id: "rewards.menuTitle" })}
@@ -445,7 +455,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
                 </Badge>
               </DropdownMenuItem>
             ) : null}
-            {onLogin && !user ? (
+            {!ZCODE_WIN7_EDITION && onLogin && !user ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={onLogin} data-testid={TID_LOGIN_MENU_ITEM}>
@@ -454,8 +464,8 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
                 </DropdownMenuItem>
               </>
             ) : null}
-            {onLogout ? <DropdownMenuSeparator /> : null}
-            {onLogout ? (
+            {!ZCODE_WIN7_EDITION && onLogout ? <DropdownMenuSeparator /> : null}
+            {!ZCODE_WIN7_EDITION && onLogout ? (
               <DropdownMenuItem onSelect={onLogout} data-testid={TID_LOGOUT_BUTTON}>
                 <LogOut className="size-4" />
                 {intl.formatMessage({ id: "app.logout" })}
@@ -464,7 +474,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="flex shrink-0 items-center gap-1.5">
-          {isDesktop && workspacePath ? (
+          {!ZCODE_WIN7_EDITION && isDesktop && workspacePath ? (
             <WorkspaceWebRemoteControlTrigger
               workspacePath={workspacePath}
               workspaceIdentity={workspaceIdentity}

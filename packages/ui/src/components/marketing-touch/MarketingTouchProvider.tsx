@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   prepareRequestVerificationClaim,
   useRequestVerificationPrewarm,
@@ -52,7 +53,12 @@ const Context = createContext<MarketingTouchController | null>(null);
 // 导出给左下角活动仲裁层（SidebarBottomActivity）读取 Banner 可见性；控制器仍是唯一 owner。
 export { Context as MarketingTouchContext };
 
-export function MarketingTouchProvider({
+export function MarketingTouchProvider(props: Parameters<typeof MarketingTouchProviderContent>[0]) {
+  if (ZCODE_WIN7_EDITION) return props.children;
+  return <MarketingTouchProviderContent {...props} />;
+}
+
+function MarketingTouchProviderContent({
   children,
   desktop,
 }: {

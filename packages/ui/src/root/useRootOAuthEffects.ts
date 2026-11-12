@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* eslint-disable max-lines -- OAuth lifecycle effects intentionally share one coordination point. */
 import { useEffect, useRef } from "react";
 import type {
@@ -107,6 +108,7 @@ export function useRootOAuthEffects({
   const oauthLoginSuccessOwnerRef = useRef<"polling" | "deep-link" | null>(null);
 
   useEffect(() => {
+    if (ZCODE_WIN7_EDITION) return;
     let disposed = false;
     async function restoreOAuthSessionInBackground() {
       logger.info("[Root] 后台启动 OAuth 本地会话恢复");
@@ -190,6 +192,7 @@ export function useRootOAuthEffects({
   ]);
 
   useEffect(() => {
+    if (ZCODE_WIN7_EDITION) return;
     let disposed = false;
     let promptPending = false;
     const disposable = services.broadcastService.onMessage((message) => {
@@ -224,6 +227,7 @@ export function useRootOAuthEffects({
   }, [intl, onReauthenticationRequired, requestAlert, services.broadcastService, setUser]);
 
   useEffect(() => {
+    if (ZCODE_WIN7_EDITION) return;
     if (!oauthPollingActive) {
       return;
     }
@@ -303,6 +307,7 @@ export function useRootOAuthEffects({
   ]);
 
   useEffect(() => {
+    if (ZCODE_WIN7_EDITION) return;
     const disposeOAuth = platform.onOAuthCallback(async (url) => {
       try {
         const result = await services.oauthService.handleCallback(url);

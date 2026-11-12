@@ -53,7 +53,7 @@ export default {
     executableName: "aibuddy7se",
     icon: resolve(import.meta.dirname, "branding/icon.ico"),
     target: ["nsis", "zip"],
-    artifactName: "aibuddy7se-${version}-win7-${arch}.${ext}",
+    artifactName: "aibuddy7se-${version}-win7-intranet-${arch}.${ext}",
   },
   nsis: {
     ...base.nsis,

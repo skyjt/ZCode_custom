@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import type { ApiClient } from "@zcode/shared";
 import { readApiJson } from "../providers/api/apiJson.js";
 import { ZCODE_CLIENT_SCENES_URL } from "../providers/api/apiEndpoints.js";
@@ -8,8 +9,10 @@ export function createClientScenesService(dependencies: {
 }): IClientScenesService {
   return {
     list: () =>
-      readApiJson<ClientScenesResponse>(dependencies.apiClient, ZCODE_CLIENT_SCENES_URL, {
-        method: "GET",
-      }),
+      ZCODE_WIN7_EDITION
+        ? Promise.resolve({ code: 0, msg: "", data: [] })
+        : readApiJson<ClientScenesResponse>(dependencies.apiClient, ZCODE_CLIENT_SCENES_URL, {
+            method: "GET",
+          }),
   };
 }

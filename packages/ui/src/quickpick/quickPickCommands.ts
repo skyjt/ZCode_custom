@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 export type QuickPickCommandIcon =
   | "book"
   | "browser"
@@ -319,6 +320,8 @@ export function createQuickPickCommands({
 
   return commands.filter(
     (command) =>
+      (!ZCODE_WIN7_EDITION ||
+        !["feedback", "community", "product-docs", "login", "logout"].includes(command.id)) &&
       (supportsTerminal ||
         (command.id !== "toggle-terminal" && command.id !== "add-terminal-tab")) &&
       (supportsReview || command.id !== "add-review-tab"),

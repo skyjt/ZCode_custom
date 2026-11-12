@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   isSameOAuthAccountMaterial,
   type OAuthAccountMaterial,
@@ -836,6 +837,8 @@ export class BigModelCodingPlanSubscriptionProvider {
   }
 
   private async getClientConfigs(): Promise<ZCodeClientConfigEnvelope> {
+    // 内网版不读取公网套餐/活动配置，避免未登录也在后台重试。
+    if (ZCODE_WIN7_EDITION) return { code: 0, data: { configs: {} } };
     const authorization = await resolveOptionalZCodeAuthorization(() =>
       this.credentialService.load(ZCODE_JWT_TOKEN_KEY),
     );

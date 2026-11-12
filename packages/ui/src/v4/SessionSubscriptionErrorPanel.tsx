@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useCallback } from "react";
 import { TID_V4_RETRY_SUBSCRIBE } from "@zcode/shared/test-ids";
 import { Button } from "@/components/ui/button.js";
@@ -52,9 +53,11 @@ export function SessionSubscriptionErrorPanel({
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-ui-base">
       <p className="max-w-full break-words text-center font-mono text-destructive">{error}</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button type="button" variant="outline" onClick={handleOpenFeedback}>
-          {intl.formatMessage({ id: "chat.error.feedback" })}
-        </Button>
+        {!ZCODE_WIN7_EDITION ? (
+          <Button type="button" variant="outline" onClick={handleOpenFeedback}>
+            {intl.formatMessage({ id: "chat.error.feedback" })}
+          </Button>
+        ) : null}
         <Button type="button" data-testid={TID_V4_RETRY_SUBSCRIBE} onClick={onReconnect}>
           {reconnectLabel ?? intl.formatMessage({ id: "workspaceSidebar.reconnect" })}
         </Button>

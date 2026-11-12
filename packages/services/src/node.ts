@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   createRemoteProjectService,
   IRemoteProjectService,
@@ -1555,7 +1556,7 @@ export function createLocalServices(options: {
     },
   });
   const loadOAuthAccountMaterial = (family: ProviderFamilyDomain) =>
-    oauthCredentialRepo.loadFamilyMaterial(family);
+    ZCODE_WIN7_EDITION ? Promise.resolve(null) : oauthCredentialRepo.loadFamilyMaterial(family);
   const loadOAuthFamilyTokenSet = async (providerId: string) => {
     if (providerId !== ZAI_PROVIDER_ID && providerId !== BIGMODEL_PROVIDER_ID) return null;
     const account = await loadOAuthAccountMaterial(providerId);

@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useEffect } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { ClientSceneConfig, IClientScenesService } from "@zcode/services";
@@ -64,7 +65,7 @@ export function useClientScenesResource(
   clientScenesService: IClientScenesService,
   options: UseClientScenesResourceOptions = {},
 ) {
-  const enabled = options.enabled ?? true;
+  const enabled = !ZCODE_WIN7_EDITION && (options.enabled ?? true);
   const authorityId = getServiceAuthorityId(clientScenesService);
   const { cache } = useSWRConfig();
   const visibilityAuthority = getVisibilityAuthority(clientScenesService, cache as object);

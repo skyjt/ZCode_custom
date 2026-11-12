@@ -36,6 +36,7 @@ export function configureWin7Environment(
   env.ZCODE_STORAGE_DIR = join(home, ".zcode");
   // 改名只影响展示，保留旧包 userData，避免升级后会话和设置看似丢失。
   if (appData) env.ZCODE_DESKTOP_USER_DATA_DIR = join(appData, "ZCode Win7 Experimental");
+  env.ZCODE_WIN7_EDITION = "1";
   env.ZCODE_DESKTOP_APPLICATION_NAME = "aibuddy7se";
   env.ZCODE_DESKTOP_APP_ID = "dev.zcode.app.win7.experimental";
   return home;

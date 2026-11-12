@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { useState } from "react";
 import { DesktopCommandIds } from "@zcode/shared";
 import {
@@ -51,7 +52,7 @@ export function WorkspaceHelpMenuButton({
   const platform = usePlatform();
   const [open, setOpen] = useState(false);
   const { url: vulnerabilityReportUrl, loading: vulnerabilityReportLoading } =
-    useVulnerabilityReportUrl(open);
+    useVulnerabilityReportUrl(open && !ZCODE_WIN7_EDITION);
   const updateMenu = useDesktopUpdateMenu(isDesktop);
   const openFeedbackSubmit = useFeedbackStore((state) => state.openSubmit);
   const openFeatureRequest = useFeedbackStore((state) => state.openFeatureRequest);
@@ -110,36 +111,40 @@ export function WorkspaceHelpMenuButton({
         align="end"
         className="min-w-0 w-max [&_[data-slot=dropdown-menu-item]]:pr-6"
       >
-        <DropdownMenuItem onSelect={helpMenuActions.openProductDocs}>
-          <BookOpenIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.docs" })}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleOpenCommunity}>
-          <UsersIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.community" })}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={helpMenuActions.openIssueReport}>
-          <MessageSquareIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.issueReport" })}
-        </DropdownMenuItem>
-        {vulnerabilityReportLoading || vulnerabilityReportUrl ? (
-          <DropdownMenuItem
-            disabled={vulnerabilityReportLoading}
-            aria-busy={vulnerabilityReportLoading}
-            onSelect={
-              vulnerabilityReportUrl
-                ? () => platform.openExternal(vulnerabilityReportUrl)
-                : undefined
-            }
-          >
-            <ShieldAlertIcon className="size-4" />
-            {intl.formatMessage({ id: "workspaceHeader.help.reportVulnerability" })}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={openFeatureRequest}>
-          <LightbulbIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.productRequest" })}
-        </DropdownMenuItem>
+        {!ZCODE_WIN7_EDITION && (
+          <>
+            <DropdownMenuItem onSelect={helpMenuActions.openProductDocs}>
+              <BookOpenIcon className="size-4" />
+              {intl.formatMessage({ id: "workspaceHeader.help.docs" })}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleOpenCommunity}>
+              <UsersIcon className="size-4" />
+              {intl.formatMessage({ id: "workspaceHeader.help.community" })}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={helpMenuActions.openIssueReport}>
+              <MessageSquareIcon className="size-4" />
+              {intl.formatMessage({ id: "workspaceHeader.help.issueReport" })}
+            </DropdownMenuItem>
+            {vulnerabilityReportLoading || vulnerabilityReportUrl ? (
+              <DropdownMenuItem
+                disabled={vulnerabilityReportLoading}
+                aria-busy={vulnerabilityReportLoading}
+                onSelect={
+                  vulnerabilityReportUrl
+                    ? () => platform.openExternal(vulnerabilityReportUrl)
+                    : undefined
+                }
+              >
+                <ShieldAlertIcon className="size-4" />
+                {intl.formatMessage({ id: "workspaceHeader.help.reportVulnerability" })}
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem onSelect={openFeatureRequest}>
+              <LightbulbIcon className="size-4" />
+              {intl.formatMessage({ id: "workspaceHeader.help.productRequest" })}
+            </DropdownMenuItem>
+          </>
+        )}
         {/* Windows/Linux 没有原生菜单栏，自绘标题栏箭头菜单也已下线，
             资源管理器只能从这里进；Web 端没有该窗口，不渲染。 */}
         {isDesktop ? (

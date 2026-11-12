@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { redactFeedbackText } from "@zcode/shared";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { RemotePasswordInput } from "@/remote-connection/RemotePasswordInput.js";
@@ -675,16 +676,18 @@ export function RemoteConnectionConnectingStep({
           >
             {intl.formatMessage({ id: "remote.backToConnection" })}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              void handleOpenFeedback();
-            }}
-          >
-            {intl.formatMessage({ id: "remoteConnection.feedback" })}
-          </Button>
+          {!ZCODE_WIN7_EDITION ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void handleOpenFeedback();
+              }}
+            >
+              {intl.formatMessage({ id: "remoteConnection.feedback" })}
+            </Button>
+          ) : null}
         </div>
       </div>
     ) : null;

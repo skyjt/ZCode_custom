@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* eslint-disable max-lines -- Coding Plan 套餐需要集中处理静态套餐、远端试算、缓存与登录态回退，避免把共享状态拆散。 */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -69,7 +70,8 @@ export function useCodingPlanProducts(
   const supportedProvider =
     providerId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan ||
     isZaiCodingPlanProviderId(providerId);
-  const enabled = supportedProvider && options?.remotePreviewEnabled !== false;
+  const enabled =
+    !ZCODE_WIN7_EDITION && supportedProvider && options?.remotePreviewEnabled !== false;
   const staticSnapshot = useMemo(() => buildStaticProductsSnapshot(providerId), [providerId]);
   const [state, setState] = useState<CodingPlanProductsState>(() => ({
     snapshot: null,
@@ -88,9 +90,10 @@ export function useCodingPlanProducts(
         return;
       }
       if (!enabled) {
-        const loadedStaticSnapshot = service
-          ? await loadCodingPlanStaticProductsSnapshotForTest(providerId, service)
-          : staticSnapshot;
+        const loadedStaticSnapshot =
+          !ZCODE_WIN7_EDITION && service
+            ? await loadCodingPlanStaticProductsSnapshotForTest(providerId, service)
+            : staticSnapshot;
         setState({
           // 未登录/未连接时禁止打 paid batch-preview，但仍要展示静态套餐。
           // 之前这里返回空 snapshot + loading，导致套餐列表一直卡在加载态。

@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   BROWSER_LOCAL_PREVIEW_PRIVILEGES,
   installBrowserLocalPreview,
@@ -1115,14 +1116,14 @@ const webRemoteControlManager = createWebRemoteControlManager({
     webRemoteControlSharedHostAttachments.disposeRemoteSession(remoteSessionId),
 });
 webRemoteControlManagerRef.current = webRemoteControlManager;
-webRemoteControlManager.startNotifications();
+if (!ZCODE_WIN7_EDITION) webRemoteControlManager.startNotifications();
 broadcastHub.onMobilePushRun = (run) => webRemoteControlManager.observeNotificationRun(run);
 // owner 必须在事件到达时同步确认；开关与 locale 由 MobilePushConnection 在确认后再异步读取。
 broadcastHub.onMobilePushEvent = (event) =>
   webRemoteControlManager.sendNotification(event, () =>
     mainSettingService.get().then(
       (settings) => ({
-        enabled: settings.mobilePushEnabled !== false,
+        enabled: !ZCODE_WIN7_EDITION && settings.mobilePushEnabled !== false,
         // 手机推送契约只有中英两套文案，非中文界面语言推英文。
         locale: toZhOrEnLocale(settings.locale),
       }),
@@ -1132,9 +1133,10 @@ broadcastHub.onMobilePushEvent = (event) =>
       },
     ),
   );
-app
-  .whenReady()
-  .then(() => powerMonitor.on("resume", () => void webRemoteControlManager.refreshNotifications()));
+app.whenReady().then(() => {
+  if (!ZCODE_WIN7_EDITION)
+    powerMonitor.on("resume", () => void webRemoteControlManager.refreshNotifications());
+});
 app.on("will-quit", () => webRemoteControlManager.disposeNotifications());
 
 let forceUpdateMainWindowCreationBlocked = false;
@@ -2683,27 +2685,28 @@ app.whenReady().then(async () => {
     armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
   });
   registerDesktopStabilityMonitors(logger, crashCapturePaths);
-  registerDesktopResourceTelemetry(logger);
+  if (!ZCODE_WIN7_EDITION) registerDesktopResourceTelemetry(logger);
   // 主窗口 renderer 的 60 秒 heap 样本入口；随 App 生命周期常驻，只注册一次。
-  registerRendererHeapSampleIpc();
+  if (!ZCODE_WIN7_EDITION) registerRendererHeapSampleIpc();
   const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
-  registerDesktopZCodeDataSizeTelemetry({
-    context: {
-      appVersion: ZCODE_VERSION,
-      armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-      dataRootKind:
-        resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
-      deviceMid,
-      platform: process.platform,
-    },
-    getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
-    isAppBackground: () => resolveResourceUsageScene() === "background",
-    isZCodeBusy: () => getRunningAgentSessionCount() > 0,
-    logger,
-    rootPath: getZCodeDataRootDir(),
-    stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
-  });
-  registerDesktopNetworkTelemetry(logger);
+  if (!ZCODE_WIN7_EDITION)
+    registerDesktopZCodeDataSizeTelemetry({
+      context: {
+        appVersion: ZCODE_VERSION,
+        armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+        dataRootKind:
+          resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
+        deviceMid,
+        platform: process.platform,
+      },
+      getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
+      isAppBackground: () => resolveResourceUsageScene() === "background",
+      isZCodeBusy: () => getRunningAgentSessionCount() > 0,
+      logger,
+      rootPath: getZCodeDataRootDir(),
+      stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
+    });
+  if (!ZCODE_WIN7_EDITION) registerDesktopNetworkTelemetry(logger);
 
   // 本地未打包 dev 构建（app.isPackaged === false）必须跳过远端强制升级 gate。
   // 原因：force-update gate 只看 ZCODE_ENV === "production"，但 dev 构建（如 dev:desktop:cua

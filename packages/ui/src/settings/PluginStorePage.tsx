@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import type { DraftPluginUiOpenRequest } from "@/plugin-ui/contract.js";
 import { withPluginTelemetry } from "@zcode/services";
 import { usePlatform } from "@/hooks/usePlatform.js";
@@ -130,7 +131,7 @@ export function PluginStorePage({
   const setEnabled = usePluginManagementStore((state) => state.setEnabled);
   const togglingPluginId = usePluginManagementStore((state) => state.togglingPluginId);
 
-  const [view, setView] = useState<PluginStoreView>("store");
+  const [view, setView] = useState<PluginStoreView>(ZCODE_WIN7_EDITION ? "manage" : "store");
   const operationService = useMemo(() => {
     const telemetry = {
       entry: embedded
@@ -179,6 +180,7 @@ export function PluginStorePage({
   // 否则新上架插件要等用户手动点刷新才可见；以 10 分钟窗口节流，并在发起时占位防抖（失败/在飞不重复），
   // 判据见 officialMarketplaceAutoRefresh。状态放模块级而非组件 ref，因为每次进入都是重新挂载。
   useEffect(() => {
+    if (ZCODE_WIN7_EDITION) return;
     const official = marketplaces.find((item) => item.id === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID);
     if (
       official &&
@@ -203,7 +205,13 @@ export function PluginStorePage({
         installedPlugins,
         plugins,
         restorableBuiltins,
-      }),
+      }).filter(
+        (item) =>
+          !ZCODE_WIN7_EDITION ||
+          item.marketplace !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID ||
+          item.installed ||
+          item.restorable,
+      ),
     [
       availablePlugins,
       installedPlugins,

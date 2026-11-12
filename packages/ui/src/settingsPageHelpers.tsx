@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* oxlint-disable eslint(max-lines) -- settings helper 聚合应用常规、Agent 行为与自动归档设置。 */
 import type {
   AppToolSearchMode,
@@ -691,7 +692,7 @@ export function GeneralSectionContent({
             />
           }
         />
-        {isDesktop ? (
+        {isDesktop && !ZCODE_WIN7_EDITION ? (
           <SettingsRow
             searchId="settings.mobilePush"
             label={intl.formatMessage({ id: "settings.mobilePush" })}
@@ -774,20 +775,22 @@ export function GeneralSectionContent({
         />
       </SettingsGroupCard>
 
-      <SettingsGroupCard>
-        <SettingsRow
-          searchId="settings.onboarding"
-          label={intl.formatMessage({ id: "settings.onboarding" })}
-          description={intl.formatMessage({
-            id: "settings.onboardingDescription",
-          })}
-          control={
-            <Button type="button" size="lg" variant="outline" onClick={onOpenOnboardingDialog}>
-              {intl.formatMessage({ id: "settings.onboardingOpen" })}
-            </Button>
-          }
-        />
-      </SettingsGroupCard>
+      {!ZCODE_WIN7_EDITION && (
+        <SettingsGroupCard>
+          <SettingsRow
+            searchId="settings.onboarding"
+            label={intl.formatMessage({ id: "settings.onboarding" })}
+            description={intl.formatMessage({
+              id: "settings.onboardingDescription",
+            })}
+            control={
+              <Button type="button" size="lg" variant="outline" onClick={onOpenOnboardingDialog}>
+                {intl.formatMessage({ id: "settings.onboardingOpen" })}
+              </Button>
+            }
+          />
+        </SettingsGroupCard>
+      )}
     </div>
   );
 }

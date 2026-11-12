@@ -46,24 +46,27 @@ try {
   page = context.pages()[0] || (await context.waitForEvent("page", { timeout: 30000 }));
   // Playwright 默认模拟 no-preference，会覆盖产品实际动效偏好；清除模拟再验收。
   await page.emulateMedia({ reducedMotion: null, colorScheme: null });
-  // 初始化页也有正文和 preload；必须走到真实工作区，不能把“正在初始化”当作启动成功。
-  await page.getByTestId("login-use-api-key-button").waitFor({ timeout: 90000 });
-  await page.getByTestId("login-use-api-key-button").click();
-  await page.getByTestId("login-api-key-skip-button").click();
-  // 首次安装的职业引导替换工作区正文；使用现有 Escape 关闭入口，不绕过应用状态。
-  await page.getByTestId("onboarding-page").waitFor({ timeout: 30000 });
+  // 内网版必须直接进入真实工作区；不能再靠跳过登录或关闭引导通过验收。
+  await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 90000 });
+  assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
+  assert.equal(await page.getByTestId("onboarding-page").count(), 0);
   assert.equal(await page.title(), "aibuddy7se · Win7 特别版");
   const reducedMotion = await page.evaluate(
     () => matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   console.log(`Actual reduced-motion preference: ${reducedMotion}`);
   assert.equal(await page.getByTestId("onboarding-page").locator("canvas").count(), 0);
-  await page.keyboard.press("Escape");
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 30000 });
   await page.getByTestId("login-api-key-skip-button").waitFor({ state: "hidden" });
   assert.equal(await page.getByTestId("database-startup-status").count(), 0);
   assert.equal(await page.evaluate(() => typeof window.zcode), "object");
   assert.ok((await page.locator('[data-app-logo="aibuddy7se"]').count()) > 0);
+  const preferences = page.getByTestId("sidebar").getByTestId("login-trigger");
+  assert.equal((await preferences.innerText()).trim(), "aibuddy7se");
+  await preferences.click();
+  assert.equal(await page.getByTestId("login-menu-item").count(), 0);
+  assert.equal(await page.getByTestId("rewards-menu-item").count(), 0);
+  await page.keyboard.press("Escape");
   await page.getByTestId("task-settings-button").click();
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-en-US").click();
@@ -95,6 +98,49 @@ try {
       path: join(output, theme === "Dark theme" ? "self-test-dark.png" : "self-test-light.png"),
     });
   }
+  assert.equal(await page.getByTestId("settings-mobile-push-switch").count(), 0);
+  assert.equal(await page.getByTestId("settings-section-nav-usage").count(), 0);
+  assert.equal(await page.getByTestId("settings-section-nav-shares").count(), 0);
+  await page.getByTestId("settings-section-nav-modelProvider").click();
+  await page.getByTestId("model-provider-add-provider-button").click();
+  assert.equal(await page.locator('[data-testid^="model-provider-template-item-"]').count(), 1);
+  await page.getByTestId("model-provider-template-item-custom").click();
+  await page.getByTestId("model-provider-actions-button").click();
+  await page.getByTestId("model-provider-name-edit-button").click();
+  await page.getByTestId("model-provider-name-input").fill("Intranet smoke");
+  await page.getByTestId("model-provider-name-input").blur();
+  const provider = page
+    .locator('[data-testid^="model-provider-nav-item-custom:"]')
+    .filter({ hasText: "Intranet smoke" });
+  await provider.waitFor();
+  const providerTestId = await provider.getAttribute("data-testid");
+  const baseUrl = "http://127.0.0.1:17439/v1";
+  await page.getByTestId("model-provider-base-url-input").fill(baseUrl);
+  await page.getByTestId("model-provider-api-key-input").fill("fictional-intranet-smoke-key");
+  await page.getByTestId("model-provider-api-key-input").blur();
+  await page.getByTestId("model-provider-add-model-button").click();
+  await page
+    .getByRole("dialog")
+    .getByPlaceholder("Model ID", { exact: true })
+    .fill("intranet-smoke-model");
+  await page.getByRole("dialog").getByRole("button", { name: /^Save/ }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.getByTestId("settings-back-button").click();
+  await page.reload();
+  await page.getByTestId("sidebar").waitFor({ timeout: 60000 });
+  assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
+  await page.getByTestId("task-settings-button").click();
+  await page.getByTestId("settings-section-nav-modelProvider").click();
+  await page.getByTestId(providerTestId).click();
+  assert.equal(await page.getByTestId("model-provider-base-url-input").inputValue(), baseUrl);
+  assert.equal(
+    await page.getByTestId("model-provider-api-key-input").inputValue(),
+    "fictional-intranet-smoke-key",
+  );
+  await page.getByText("intranet-smoke-model", { exact: true }).first().waitFor();
+  await page.screenshot({ path: join(output, "intranet-provider.png") });
+  // 不向此虚构 API 发模型请求；这里只验证自定义配置编辑与重新加载。
+  await page.getByTestId("settings-section-nav-general").click();
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-zh-CN").click();
   await page.getByText("系统能力自测 · Win7 特别版", { exact: true }).waitFor();
@@ -109,14 +155,14 @@ try {
         title: await page.title(),
         text: (await page.locator("body").innerText()).slice(0, 3000),
         scope:
-          "Windows Server 2022: branded workspace, reduced motion, no onboarding Canvas, offline self-test results, English/Chinese and light/dark UI; Win7 hardware, native export dialog and model API remain untested",
+          "Windows Server 2022: offline direct workspace without login/onboarding, intranet preferences, custom API/key/model edit and renderer reload, self-test, English/Chinese and light/dark UI; full app upgrade/restart, Win7 hardware, native export dialog and model response remain untested",
       },
       null,
       2,
     ),
   );
   console.log(
-    "PASS branded workspace, reduced motion, offline self-test, concurrent admission and translated/theme UI",
+    "PASS intranet workspace without login, reduced motion, offline self-test, concurrent admission and translated/theme UI",
   );
 } catch (error) {
   if (page && !page.isClosed()) {

@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* eslint-disable max-lines -- Model Provider 导航需要集中计算分组、选中项与 Coding Plan 权益态，后续拆分时再收敛。 */
 import { useEffect, useMemo } from "react";
 import type { ProviderSettingsFormProvider } from "@/lib/providerSettingsFormTypes.js";
@@ -95,12 +96,14 @@ export function useModelProviderNavigation({
 
   const codingPlanItems = useMemo(
     () =>
-      CODING_PLAN_PROVIDER_SPECS.filter((spec) =>
-        shouldShowCodingPlanForProviderFamilyDomain(
-          spec.oauthProviderId,
-          providerFamilyDomain,
-          availableFamilies,
-        ),
+      CODING_PLAN_PROVIDER_SPECS.filter(
+        (spec) =>
+          !ZCODE_WIN7_EDITION &&
+          shouldShowCodingPlanForProviderFamilyDomain(
+            spec.oauthProviderId,
+            providerFamilyDomain,
+            availableFamilies,
+          ),
       ).map((spec) => {
         const provider = modelProviders.find((item) => item.providerId === spec.id) ?? null;
         const accountEntitled = entitledAccountProviderIds.has(spec.id);
@@ -232,7 +235,7 @@ export function useModelProviderNavigation({
       },
     ];
 
-    return groups;
+    return ZCODE_WIN7_EDITION ? groups.filter((group) => group.id === "custom") : groups;
   }, [
     customProviders,
     codingPlanItems,

@@ -5,6 +5,8 @@ import { configureWin7Environment, configureOfflineTools } from "./win7-environm
 // 在 ESM main 导入前完成隔离，避免静态导入先捕获正式版的数据路径；保留系统 HOME 给 Git/SSH。
 const home = configureWin7Environment(process.env, undefined, app.getPath("appData"));
 app.commandLine.appendSwitch("force-prefers-reduced-motion");
+app.commandLine.appendSwitch("disable-background-networking");
+app.commandLine.appendSwitch("disable-component-update");
 configureOfflineTools(process.resourcesPath);
 await mkdir(home, { recursive: true });
 

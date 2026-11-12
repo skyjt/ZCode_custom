@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* eslint-disable max-lines -- OAuthService 集中维护 OAuth 会话生命周期和 provider 切换边界，当前 review 修复只收窄后台迁移写入条件。 */
 import { randomBytes } from "node:crypto";
 import { Emitter } from "@zcode/rpc";
@@ -183,6 +184,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async getProviders(): Promise<OAuthProviderMeta[]> {
+    if (ZCODE_WIN7_EDITION) return [];
     return [...this.adapters.values()]
       .map((adapter) => adapter.meta)
       .filter((meta) => meta.enabled)
@@ -190,20 +192,25 @@ export class OAuthService implements IOAuthService {
   }
 
   async getActiveProvider(): Promise<OAuthProviderId | null> {
+    if (ZCODE_WIN7_EDITION) return null;
     return this.repo.getActiveProvider();
   }
 
   async getAccountAvailability(): Promise<OAuthAccountAvailability> {
+    if (ZCODE_WIN7_EDITION)
+      return { loginProvider: null, userId: null, sessionRevision: null, families: [] };
     return this.repo.loadAccountAvailability();
   }
 
   getWebsiteSession() {
+    if (ZCODE_WIN7_EDITION) return Promise.resolve(null);
     return this.repo.loadWebsiteSession();
   }
 
   async refreshAccountProfile(
     expected?: Pick<OAuthAccountAvailability, "loginProvider" | "userId" | "sessionRevision">,
   ): Promise<OAuthAccountAvailability> {
+    if (ZCODE_WIN7_EDITION) return this.getAccountAvailability();
     const snapshot = await this.repo.loadSessionSnapshot();
     const provider = snapshot["oauth:active_provider"];
     const profile = provider ? this.repo.profileFromSnapshot(snapshot, provider) : null;
@@ -278,6 +285,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async restoreCachedSessionState(): Promise<OAuthCachedSessionRestoreResult> {
+    if (ZCODE_WIN7_EDITION) return { status: "signed-out" };
     return this.withCurrentCredentialStore(() => this.restoreCachedSessionStateInternal());
   }
 
@@ -626,6 +634,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async restoreSession(): Promise<UserInfo | null> {
+    if (ZCODE_WIN7_EDITION) return null;
     return this.withCurrentCredentialStore(() => this.restoreSessionInternal());
   }
 
@@ -733,11 +742,13 @@ export class OAuthService implements IOAuthService {
   }
 
   async startOAuth(provider: OAuthProviderId): Promise<OAuthStartResponse> {
+    if (ZCODE_WIN7_EDITION) throw new Error("Account login is unavailable in the intranet edition");
     if (provider === ZAI_CN_PROVIDER_ID) return this.startOAuthWithPolling(provider);
     return this.startOAuthInternal(provider);
   }
 
   async startOAuthWithPolling(provider: OAuthProviderId): Promise<OAuthStartResponse> {
+    if (ZCODE_WIN7_EDITION) throw new Error("Account login is unavailable in the intranet edition");
     if (!isBuiltinOAuthProvider(provider)) {
       return this.startOAuthInternal(provider);
     }
@@ -876,6 +887,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async pollPendingOAuth(): Promise<OAuthCallbackResult | null> {
+    if (ZCODE_WIN7_EDITION) return null;
     const apiClient = this.apiClient;
     if (!apiClient) {
       return null;
@@ -1065,6 +1077,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async handleCallback(url: string): Promise<OAuthCallbackResult | null> {
+    if (ZCODE_WIN7_EDITION) return null;
     const pending = this.pendingState;
     if (!pending) {
       const callbackState = new URL(url).searchParams.get("state")?.trim();
@@ -1166,6 +1179,7 @@ export class OAuthService implements IOAuthService {
   }
 
   async refreshToken(provider?: OAuthProviderId): Promise<void> {
+    if (ZCODE_WIN7_EDITION) return;
     return this.withCurrentCredentialStore(() => this.refreshTokenInternal(provider));
   }
 

@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -350,7 +351,7 @@ export async function ensureDefaultPluginMarketplaces(
   const existingIds = new Set(known.map((record) => record.id));
   const now = new Date().toISOString();
   const missing = DEFAULT_PLUGIN_MARKETPLACES.filter(
-    (marketplace) => !existingIds.has(marketplace.id),
+    (marketplace) => !existingIds.has(marketplace.id) && (!ZCODE_WIN7_EDITION || isOfficialMarketplaceId(marketplace.id)),
   ).map(
     (marketplace): KnownMarketplaceRecord => ({
       id: marketplace.id,
@@ -387,6 +388,7 @@ export async function ensureMarketplaceManifestAvailable(input: {
     (item) => item.id === input.marketplace,
   );
   if (!record) return null;
+  if (ZCODE_WIN7_EDITION && isOfficialMarketplaceId(record.id)) return record;
   // 受信任的内部懒加载：用 known record 的规范 source 拉取，并以 record.id 作为 trustedId，
   // 使官方 id 只能由本来就是该官方 id 的记录刷新得到。
   return await addMarketplace({
@@ -712,6 +714,10 @@ export async function updateMarketplace(input: {
   const updated: KnownMarketplaceRecord[] = [];
   for (const record of selected) {
     throwIfPluginOperationAborted(input.signal);
+    if (ZCODE_WIN7_EDITION && isOfficialMarketplaceId(record.id)) {
+      updated.push(record);
+      continue;
+    }
 
     // 受信任的刷新会重新拉取已知 marketplace 自带的 source；record.id 作为 trustedId，
     // 使官方 id 只能由原本就是该 id 的记录刷新得到。

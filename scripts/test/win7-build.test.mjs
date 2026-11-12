@@ -74,6 +74,7 @@ test("Win7 isolates Agent databases without redirecting Git or SSH home", () => 
   };
   const home = configureWin7Environment(env, "/test-home", "/app-data");
   assert.equal(env.ZCODE_DESKTOP_APPLICATION_NAME, "aibuddy7se");
+  assert.equal(env.ZCODE_WIN7_EDITION, "1");
   assert.equal(env.ZCODE_DESKTOP_USER_DATA_DIR, join("/app-data", "ZCode Win7 Experimental"));
   assert.equal(home, join("/test-home", ".zcode-win7-home"));
   assert.equal(env.HOME, "/real-home");

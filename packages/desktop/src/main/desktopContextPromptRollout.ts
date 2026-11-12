@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   buildZCodeEndpointUrls,
   buildZCodeSourceHeadersFromContext,
@@ -91,6 +92,7 @@ export function createElectronDesktopContextPromptConfigFetcher(options: {
   resolveZcodeJwtToken?: ZCodeJwtTokenResolver;
 }): (signal: AbortSignal) => Promise<unknown> {
   return async (signal) => {
+    if (ZCODE_WIN7_EDITION) return { code: 0, data: { configs: {} } };
     const { net } = await import("electron");
     const endpointOrigin = await options.resolveEndpointOrigin();
     const authorization = await resolveOptionalZCodeAuthorization(options.resolveZcodeJwtToken);
