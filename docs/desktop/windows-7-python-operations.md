@@ -86,3 +86,19 @@ sequenceDiagram
 | WIN7-01 | 真 Win7 SP1 x64 / PS2 / .NET3.5                          | 启动、上述操作、Office 与内网模型任务实际可用                                      | 待真机，不由 CI 推断    |
 
 本文即本次 case catalog / coverage matrix；工程探针先于实现维护，无新增 UI 交互，不新增或恢复 App 业务单测。Windows CI 的 PS5.1 运行与静态旧 API 限制不能替代 Win7/PS2 的最终验收。
+
+## 验证记录（2026-11-12）
+
+实现与验收脚本提交：`78b3613945a39a85019aa3e399b570937b45f39d`。环境指引新增 437 个英文字符，仅通过既有环境公告追加，未增加 Python 运行时、依赖或模型权重。
+
+- Node 24.14.0 / pnpm 10.33.2：root typecheck、CLI typecheck（34/34 tasks）、架构检查通过。root lint 为 0 errors / 538 warnings；CLI lint 为 0 errors / 86 warnings，另有 4 项原样上游行数诊断。本次未修改 React 组件。
+- 实际执行 CLI 回归 138 项：环境与 context builder 54、环境公告 68、Hook trust store 与锁归属 16；工程回归 9 项。pre-push 门禁通过，受影响工程测试选择为 0/169，不能称为全量工程测试通过。
+- 环境指引测试先失败后通过。锁元数据回归先复现启动时间相差约 16 天：原代码使用系统 uptime；改用进程 uptime 后通过。Windows 探针额外使用真实子进程持锁，验证超龄活锁不被回收，错误启动时间的旧锁可以回收。
+- 首轮 CI 的探针依赖尚未生成的 CLI contracts dist；修复为从公开源码入口打包。该失败发生在新探针准备阶段，不表示 Windows 系统查询已经运行。
+- [Windows CI 43136043699](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699) 全部通过：新增系统 API/活锁验收、现代与强制 Win7 进程归属、打包 SQLite/WinPTY/双 keyring/中文搜索、Agent 迁移与隔离、原生导入筛查、Python Office/ZIP/中文 argv、SSH/SFTP、离线技能加载、阻断公网后的真实工作区启动。执行系统为 Windows Server 2022，不是真 Win7。
+
+[下载本次离线试验包](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699/artifacts/13907659218)，保留至 2026-11-26。外层 artifact 为 566,729,528 bytes，包含安装器和便携 ZIP，较上一包增加 6,499 bytes；没有新增运行时或依赖。外层 artifact SHA-256：`c952340487c00316a5877b50cff8b0c50820a1c3b0054d2f61e4cf63a9f7dae8`。
+
+产物复核：单个 EXE 为 251,882,591 bytes，便携 ZIP 为 316,693,821 bytes。下载便携 ZIP 并验证 SHA-256 为 `531676dd559784fb9e37ea83e6ac7bc1fa71772464c3e5aea54af534bf075b47`，与 CI 清单一致；直接读取成品 `resources/glm/zcode.cjs` 和离线技能，确认 Python 指引及兼容时间查询已进入成品。EXE 的 CI 清单摘要为 `33222498d1009c73941446798656f4f0c28936742b5f155783800352a9d8e6a5`，本次未重复下载 EXE。大文件检查后已删除本地临时便携包，仅保留验证记录。
+
+API 依据：[Microsoft 的 PS2 WMI 日期转换示例](https://devblogs.microsoft.com/scripting/powertip-get-the-last-boot-time-with-powershell/)、[JavaScriptSerializer 的 .NET Framework 3.5 支持范围](https://learn.microsoft.com/en-us/dotnet/api/system.web.script.serialization.javascriptserializer?view=netframework-4.8)。这些接口依据和现代 Windows 实测均不能替代 Win7 SP1 / PS2 / .NET3.5 真机与内网模型端到端验收。

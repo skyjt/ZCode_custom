@@ -132,4 +132,6 @@ set ELECTRON_RUN_AS_NODE=
 
 离线版提交 `6f555881` 的 [Actions 42992194931](https://github.com/skyjt/ZCode_custom/actions/runs/42992194931) 已全部通过，包含随包 Python/Office、SSH/SFTP、技能加载和有效防火墙阻断下的真实工作区启动。下载、摘要、能力范围和未验收项目见 [离线工具包交付记录](windows-7-offline-toolkit.md#验收目录与交付)。
 
+2026-11-12 更新：Python 优先与 PS2 调用修订 `78b36139` 的 [Actions 43136043699](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699) 全部通过，新增真实系统查询、JSON 往返及跨进程活锁保护验收。该包替代上述 `6f555881` 交付；[下载、摘要和验证记录](windows-7-python-operations.md#验证记录2026-11-12)。Win7/PS2 真机仍待验收。
+
 本机完整 pre-push 门禁使用明确 base `b95ebaffeab641907b38652f45c1502bd762972d` 通过；affected engineering 因覆盖 169/169 文件由既有策略跳过，不能算全量测试通过。目标工程探针实际执行。基础与离线版都仍需用户 Win7 SP1 x64 真机验收，Windows Server 2022 CI 不构成 Win7 已兼容的结论。

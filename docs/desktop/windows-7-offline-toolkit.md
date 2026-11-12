@@ -140,3 +140,5 @@ Windows Server 2022 CI 已实际执行：工程回归、现代/强制 Win7 Job �
 ## Python 优先与 PowerShell 2.0
 
 Win7 的模型环境增加简短 Python 指引，详细配方按需加载 offline-toolkit，避免逐轮重复。系统采样、关联程序查询及 Hook 锁恢复移除 PS3+/.NET4 专用语法，保留原系统接口与权限；不新增 Python 服务或解释器。范围、验收和真机边界见 [Python 操作规格](windows-7-python-operations.md)。
+
+2026-11-12 交付更新：`78b36139` 的 [Actions 43136043699](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699) 全部通过。[新版离线试验包](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699/artifacts/13907659218)替代上述 2026-11-11 交付，保留至 2026-11-26；大小、摘要和新增验收见 [验证记录](windows-7-python-operations.md#验证记录2026-11-12)。
