@@ -22,7 +22,7 @@
 
 ## 产品规则与范围
 
-1. 独立名称 `ZCode Win7 Experimental`、appId、安装目录与 Electron userData。默认业务目录为 `%USERPROFILE%/.zcode-win7-home/.zcode`，不导入正式版数据库。
+1. 显示名称 `aibuddy7se`；沿用原 Win7 试验版的 appId 与 `ZCode Win7 Experimental` Electron userData，保持升级数据连续。默认业务目录为 `%USERPROFILE%/.zcode-win7-home/.zcode`，不导入正式版数据库。
 2. 复用既有 `ZCODE_DESKTOP_HOME_DIR` / `ZCODE_DATA_BASE_DIR` 隔离机制；早期设置读取、默认工作区与设置服务必须使用同一隔离 home。CLI 的默认数据库和 storage.dir 不读取 DATA_BASE_DIR，入口必须同时设置已有的 `ZCODE_SESSION_DB_PATH` / `ZCODE_STORAGE_DIR`，清除旧别名 `ZCODE_SESSION_DB`，避免写正式版会话库。入口与 Agent smoke 共用同一环境构造，验收路径必须等于指定临时数据库。
 3. 编译期关闭自动更新；不发布到现代版更新源。产物是未签名试验 NSIS 安装器与 zip；每次手动测试升级，卸载不删除项目或业务数据。
 4. 核心目标：打开工作区、文件编辑/搜索、模型对话/流式输出、工具审批/取消、本地终端、基本 Git、历史重启恢复。Windows 7 的 Git/外部 MCP/外部 shell 需由用户安装其兼容版本，包内 Agent 不依赖系统 Node。
@@ -95,7 +95,7 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ## Win7 真机验收清单（由用户执行）
 
-从本次 Actions 的 `ZCode-Win7-Offline-Experimental-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `aibuddy7se.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
+从本次 Actions 的 `aibuddy7se-Win7-Offline-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `aibuddy7se.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
 进程资源统计、浏览器发现、系统文件关联和 Hook 陈旧锁查询已按 [Python 操作与 PS2 兼容规格](windows-7-python-operations.md)改用旧系统可用的 WMI/.NET 接口，不再要求 WMF 5.1。Agent 的批量文件与 Office 处理优先用随包 Python。仍需在目标 Win7/PowerShell 2.0/.NET 3.5 机器验收；现代 Windows 运行探针不等于旧系统验证通过。
 

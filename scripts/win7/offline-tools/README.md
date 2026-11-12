@@ -1,12 +1,12 @@
 # Win7 离线工具包
 
-本目录随 ZCode Win7 Experimental 安装，Python、Office 库和 PuTTY 均已就绪。无需在内网执行 pip/npm 下载。模型服务仍需在应用设置中配置为可达的内网 API。
+本目录随 aibuddy7se（Win7 特别版）安装，Python、Office 库和 PuTTY 均已就绪。无需在内网执行 pip/npm 下载。模型服务仍需在应用设置中配置为可达的内网 API。
 
 首次部署到 Win7 SP1 x64 时，管理员先检查并按需安装 `prerequisites/Windows6.1-KB3063858-x64.msu`（替代 KB2533623）和 `prerequisites/vc_redist.x64.exe`（VS 2019 x64 运行库，含 UCRT 安装支持），按安装器提示重启。已有更新可能提示“不适用/已安装”，不要卸载现有系统更新。两个文件来自微软；`manifest.json` 提供固定下载来源和 SHA-256。应用不会自动提权或修改系统补丁。
 
 如果应用还不能启动，可先解压同版本 ZIP，在 `resources/offline-tools/prerequisites` 找到前置包。不要把缺失 DLL 从网上随意复制到系统目录。
 
-在 ZCode 终端运行：
+在 aibuddy7se 终端运行：
 
 ```bat
 python -B -X utf8 -c "from docx import Document; from openpyxl import Workbook; from pptx import Presentation; print('Office ready')"
