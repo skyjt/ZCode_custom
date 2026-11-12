@@ -190,6 +190,7 @@ export function createProcessResourceTableReader(
   const platform = options.platform ?? process.platform;
   const execFile = options.execFile ?? defaultExecFile;
 
+  // Win7 PS2 没有 CIM；WMI 在系统 PowerShell 2/5.1 均可用，CPU 字段须按数值相加。
   if (platform === "win32") {
     return async (signal) => {
       signal?.throwIfAborted();
@@ -200,7 +201,7 @@ export function createProcessResourceTableReader(
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2} {3} {4}' -f $_.ProcessId, $_.ParentProcessId, $_.WorkingSetSize, ($_.KernelModeTime + $_.UserModeTime), $_.Name }",
+          "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WmiObject Win32_Process | ForEach-Object { '{0} {1} {2} {3} {4}' -f $_.ProcessId, $_.ParentProcessId, $_.WorkingSetSize, ([uint64]$_.KernelModeTime + [uint64]$_.UserModeTime), $_.Name }",
         ],
         {
           timeout: WINDOWS_TABLE_TIMEOUT_MS,

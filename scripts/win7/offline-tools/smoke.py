@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
 import tempfile
 import zipfile
 from contextlib import closing
@@ -78,7 +79,17 @@ with tempfile.TemporaryDirectory(prefix="ZCode 离线 ") as folder:
     assert yaml.safe_load("name: 离线")["name"] == "离线"
     assert json.loads(json.dumps({"值": 1}))["值"] == 1
 
+    # 验证随包解释器的 UTF-8 路径与 argv，不靠 shell 展开或现代 PowerShell 命令。
+    script = root / "参数 检查.py"
+    script.write_text("import json, sys; print(json.dumps(sys.argv[1:], ensure_ascii=False))", encoding="utf-8")
+    argument = '中文 & 引号" %变量%'
+    result = subprocess.run([os.sys.executable, "-B", "-X", "utf8", str(script), argument],
+                            shell=False, check=True, capture_output=True, encoding="utf-8", timeout=10)
+    assert json.loads(result.stdout) == [argument]
+    with zipfile.ZipFile(root / "归档.zip") as archive:
+        assert hashlib.sha256(archive.read("编辑.docx")).hexdigest() == digest(root / "编辑.docx")
+
 print(json.dumps({"result": "PASS", "python": os.sys.version, "checks": [
     "DOCX create/edit/read", "XLSX formulas preserved (not evaluated)",
-    "PPTX create/edit/read", "originals unchanged", "PDF read/write", "PNG", "SQLite", "ZIP", "YAML", "JSON"
+    "PPTX create/edit/read", "originals unchanged", "PDF read/write", "PNG", "SQLite", "ZIP/hash roundtrip", "YAML", "JSON", "Python UTF-8 path and argv"
 ]}, ensure_ascii=False))

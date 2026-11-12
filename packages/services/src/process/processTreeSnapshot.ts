@@ -98,6 +98,7 @@ function readPosixProcessList(options: ProcessTreeTerminatorOptions): ProcessIde
   return parsePosixProcessList(result.stdout, includeCommand);
 }
 
+// Win7 PS2 仅提供 WMI；CreationDate 是 DMTF 字符串，转换 UTC ticks 保持 PID 身份精度。
 function readWindowsProcessList(options: ProcessTreeTerminatorOptions): readonly ProcessIdentity[] {
   if (windowsProcessListCache) {
     return windowsProcessListCache;
@@ -109,7 +110,7 @@ function readWindowsProcessList(options: ProcessTreeTerminatorOptions): readonly
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $_.CreationDate.ToUniversalTime().Ticks }",
+      "Get-WmiObject Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ($_.ConvertToDateTime($_.CreationDate)).ToUniversalTime().Ticks }",
     ],
     {
       encoding: "utf8",

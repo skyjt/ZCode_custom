@@ -37,6 +37,9 @@ jobs:
           exit $LASTEXITCODE
       - name: Engineering regression
         run: node --test scripts/test/win7-build.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+      - name: Legacy Windows system API acceptance
+        timeout-minutes: 3
+        run: node scripts/win7/compat-smoke.mjs
       - name: Native process ownership (modern and Win7 path)
         timeout-minutes: 5
         shell: pwsh

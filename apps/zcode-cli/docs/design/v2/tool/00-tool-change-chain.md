@@ -2472,3 +2472,7 @@ stdio stderr → adapter 有界缓冲与脱敏 → 已有 `McpServerStatus.error
 ## legacy 会话事件剥掉后加的字段（2026-11-06）
 
 legacy v1 的 `session/events` 由 `bootstrap/src/zcode-protocol/session-mapper.ts` 整体 spread CLI 事件的 payload，App 侧是 strict schema，整页 `safeParse`。后加到 CLI 事件里、legacy schema 没有声明的字段要在 mapper 里剥掉，不改 App 的 schema（已经装出去的旧桌面同样会整页失败）。这次补上两处：`ToolCallStarted` 的 `readOnly`、`sideEffectScope`（解析后的副作用能力，只给 core 与 dynamic-workflow 用），`PermissionRequested` 的 `fullAccessSupported`（只给 v4 的审批）。漏掉时的后果：App 的 `readSession(view: "summary")` 经事件读 `executionId`，调用过工具、正在运行的会话报 ZodError，中断不了（2026-11-06 PLM-JARVIS-2 的运行时证据；示例插件 Jarvis 已迁出到市场仓库，那个 E2E 已删除）。回归由 `bootstrap/tests/session-mapper-legacy-strip.test.ts` 守住。以后给工具或权限事件加字段，同时决定 legacy mapper 要不要剥。
+
+## Win7 Python 优先执行指引（2026-11-12）
+
+仅 Win7 环境公告追加简短 Python 指引，详细操作放入随包 offline-toolkit 技能；环境不变不逐轮重复。专用工具优先，Bash 原 schema、审批、取消、执行 owner 和结果投影不变。Python 脚本不代表绕过工具权限；Windows 应用内部固定查询不消耗模型 token。规格与验收见根目录 docs/desktop/windows-7-python-operations.md；Win7/PS2 真机仍须实测。

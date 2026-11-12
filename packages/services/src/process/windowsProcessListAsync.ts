@@ -9,7 +9,7 @@ const DOTNET_UNIX_EPOCH_TICKS = 621_355_968_000_000_000n;
 const TICKS_PER_MICROSECOND = 10n;
 const WINDOWS_START_TIME_PREFIX = "windows-utc-us:";
 
-type WindowsCimCapability = "cim" | "identity-unavailable";
+type WindowsWmiCapability = "wmi" | "identity-unavailable";
 
 interface WindowsProcessListFlight {
   promise: Promise<readonly ProcessIdentity[]>;
@@ -17,9 +17,9 @@ interface WindowsProcessListFlight {
 }
 
 let windowsProcessListInFlight: WindowsProcessListFlight | undefined;
-let windowsCimCapability: WindowsCimCapability | undefined;
+let windowsWmiCapability: WindowsWmiCapability | undefined;
 
-function isHardCimUnavailable(error: unknown): boolean {
+function isHardWmiUnavailable(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException | undefined)?.code;
   return code === "ENOENT" || code === "EACCES" || code === "EPERM";
 }
@@ -105,9 +105,9 @@ export async function verifyWindowsProcessIdentityAsync(
   options: ProcessTreeTerminatorOptions = {},
 ): Promise<boolean> {
   if (process.platform !== "win32" || timeoutMs <= 0) return false;
-  if (windowsCimCapability === "identity-unavailable") return false;
-  // Windows 11 24H2 及部分 Win10 镜像不再提供 WMIC；Windows 10+ 统一使用
-  // PowerShell/CIM，查询失败仍按 CreationDate 无法确认处理，禁止绕过身份校验强杀。
+  if (windowsWmiCapability === "identity-unavailable") return false;
+  // Win7 PS2 没有 CIM，现代 Windows 又可能没有 WMIC；统一用 powershell.exe 的
+  // PowerShell/WMI，查询失败仍按 CreationDate 无法确认处理，禁止绕过身份校验强杀。
   return await new Promise<boolean>((resolve) => {
     execFile(
       "powershell.exe",
@@ -116,7 +116,7 @@ export async function verifyWindowsProcessIdentityAsync(
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        `Get-CimInstance Win32_Process -Filter "ProcessId = ${identity.pid}" | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $_.CreationDate.ToUniversalTime().Ticks }`,
+        `Get-WmiObject Win32_Process -Filter "ProcessId = ${identity.pid}" | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ($_.ConvertToDateTime($_.CreationDate)).ToUniversalTime().Ticks }`,
       ],
       {
         encoding: "utf8",
@@ -125,7 +125,7 @@ export async function verifyWindowsProcessIdentityAsync(
       },
       (error, stdout, stderr) => {
         if (error || !stdout) {
-          if (isHardCimUnavailable(error)) windowsCimCapability = "identity-unavailable";
+          if (isHardWmiUnavailable(error)) windowsWmiCapability = "identity-unavailable";
           warn(
             options,
             `Windows root 身份 PowerShell 复核失败 pid=${identity.pid}:`,
@@ -137,7 +137,7 @@ export async function verifyWindowsProcessIdentityAsync(
         const current = parseWindowsProcessList(stdout).find(
           (processIdentity) => processIdentity.pid === identity.pid,
         );
-        windowsCimCapability = "cim";
+        windowsWmiCapability = "wmi";
         resolve(current?.startTime === identity.startTime);
       },
     );
@@ -147,7 +147,7 @@ export async function verifyWindowsProcessIdentityAsync(
 export async function readWindowsProcessListAsync(
   options: ProcessTreeTerminatorOptions,
 ): Promise<readonly ProcessIdentity[]> {
-  if (windowsCimCapability === "identity-unavailable") return [];
+  if (windowsWmiCapability === "identity-unavailable") return [];
   const ownedProcessStartedAtMs = options.ownedProcessStartedAtMs;
   if (
     windowsProcessListInFlight &&
@@ -157,13 +157,13 @@ export async function readWindowsProcessListAsync(
     return await awaitWindowsProcessListWithinDeadline(windowsProcessListInFlight.promise, options);
   }
 
-  // Get-CimInstance 在部分 Windows 机器上会超过 1 秒。同步等待会阻塞 Host
+  // Get-WmiObject 在部分 Windows 机器上会超过 1 秒。同步等待会阻塞 Host
   // 的退出 deadline；共享同一个异步查询后，多个 workspace 可以复用一次系统进程表。
   // 旧共享 Promise 可能早于新 Agent 的 spawn 开始，复用这张进程表必然找不到
   // 新 root 并退化为 unverified。只有严格晚于 root 启动的查询才具备可复用资格。
   const startedAtMs = Date.now();
   const request = new Promise<readonly ProcessIdentity[]>((resolve) => {
-    // 移除 WMIC 后直接走受支持的 CIM 后端，避免 ENOENT fallback 消耗 cleanup
+    // 移除 WMIC 后直接走PS2/PS5.1 都支持的 WMI 后端，避免 ENOENT fallback 消耗 cleanup
     // deadline；查询失败返回空身份，调用方继续沿 fail-closed 路径观察退出。
     const timeoutMs = boundedWindowsLookupTimeoutMs(WINDOWS_PROCESS_LOOKUP_TIMEOUT_MS, options);
     if (timeoutMs <= 0) {
@@ -178,7 +178,7 @@ export async function readWindowsProcessListAsync(
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $_.CreationDate.ToUniversalTime().Ticks }",
+        "Get-WmiObject Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, ($_.ConvertToDateTime($_.CreationDate)).ToUniversalTime().Ticks }",
       ],
       {
         encoding: "utf8",
@@ -187,7 +187,7 @@ export async function readWindowsProcessListAsync(
       },
       (error, stdout, stderr) => {
         if (error || !stdout) {
-          if (isHardCimUnavailable(error)) windowsCimCapability = "identity-unavailable";
+          if (isHardWmiUnavailable(error)) windowsWmiCapability = "identity-unavailable";
           warn(options, "查询 Windows runtime 进程表失败（异步）:", error ?? stderr);
           resolve([]);
           return;
@@ -195,7 +195,7 @@ export async function readWindowsProcessListAsync(
         const identities = parseWindowsProcessList(stdout);
         if (identities.length === 0)
           warn(options, "PowerShell 未返回可解析的 Windows runtime 进程表");
-        if (identities.length > 0) windowsCimCapability = "cim";
+        if (identities.length > 0) windowsWmiCapability = "wmi";
         resolve(identities);
       },
     );

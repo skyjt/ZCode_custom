@@ -1064,6 +1064,20 @@ nodes:
       - "docs/product-capability-map.md"
       - "docs/product-capability-map-office-computer-use.md"
 
+  - id: "capability.win7-python-operations"
+    kind: "capability"
+    label: "Win7 Python-first Agent operations and PowerShell 2 compatible native queries"
+    aliases: ["Win7 Python", "PowerShell 2", "离线脚本"]
+    docs:
+      - "docs/desktop/windows-7-python-operations.md"
+    codeSeeds:
+      - symbol: "buildEnvInfoSection"
+        file: "apps/zcode-cli/packages/core/src/context/sections/env-info.ts"
+      - symbol: "createProcessResourceTableReader"
+        file: "packages/services/src/process/processResourceSampler.ts"
+      - symbol: "createNativeApplicationAdapter"
+        file: "packages/desktop/src/main/file-open-apps/native.ts"
+
   - id: "capability.office-suite"
     kind: "capability"
     label: "Office document preview, editing, and Agent production"

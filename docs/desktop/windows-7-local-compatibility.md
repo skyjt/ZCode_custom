@@ -97,7 +97,7 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 从本次 Actions 的 `ZCode-Win7-Offline-Experimental-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
-现有进程资源统计、浏览器发现等辅助逻辑使用 `Get-CimInstance`，Hook 陈旧锁探测使用较新的 PowerShell/.NET 语法。Win7 自带 PowerShell 2.0 不覆盖这些能力；如需验收这些功能，可按 [Microsoft WMF 5.1 说明](https://learn.microsoft.com/en-us/powershell/scripting/windows-powershell/wmf-overview)准备系统环境。安装器不自动更改 PowerShell 或 .NET；上述辅助功能在 Win7 上仍未验证。
+进程资源统计、浏览器发现、系统文件关联和 Hook 陈旧锁查询已按 [Python 操作与 PS2 兼容规格](windows-7-python-operations.md)改用旧系统可用的 WMI/.NET 接口，不再要求 WMF 5.1。Agent 的批量文件与 Office 处理优先用随包 Python。仍需在目标 Win7/PowerShell 2.0/.NET 3.5 机器验收；现代 Windows 运行探针不等于旧系统验证通过。
 
 若启动或终端失败，在应用安装/解压目录打开 `cmd.exe`，执行以下命令，将 `%TEMP%/zcode-win7-check.txt` 中的错误提供给维护者。诊断使用包内 Electron，无需另装 Node，不请求模型、不读取已有凭据；会写入、读回并删除独立的临时测试凭据：
 

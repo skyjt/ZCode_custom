@@ -240,13 +240,16 @@ function toPowerShellSingleQuotedString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+// Win7 PS2 无 CIM/ConvertTo-Json；只序列化字段表，避免 WMI/PSObject 包装器循环引用。
 function buildWindowsProcessQueryScript(markers: readonly string[]): string {
   const markerLiterals = markers.map(toPowerShellSingleQuotedString).join(", ");
   return `
-$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Web.Extensions
 $markers = @(${markerLiterals})
 $ownPid = $PID
-$rows = Get-CimInstance Win32_Process | Select-Object ProcessId, CommandLine, ExecutablePath
+$rows = Get-WmiObject Win32_Process | Select-Object ProcessId, CommandLine, ExecutablePath
 $matches = @()
 foreach ($row in $rows) {
   if ($row.ProcessId -eq $ownPid) { continue }
@@ -254,12 +257,12 @@ foreach ($row in $rows) {
   foreach ($marker in $markers) {
     $needle = ([string]$marker).Replace('/', '\\').ToLowerInvariant()
     if ($needle.Length -gt 0 -and $haystack.Contains($needle)) {
-      $matches += $row
+      $matches += @{ ProcessId = [int]$row.ProcessId; CommandLine = [string]$row.CommandLine; ExecutablePath = [string]$row.ExecutablePath }
       break
     }
   }
 }
-$matches | ConvertTo-Json -Compress
+(New-Object System.Web.Script.Serialization.JavaScriptSerializer).Serialize($matches)
 `;
 }
 

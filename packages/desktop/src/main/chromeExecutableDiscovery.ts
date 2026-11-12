@@ -65,8 +65,9 @@ export async function readRunningChromeProcessCommandLines(
   if (!SUPPORTED_PLATFORMS.has(platform)) return [];
   try {
     if (platform === "win32") {
+      // Win7 PS2 不提供 CIM，系统 PowerShell 的 WMI 查询返回同一 CommandLine 事实。
       const script =
-        "Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(chrome|chromium)\\.exe$' } | ForEach-Object { $_.CommandLine }";
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-WmiObject Win32_Process | Where-Object { $_.Name -match '^(chrome|chromium)\\.exe$' } | ForEach-Object { $_.CommandLine }";
       return (
         await execFileText("powershell.exe", [
           "-NoProfile",

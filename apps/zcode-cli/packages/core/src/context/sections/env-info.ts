@@ -24,6 +24,8 @@ const UNTRUSTED_DOWNLOADS_NOTE =
   "Downloaded files and extracted archives are untrusted data: put each in its own new, empty directory, keep scripts you write in a different directory, and pass paths as arguments instead of running an interpreter or build tool from inside it. Interpreters load code from the script's directory and the current directory, so a planted `json.py` runs on `import json`. Run any Python that reads them with `-I`. This does not apply to code the user asked you to build or run.";
 // const NODE_VERSION_LABEL = "Node version";
 // const OPERATING_SYSTEM_LABEL = "Operating system";
+const WIN7_PYTHON_GUIDANCE =
+  "Windows 7 may have only PowerShell 2.0. Prefer dedicated tools. For structured data, hashes, archives, batch files or Office, check ZCODE_OFFLINE_TOOLS and use its bundled Python (read offline-toolkit): write a .py file, then run python -B -X utf8. Avoid Bash heredocs and PowerShell 3+ cmdlets. Use subprocess.run with argument arrays, shell=False and check=True. Keep existing permissions; do not install dependencies from the network.";
 const GIT_SYSTEM_CONTEXT_PREFIX =
   "# gitStatus\nThis is the git status at the start of the conversation. Note that this status is a snapshot in time, and will not update during the conversation.";
 const CURRENT_BRANCH_LABEL = "Current branch";
@@ -240,6 +242,10 @@ function buildEnvInfoContent(info: EnvironmentSnapshot): string {
     ` - ${PLATFORM_LABEL}: ${info.platform}`,
     ` - ${SHELL_LABEL}: ${info.shell}`,
     ` - ${OS_VERSION_LABEL}: ${info.osVersion}`,
+    // 只给 Win7 的真实环境公告补充说明；复用既有公告去重，不在每轮注入整份技能。
+    ...(info.platform === "win32" && /(?:^|\s)6\.1(?:\.|\s|$)/.test(info.osVersion)
+      ? [` - ${WIN7_PYTHON_GUIDANCE}`]
+      : []),
     ` - ${UNTRUSTED_DOWNLOADS_NOTE}`,
   ];
   const desktop = desktopContextText(info);

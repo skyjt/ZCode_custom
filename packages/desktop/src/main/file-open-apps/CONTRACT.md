@@ -6,3 +6,5 @@
 每次调用独立，没有跨工作区、文件或安装状态的持久缓存；不会创建 session、Host 或 Agent。
 
 共享 WPS 启动器的 suite AppID 与当前 ProgID 分开保留；所有格式统一使用该 AppID 在 AppsFolder 登记的真实套件入口图标，保留独立 icon identity，不能回退 Writer 图标。名称与 public launch ID 不变，其它应用取图优先级不变。
+
+Windows 查询脚本兼容系统 PowerShell 2.0 / .NET 3.5：使用既有 Shell COM 和 JavaScriptSerializer，避免 PS3 cmdlet、C#4 可选参数和 .NET4 API。对象/数组/图标协议、只读查询和打开前重查不变；见 docs/desktop/windows-7-python-operations.md。

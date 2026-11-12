@@ -14,10 +14,10 @@ plink.exe -V
 psftp.exe -V
 ```
 
-完整本机诊断（CMD）：
+完整本机诊断（CMD/PowerShell/Git Bash）：
 
 ```bat
-python -B -X utf8 "%ZCODE_OFFLINE_TOOLS%\smoke.py"
+python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"
 ```
 
 Office 操作见 `office.md`；SSH/SFTP 在聊天中使用 `ssh-sftp` 内置技能，或直接打开 `putty/PUTTY.EXE`。安装目录只读，所有文档和脚本输出到自己的工作区。

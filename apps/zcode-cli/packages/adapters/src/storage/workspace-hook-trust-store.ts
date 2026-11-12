@@ -77,10 +77,11 @@ async function probeProcessStartTimeDefault(pid: number): Promise<number | null>
       return Number.isFinite(parsed) ? parsed : null;
     }
     if (process.platform === "win32") {
+      // Win7 PS2/.NET3.5 不支持 ::new/ToUnixTimeMilliseconds；仍按 UTC 毫秒核验原 owner。
       const { stdout } = await execFileAsync("powershell.exe", [
         "-NoProfile",
         "-Command",
-        `[DateTimeOffset]::new((Get-Process -Id ${pid}).StartTime).ToUnixTimeMilliseconds()`,
+        `[long][Math]::Floor(((Get-Process -Id ${pid}).StartTime.ToUniversalTime() - [DateTime]"1970-01-01").TotalMilliseconds)`,
       ]);
       const parsed = Number(stdout.trim());
       return Number.isFinite(parsed) ? parsed : null;

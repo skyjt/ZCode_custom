@@ -8,10 +8,12 @@ import {
  * Shell 提供关联处理器和 IDataObject 启动，不自行拼接注册表 command。
  * 路径和应用身份通过进程环境传入，不能插值进 PowerShell/C# 源码。
  */
+// Win7 的 PS2/.NET3.5 没有 ConvertTo-Json、IsNullOrWhiteSpace 和 C#4 可选参数。
 export const WINDOWS_APPLICATION_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Web.Extensions
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
 using System;
 using System.IO;
@@ -83,7 +85,7 @@ public static class NativeFileApps {
   [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
   static extern uint AssocQueryString(uint flags, uint kind, string assoc, string extra, StringBuilder output, ref uint length);
   static string ReadAssociation(string association, uint kind) {
-    if (String.IsNullOrWhiteSpace(association)) return null;
+    if ((String.IsNullOrEmpty(association) || association.Trim().Length == 0)) return null;
     uint length = 32768;
     var value = new StringBuilder((int)length);
     return AssocQueryString(0, kind, association, null, value, ref length) == 0 ? value.ToString() : null;
@@ -94,7 +96,7 @@ public static class NativeFileApps {
       registration = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("591209C7-767B-42B2-9FBA-44EE4615F2C7")));
       string progId;
       // AL_EFFECTIVE 返回 Shell 实际会打开的关联；UserChoice 注册值可能未实际生效。
-      if (((IApplicationAssociationRegistration)registration).QueryCurrentDefault(extension, 0, 1, out progId) != 0 || String.IsNullOrWhiteSpace(progId)) return null;
+      if (((IApplicationAssociationRegistration)registration).QueryCurrentDefault(extension, 0, 1, out progId) != 0 || (String.IsNullOrEmpty(progId) || progId.Trim().Length == 0)) return null;
       return new DefaultAssociation { progId = progId, appId = ReadAssociation(progId, 21), executable = ReadAssociation(progId, 2) };
     } catch { return null; }
     finally { if (registration != null) Marshal.ReleaseComObject(registration); }
@@ -107,7 +109,7 @@ public static class NativeFileApps {
     try { string value; return ((IObjectWithAppUserModelID)handler).GetAppID(out value) == 0 ? value : null; }
     catch { return null; }
   }
-  public static FileApplicationQuery Query(string path, bool includeIcons = true) {
+  public static FileApplicationQuery Query(string path, bool includeIcons) {
     var result = new FileApplicationQuery();
     var extension = Path.GetExtension(path);
     if (String.IsNullOrEmpty(extension)) return result;
@@ -175,7 +177,7 @@ if ($env:ZCODE_FILE_APP_ACTION -eq 'open') {
 } else {
   $zcodeQuery = [NativeFileApps]::Query($env:ZCODE_FILE_APP_PATH, ($env:ZCODE_FILE_APP_INCLUDE_ICONS -ne '0'))
   ${WINDOWS_SUITE_ICON_SCRIPT}
-  ConvertTo-Json -InputObject $zcodeQuery -Depth 6 -Compress
+  (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Serialize($zcodeQuery)
 }
 `
   // 增加原生资源解析后，UTF-16 Base64 接近 Windows 命令行上限；不传输排版缩进和独立注释。

@@ -39,7 +39,7 @@ public static class WindowsAssociationIcon {
 
   public static string Read(string rawPath, int index) {
     try {
-      if (String.IsNullOrWhiteSpace(rawPath)) return null;
+      if (String.IsNullOrEmpty(rawPath) || rawPath.Trim().Length == 0) return null;
       string path = rawPath.Trim();
       // package/ms-resource 是间接资源，不是磁盘路径；先让系统解析，再检查真实图片。
       if (path.StartsWith("@", StringComparison.Ordinal)) {
