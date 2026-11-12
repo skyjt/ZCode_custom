@@ -15,7 +15,7 @@ if (
 export default {
   ...base,
   appId: "dev.zcode.app.win7.experimental",
-  productName: "ZCode Win7 Experimental",
+  productName: "aibuddy7se",
   electronVersion: runtime.version,
   electronDist: process.env.ZCODE_WIN7_ELECTRON_DIST,
   extraMetadata: {
@@ -25,7 +25,15 @@ export default {
     zcodeWin7Runtime: runtime,
   },
   extraResources: [
-    ...base.extraResources,
+    ...base.extraResources.filter(
+      (item) => !["icon.png", "icon_windows.png", "tray_icon.ico"].includes(item.to),
+    ),
+    ...["icon.png", "icon_windows.png"].map((name) => ({
+      from: resolve(import.meta.dirname, "branding", name),
+      to: name,
+    })),
+    { from: resolve(import.meta.dirname, "branding/icon.ico"), to: "tray_icon.ico" },
+    { from: resolve(import.meta.dirname, "system-self-test.cjs"), to: "win7/system-self-test.cjs" },
     { from: resolve(import.meta.dirname, "runtime-smoke.cjs"), to: "win7/runtime-smoke.cjs" },
     { from: resolve(import.meta.dirname, "runtime.json"), to: "win7/runtime.json" },
     {
@@ -41,10 +49,18 @@ export default {
   ],
   win: {
     ...base.win,
-    executableName: "ZCode Win7 Experimental",
+    executableName: "aibuddy7se",
+    icon: resolve(import.meta.dirname, "branding/icon.ico"),
     target: ["nsis", "zip"],
-    artifactName: "ZCode-Win7-Offline-Experimental-${version}-${arch}.${ext}",
+    artifactName: "aibuddy7se-${version}-win7-${arch}.${ext}",
   },
-  nsis: { ...base.nsis, runAfterFinish: false, deleteAppDataOnUninstall: false },
+  nsis: {
+    ...base.nsis,
+    installerIcon: resolve(import.meta.dirname, "branding/icon.ico"),
+    uninstallerIcon: resolve(import.meta.dirname, "branding/icon.ico"),
+    installerHeaderIcon: resolve(import.meta.dirname, "branding/icon.ico"),
+    runAfterFinish: false,
+    deleteAppDataOnUninstall: false,
+  },
   publish: null,
 };

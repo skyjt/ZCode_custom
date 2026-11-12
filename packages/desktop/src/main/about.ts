@@ -1,9 +1,12 @@
 import type { AboutPanelOptionsOptions, BrowserWindow, MessageBoxReturnValue } from "electron";
+import { readFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { arch, hostname, platform, release, type, version as osVersion } from "node:os";
 import { join } from "node:path";
 import {
   DEFAULT_LOCALE,
+  ZCODE_WIN7_EDITION,
+  ZCODE_APP_DISPLAY_NAME,
   toZhOrEnLocale,
   type Locale,
   ZCODE_BUILD_TIME,
@@ -53,7 +56,7 @@ interface AboutSnapshotOptions {
   };
 }
 
-const ABOUT_APPLICATION_NAME = "ZCode Desktop App";
+const ABOUT_APPLICATION_NAME = ZCODE_WIN7_EDITION ? "aibuddy7se" : "ZCode Desktop App";
 // 自定义 About 内容本体是 256x280；原生窗口如果同尺寸会让内容贴满透明窗口边界。
 // 这里给 BrowserWindow 额外留出背景呼吸空间，避免正式 About 看起来比 demo 更局促。
 const ABOUT_WINDOW_WIDTH = 256;
@@ -70,14 +73,14 @@ const ABOUT_MESSAGES: Record<
   }
 > = {
   "zh-CN": {
-    aboutTitle: "关于 ZCode",
+    aboutTitle: `关于 ${ZCODE_APP_DISPLAY_NAME}`,
     versionLabel: "版本",
     okButtonLabel: "确定",
     optimizedForAppleSilicon: "已针对 Apple Silicon 优化。",
     copyright: (year) => `版权所有 © ${year} ZCode。`,
   },
   "en-US": {
-    aboutTitle: "About ZCode",
+    aboutTitle: `About ${ZCODE_APP_DISPLAY_NAME}`,
     versionLabel: "version",
     okButtonLabel: "OK",
     optimizedForAppleSilicon: "Optimized for Apple Silicon.",
@@ -271,13 +274,19 @@ export async function showAboutDialog(
   aboutWindow.once("ready-to-show", () => {
     aboutWindow.show();
   });
+  const iconDataUrl = ZCODE_WIN7_EDITION
+    ? `data:image/png;base64,${(await readFile(iconPath)).toString("base64")}`
+    : undefined;
   void aboutWindow.loadURL(
     `data:text/html;charset=utf-8,${encodeURIComponent(
       createCustomAboutDialogHtml({
         applicationName: ABOUT_APPLICATION_NAME,
+        iconDataUrl,
         appVersion: snapshot.appVersion,
         copyright: formatAboutCopyright(undefined, locale),
-        optimizationLine: formatAboutOptimizationLine(snapshot, locale),
+        optimizationLine: ZCODE_WIN7_EDITION
+          ? "Win7 特别版"
+          : formatAboutOptimizationLine(snapshot, locale),
         versionLabel: aboutMessages.versionLabel,
         okButtonLabel: aboutMessages.okButtonLabel,
       }),

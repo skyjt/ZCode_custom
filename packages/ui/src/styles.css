@@ -2442,3 +2442,16 @@ body {
   + :is(.summary-hover-text, :has(.summary-hover-text)):not([data-consecutive-summary-group]) {
   padding-top: 0;
 }
+
+/* Win7 特别版保留状态文字与小型忙碌指示，移除持续装饰重绘。 */
+html.aibuddy7se .animated-gradient-text,
+html.aibuddy7se .markdown-image-loading-shimmer,
+html.aibuddy7se .animate-pulse,
+html.aibuddy7se .animate-ping {
+  animation: none !important;
+  will-change: auto;
+}
+html.aibuddy7se .highspeed-particle-layer,
+html.aibuddy7se .onboarding-logo-sweep {
+  display: none;
+}

@@ -18,6 +18,8 @@ import {
   TID_SETTINGS_TOOL_SEARCH_SELECT,
   TID_SETTINGS_TOOL_SEARCH_OPTION,
 } from "@zcode/shared/test-ids";
+import { usePlatform } from "@/hooks/usePlatform.js";
+import type { SystemSelfTestReport } from "@zcode/shared";
 import { useState, useCallback, useEffect } from "react";
 import type { IPlatformService } from "@zcode/shared";
 import {
@@ -342,6 +344,7 @@ export function GeneralSectionContent({
 
   return (
     <div className="space-y-4">
+      <SystemCompatibilityCheck />
       <SettingsGroupCard>
         <SettingsRow
           searchId="settings.locale"
@@ -989,5 +992,109 @@ export function AgentBehaviorSectionContent({
         />
       </SettingsGroupCard>
     </div>
+  );
+}
+
+function SystemCompatibilityCheck() {
+  const platform = usePlatform();
+  const { intl } = useZCodeIntl();
+  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<SystemSelfTestReport | null>(null);
+  const [error, setError] = useState(false);
+  const [saved, setSaved] = useState(false);
+  if (!platform.runSystemSelfTest) return null;
+  const text = (key: string) => intl.formatMessage({ id: `settings.selfTest.${key}` });
+  const run = async () => {
+    if (busy || !platform.runSystemSelfTest) return;
+    setBusy(true);
+    setError(false);
+    setSaved(false);
+    setReport(null);
+    try {
+      setReport(await platform.runSystemSelfTest());
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = async () => {
+    if (!report || !platform.saveFile) return;
+    setError(false);
+    try {
+      const result = await platform.saveFile({
+        suggestedName: "aibuddy7se-system-test.json",
+        data: new TextEncoder().encode(JSON.stringify(report, null, 2)).buffer,
+      });
+      setSaved(result.success);
+      if (!result.success && !result.canceled) setError(true);
+    } catch {
+      setError(true);
+    }
+  };
+  return (
+    <SettingsGroupCard>
+      <SettingsRow
+        label={text("title")}
+        description={text("description")}
+        control={
+          <Button
+            data-testid="system-self-test-run"
+            variant="outline"
+            disabled={busy}
+            onClick={() => void run()}
+          >
+            {text(busy ? "running" : "run")}
+          </Button>
+        }
+      />
+      <div className="px-4 pb-4 text-ui-sm" aria-live="polite" aria-busy={busy}>
+        {busy && (
+          <p className="text-muted-foreground" role="status">
+            {text("progress")}
+          </p>
+        )}
+        {error && (
+          <p className="text-destructive" role="alert">
+            {text("error")}
+          </p>
+        )}
+        {report && (
+          <div data-testid="system-self-test-results" className="space-y-3">
+            <p className="text-muted-foreground">
+              {report.system.release} · Electron {report.system.electron} · Node{" "}
+              {report.system.node}
+            </p>
+            <ul className="divide-y divide-border">
+              {report.checks.map((check) => (
+                <li key={check.id} data-self-test-status={check.status} className="py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{text(`check.${check.id}`)}</span>
+                    <span
+                      className={
+                        check.status === "fail" ? "text-destructive" : "text-muted-foreground"
+                      }
+                    >
+                      {text(check.status)}
+                    </span>
+                  </div>
+                  <p className="mt-1 break-words text-muted-foreground">{check.detail}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground">{text("limits")}</p>
+            <Button
+              data-testid="system-self-test-export"
+              variant="outline"
+              disabled={!platform.saveFile}
+              onClick={() => void save()}
+            >
+              {text("export")}
+            </Button>
+            {saved && <span className="ml-3 text-muted-foreground">{text("saved")}</span>}
+          </div>
+        )}
+      </div>
+    </SettingsGroupCard>
   );
 }

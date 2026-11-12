@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { OnboardingMeshBackground } from "@/onboarding/OnboardingMeshBackground.js";
 import { useEffect, useState } from "react";
 import { logger } from "@/logger.js";
@@ -44,7 +45,7 @@ export function OccupationOnboardingVisual({
       style={{ borderRadius }}
       className="relative hidden min-h-0 flex-col items-center overflow-y-auto bg-surface-hover px-[clamp(64px,4vw,72px)] py-[clamp(32px,4vw,72px)] dark:bg-background-alt lg:flex"
     >
-      <OnboardingMeshBackground />
+      {!ZCODE_WIN7_EDITION && <OnboardingMeshBackground />}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] border border-border"

@@ -1,6 +1,7 @@
 import { recordArmsCustomEventForE2E } from "@zcode/ui";
 import {
   DesktopCommandIds,
+  ZCODE_WIN7_EDITION,
   buildLocalMediaPreviewUrl,
   resolveLocaleFromLanguageTag,
   unwrapRemoteWorkspaceBindResult,
@@ -189,6 +190,7 @@ export function createDesktopPlatform(options: {
     onDesktopZoomLevelChanged: (handler) =>
       window.zcode.onDesktopZoomLevelChanged?.(handler) ?? (() => {}),
     onTaskNotificationClick: (handler) => window.zcode.onTaskNotificationClick(handler),
+    runSystemSelfTest: ZCODE_WIN7_EDITION ? () => window.zcode.runSystemSelfTest() : undefined,
     exportLogs: () => window.zcode.exportLogs(),
     captureWindowScreenshot: () =>
       window.zcode.captureWindowScreenshot?.() ?? Promise.resolve(null),

@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -191,6 +192,29 @@ export default defineConfig(({ command, mode }) => {
   const codingPlanWebviewOrigin =
     env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? process.env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? "";
   const plugins = [
+    ...(process.env.ZCODE_WIN7_EDITION === "1"
+      ? [
+          {
+            name: "aibuddy7se-brand",
+            async transformIndexHtml(html: string) {
+              const logo = (
+                await readFile(resolve(__dirname, "../ui/src/assets/aibuddy.png"))
+              ).toString("base64");
+              return html
+                .replace("<html", '<html class="aibuddy7se"')
+                .replace(/<title>ZCode<\/title>/, "<title>aibuddy7se · Win7 特别版</title>")
+                .replace(
+                  /<svg[\s\S]*?class="startup-logo"[\s\S]*?<\/svg>/,
+                  `<img src="data:image/png;base64,${logo}" width="96" height="96" alt="" />`,
+                )
+                .replace(
+                  "</head>",
+                  `<style>.startup-logo-shell{background:transparent!important;box-shadow:none!important;border:0!important;animation:none!important;opacity:1!important;transform:none!important}</style></head>`,
+                );
+            },
+          },
+        ]
+      : []),
     // 仅开发服务器装配，所有 build 都不注入；后端 ZCODE_ENV 不决定是否开启开发工具。
     ...(command === "serve" && mode !== "production" && env.ZCODE_REACT_SCAN !== "0"
       ? [createReactScanDevPlugin()]
@@ -227,6 +251,7 @@ export default defineConfig(({ command, mode }) => {
       __ZCODE_BUILD_TIME__: JSON.stringify(buildMetadata.buildTime),
       __ZCODE_ENV__: JSON.stringify(zcodeEnv),
       __ZCODE_PRODUCT_FLAVOR__: JSON.stringify(zcodeProductFlavor),
+      __ZCODE_WIN7_EDITION__: JSON.stringify(process.env.ZCODE_WIN7_EDITION === "1"),
       ...buildTimeConfigDefines,
       __ZCODE_LOCAL_DEVELOPMENT_RUNTIME__: JSON.stringify(mode !== "production"),
       "import.meta.env.VITE_ZCODE_BASE_URL": JSON.stringify(zcodeEndpointOrigin),

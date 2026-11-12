@@ -12,7 +12,7 @@ await mkdir(output, { recursive: true });
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(
-  join(appDir, "ZCode Win7 Experimental.exe"),
+  join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],
   { cwd: tmpdir(), env, stdio: ["ignore", "pipe", "pipe"] },
 );
@@ -50,11 +50,47 @@ try {
   await page.getByTestId("login-api-key-skip-button").click();
   // 首次安装的职业引导替换工作区正文；使用现有 Escape 关闭入口，不绕过应用状态。
   await page.getByTestId("onboarding-page").waitFor({ timeout: 30000 });
+  assert.equal(await page.title(), "aibuddy7se · Win7 特别版");
+  assert.equal(
+    await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches),
+    true,
+  );
+  assert.equal(await page.getByTestId("onboarding-page").locator("canvas").count(), 0);
   await page.keyboard.press("Escape");
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 30000 });
   await page.getByTestId("login-api-key-skip-button").waitFor({ state: "hidden" });
   assert.equal(await page.getByTestId("database-startup-status").count(), 0);
   assert.equal(await page.evaluate(() => typeof window.zcode), "object");
+  assert.ok((await page.locator('[data-app-logo="aibuddy7se"]').count()) > 0);
+  await page.getByTestId("task-settings-button").click();
+  await page.getByTestId("settings-locale-select-trigger").click();
+  await page.getByTestId("settings-locale-select-item-en-US").click();
+  await page.getByTestId("system-self-test-run").click();
+  await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
+  const checks = page.locator("[data-self-test-status]");
+  assert.ok((await checks.count()) >= 10);
+  assert.equal(await page.locator('[data-self-test-status="fail"]').count(), 0);
+  assert.ok((await page.locator('[data-self-test-status="not-tested"]').count()) > 0);
+  assert.equal(await page.getByTestId("system-self-test-export").isEnabled(), true);
+  await writeFile(
+    join(output, "self-test-ui.txt"),
+    await page.getByTestId("system-self-test-results").innerText(),
+  );
+  for (const theme of ["Light theme", "Dark theme"]) {
+    await page.getByTestId("login-trigger").click();
+    await page.getByRole("menuitem", { name: "App theme", exact: true }).hover();
+    await page.getByRole("menuitemradio", { name: theme, exact: true }).click();
+    await page.waitForFunction(
+      (dark) => document.documentElement.classList.contains("dark") === dark,
+      theme === "Dark theme",
+    );
+    await page.screenshot({
+      path: join(output, theme === "Dark theme" ? "self-test-dark.png" : "self-test-light.png"),
+    });
+  }
+  await page.getByTestId("settings-locale-select-trigger").click();
+  await page.getByTestId("settings-locale-select-item-zh-CN").click();
+  await page.getByText("系统能力自测 · Win7 特别版", { exact: true }).waitFor();
   await page.screenshot({ path: join(output, "startup.png") });
   await writeFile(
     join(output, "startup.json"),
@@ -65,7 +101,7 @@ try {
         title: await page.title(),
         text: (await page.locator("body").innerText()).slice(0, 3000),
         scope:
-          "Windows Server 2022: initialization completes, API Key skip enters workspace while app outbound traffic is blocked; Win7 and intranet model remain untested",
+          "Windows Server 2022: branded workspace, reduced motion, no onboarding Canvas, offline self-test results, English/Chinese and light/dark UI; Win7 hardware, native export dialog and model API remain untested",
       },
       null,
       2,

@@ -1,3 +1,5 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import aibuddyLogo from "@/assets/aibuddy.png";
 import type { ZCodeAppLogoProps } from "@/components/mobile-ui/contract.js";
 import { cn } from "@/components/lib/utils.js";
 import appLogoUrl from "@/assets/provider-icons/logo-zai.svg";
@@ -9,12 +11,12 @@ import appLogoUrl from "@/assets/provider-icons/logo-zai.svg";
 export function ZCodeAppLogo({ className }: ZCodeAppLogoProps) {
   return (
     <img
-      src={appLogoUrl}
+      src={ZCODE_WIN7_EDITION ? aibuddyLogo : appLogoUrl}
       alt=""
       aria-hidden="true"
       draggable={false}
       // 稳定的测试/E2E 钩子：打包器可能把 SVG 内联为 data URL，不能靠文件名断言。
-      data-app-logo="zcode"
+      data-app-logo={ZCODE_WIN7_EDITION ? "aibuddy7se" : "zcode"}
       className={cn("shrink-0 select-none object-contain", className)}
     />
   );

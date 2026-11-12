@@ -1,9 +1,15 @@
 import { decorateRequestSecurityLogArgs } from "./request-security-edition/index.js";
 /* eslint-disable max-lines -- 桌面平台 IPC 集中装配，拆散会让权限边界更难审计；行数随平台能力增长。 */
-import { BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { join } from "node:path";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
 import { readZCodeStdioTapDevState } from "@zcode/services/node";
 import {
   DesktopCommandIds,
+  ZCODE_WIN7_EDITION,
+  systemSelfTestReportSchema,
+  type SystemSelfTestReport,
   appSettingsPatchSchema,
   formatZodError,
   localeSchema,
@@ -459,6 +465,32 @@ export function registerPlatformIpcHandlers(options: {
     (_event, request: string | ApplicationIconRequest) => getApplicationIcon(request),
   );
   ipcMain.handle(PlatformChannels.GetDeviceId, () => options.deviceMid);
+  let selfTest: Promise<SystemSelfTestReport> | undefined;
+  ipcMain.handle(PlatformChannels.RunSystemSelfTest, () => {
+    if (!ZCODE_WIN7_EDITION || !app.isPackaged || process.platform !== "win32") {
+      throw new Error("System self-test requires the packaged Win7 edition");
+    }
+    // 多窗口共用 Main 的同一次检测，避免重复拉起 Python/原生探针增加旧机器负载。
+    selfTest ??= promisify(execFile)(
+      process.execPath,
+      [join(process.resourcesPath, "win7/system-self-test.cjs"), process.resourcesPath],
+      {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+        windowsHide: true,
+        timeout: 140000,
+        maxBuffer: 128 * 1024,
+        encoding: "utf8",
+      },
+    )
+      .then(({ stdout }) => systemSelfTestReportSchema.parse(JSON.parse(stdout)))
+      .catch(() => {
+        throw new Error("System self-test did not finish; check the installation and try again.");
+      })
+      .finally(() => {
+        selfTest = undefined;
+      });
+    return selfTest;
+  });
   ipcMain.handle(PlatformChannels.ExportLogs, () => exportLogs());
   ipcMain.handle(PlatformChannels.CaptureWindowScreenshot, async (event) => {
     const senderWindow = BrowserWindow.fromWebContents(event.sender);

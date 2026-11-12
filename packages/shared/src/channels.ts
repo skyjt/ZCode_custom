@@ -460,6 +460,7 @@ export const PlatformChannels = {
   ExtensionNotificationClick: "zcode:extension-notification-click",
   /** Renderer → Main：导出日志（打包 ~/.zcode/v2 及外部 agent 日志为 zip 并在 Finder 中显示） */
   ExportLogs: "zcode:export-logs",
+  RunSystemSelfTest: "zcode:run-system-self-test",
   /** Renderer → Main：截取当前窗口作为反馈附件 */
   CaptureWindowScreenshot: "zcode:capture-window-screenshot",
   /**
@@ -1274,6 +1275,10 @@ export interface PlatformChannelMap {
   [PlatformChannels.WindowControlsOverlayReady]: {
     request: WindowControlsOverlayReadyPayload;
     response: void;
+  };
+  [PlatformChannels.RunSystemSelfTest]: {
+    request: void;
+    response: import("./validation.js").SystemSelfTestReport;
   };
   [PlatformChannels.ExportLogs]: {
     request: void;

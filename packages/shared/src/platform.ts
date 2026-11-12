@@ -803,6 +803,8 @@ export type CuaOsSupport =
  * 业务服务（文件、终端、凭据等）走 IServiceAccessor 的 RPC 通道。
  */
 export interface IPlatformService {
+  /** Win7 Desktop only: fixed offline probes, manually requested. */
+  runSystemSelfTest?(): Promise<import("./validation.js").SystemSelfTestReport>;
   /** 是否支持当前客户端本机文件的默认应用与目录操作；Web 不具备此能力。 */
   canOpenLocalFiles?: boolean;
 

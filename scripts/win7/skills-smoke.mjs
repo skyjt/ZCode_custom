@@ -15,7 +15,7 @@ try {
   const execute = promisify(execFile);
   for (const name of ["offline-toolkit", "ssh-sftp", "docx", "xlsx", "pptx", "pdf"]) {
     const { stdout } = await execute(
-      join(app, "ZCode Win7 Experimental.exe"),
+      join(app, "aibuddy7se.exe"),
       [join(app, "resources/glm/zcode.cjs"), "skills", "inspect", name, "--json"],
       { cwd: home, env, timeout: 30000, maxBuffer: 1024 * 1024 },
     );

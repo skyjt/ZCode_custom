@@ -859,6 +859,8 @@ contextBridge.exposeInMainWorld("zcode", {
   ): Promise<NotificationsShowResult> =>
     ipcRenderer.invoke(PlatformChannels.ShowExtensionNotification, payload),
   /** 导出日志：打包 ~/.zcode/v2 及外部 agent 日志为 zip 并在 Finder 中显示 */
+  runSystemSelfTest: (): Promise<import("@zcode/shared").SystemSelfTestReport> =>
+    ipcRenderer.invoke(PlatformChannels.RunSystemSelfTest),
   exportLogs: (): Promise<{
     success: boolean;
     path?: string;

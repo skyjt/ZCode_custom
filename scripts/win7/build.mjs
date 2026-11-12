@@ -22,6 +22,7 @@ export function win7BuildEnv(base = process.env) {
     ...base,
     ZCODE_ENV: "production",
     ZCODE_PREVIEW_IDENTITY: "1",
+    ZCODE_WIN7_EDITION: "1",
     ZCODE_AUTO_UPDATE: "0",
     ZCODE_ARMS_RUM_ENDPOINT: "",
     ZCODE_TELEMETRY_REPORT_ENDPOINT: "",

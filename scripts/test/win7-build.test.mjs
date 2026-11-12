@@ -72,7 +72,10 @@ test("Win7 isolates Agent databases without redirecting Git or SSH home", () => 
     ZCODE_SESSION_DB: "/formal.db",
     ZCODE_SESSION_DB_PATH: "/formal-other.db",
   };
-  const home = configureWin7Environment(env, "/test-home");
+  const home = configureWin7Environment(env, "/test-home", "/app-data");
+  assert.equal(env.ZCODE_DESKTOP_APPLICATION_NAME, "aibuddy7se");
+  assert.equal(env.ZCODE_DESKTOP_USER_DATA_DIR, join("/app-data", "ZCode Win7 Experimental"));
+  assert.equal(home, join("/test-home", ".zcode-win7-home"));
   assert.equal(env.HOME, "/real-home");
   assert.equal(env.USERPROFILE, "/real-home");
   assert.equal(env.ZCODE_SESSION_DB, undefined);
@@ -94,6 +97,7 @@ test("Win7 runtime rejects modified archives and cannot enable modern auto-updat
   );
   assert.throws(() => verifyRuntimeArchive(Buffer.from("corrupt")), /SHA-256/);
   const env = win7BuildEnv({ ZCODE_AUTO_UPDATE: "1", ZCODE_TARGET_ARCH: "arm64" });
+  assert.equal(env.ZCODE_WIN7_EDITION, "1");
   assert.equal(env.ZCODE_AUTO_UPDATE, "0");
   assert.equal(env.ZCODE_PREVIEW_IDENTITY, "1");
   assert.equal(env.ZCODE_TARGET_ARCH, "x64");

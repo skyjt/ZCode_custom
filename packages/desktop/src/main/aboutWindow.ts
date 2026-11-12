@@ -1,5 +1,6 @@
 interface CustomAboutDialogHtmlInput {
   applicationName: string;
+  iconDataUrl?: string;
   appVersion: string;
   copyright: string;
   optimizationLine: string;
@@ -170,8 +171,11 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
     <main class="about-window" aria-label="${escapeHtml(input.applicationName)} About Window">
       <section class="about-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
         <div class="content">
-          <div class="app-icon" aria-hidden="true">
-            <svg
+          <div class="app-icon" style="${input.iconDataUrl ? "background:transparent;box-shadow:none;border:0" : ""}" aria-hidden="true">
+            ${
+              input.iconDataUrl
+                ? `<img src="${escapeHtml(input.iconDataUrl)}" width="52" height="52" alt="" />`
+                : `            <svg
               xmlns="http://www.w3.org/2000/svg"
               width="118"
               height="100"
@@ -189,7 +193,8 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
                 fill="currentColor"
                 d="M121.601 217.732L139.65 192.134C142.465 188.166 147.076 185.734 152.067 185.734H249.604V217.736H121.601V217.732Z"
               />
-            </svg>
+            </svg>`
+            }
           </div>
           <h1 id="about-title" class="title">
             ${escapeHtml(input.applicationName)}<br />

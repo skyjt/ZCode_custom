@@ -22,7 +22,11 @@ export function configureOfflineTools(resourcesPath, env = process.env) {
   env.ZCODE_MODEL_TELEMETRY_ENABLED = "false";
 }
 
-export function configureWin7Environment(env = process.env, userHome = homedir()) {
+export function configureWin7Environment(
+  env = process.env,
+  userHome = homedir(),
+  appData = env.APPDATA,
+) {
   const home = join(userHome, ".zcode-win7-home");
   env.ZCODE_DESKTOP_HOME_DIR = home;
   env.ZCODE_DATA_BASE_DIR = home;
@@ -30,7 +34,9 @@ export function configureWin7Environment(env = process.env, userHome = homedir()
   delete env.ZCODE_SESSION_DB;
   env.ZCODE_SESSION_DB_PATH = join(home, ".zcode/cli/db/db.sqlite");
   env.ZCODE_STORAGE_DIR = join(home, ".zcode");
-  env.ZCODE_DESKTOP_APPLICATION_NAME = "ZCode Win7 Experimental";
+  // 改名只影响展示，保留旧包 userData，避免升级后会话和设置看似丢失。
+  if (appData) env.ZCODE_DESKTOP_USER_DATA_DIR = join(appData, "ZCode Win7 Experimental");
+  env.ZCODE_DESKTOP_APPLICATION_NAME = "aibuddy7se";
   env.ZCODE_DESKTOP_APP_ID = "dev.zcode.app.win7.experimental";
   return home;
 }

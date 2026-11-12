@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { memo, useCallback, useEffect, useState } from "react";
 import { FloatingParticles } from "@/components/ui/floating-particles.js";
 import { HighSpeedDiffusionCanvas } from "@/v4/highspeed/HighSpeedDiffusionCanvas.js";
@@ -20,9 +21,15 @@ export const HighspeedComposerBackground = memo(function HighspeedComposerBackgr
   animated: boolean;
   onModelTransitionStart: () => void;
 }) {
-  const [phase, setPhase] = useState<HighspeedVisualPhase>(animated ? "diffusing" : "stable");
+  const [phase, setPhase] = useState<HighspeedVisualPhase>(
+    animated && !ZCODE_WIN7_EDITION ? "diffusing" : "stable",
+  );
   const handleHandoffStart = useCallback(() => setPhase("handoff"), []);
   const handleDiffusionComplete = useCallback(() => setPhase("stable"), []);
+
+  useEffect(() => {
+    if (ZCODE_WIN7_EDITION && animated) onModelTransitionStart();
+  }, [animated, onModelTransitionStart]);
 
   useEffect(() => {
     if (phase !== "handoff") return;
@@ -47,7 +54,9 @@ export const HighspeedComposerBackground = memo(function HighspeedComposerBackgr
           onComplete={handleDiffusionComplete}
         />
       ) : null}
-      <FloatingParticles className="highspeed-particle-layer z-0" settled={!animated} />
+      {!ZCODE_WIN7_EDITION && (
+        <FloatingParticles className="highspeed-particle-layer z-0" settled={!animated} />
+      )}
     </div>
   );
 });

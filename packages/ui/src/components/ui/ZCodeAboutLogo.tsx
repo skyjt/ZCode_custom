@@ -1,6 +1,18 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import aibuddyLogo from "@/assets/aibuddy.png";
 import { cn } from "@/components/lib/utils.js";
 
 export function ZCodeAboutLogo({ className }: { className?: string }) {
+  if (ZCODE_WIN7_EDITION)
+    return (
+      <img
+        src={aibuddyLogo}
+        alt=""
+        aria-hidden="true"
+        data-app-logo="aibuddy7se"
+        className={cn("object-contain", className)}
+      />
+    );
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -26,6 +38,8 @@ export function ZCodeAboutLogo({ className }: { className?: string }) {
 }
 
 export function ZCodeWordmarkLogo({ className }: { className?: string }) {
+  if (ZCODE_WIN7_EDITION)
+    return <span className={cn("text-ui-xl font-semibold", className)}>aibuddy7se</span>;
   return (
     <svg
       width="244"

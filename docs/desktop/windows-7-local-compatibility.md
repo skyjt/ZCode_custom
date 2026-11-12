@@ -95,7 +95,7 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ## Win7 真机验收清单（由用户执行）
 
-从本次 Actions 的 `ZCode-Win7-Offline-Experimental-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `ZCode Win7 Experimental.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
+从本次 Actions 的 `ZCode-Win7-Offline-Experimental-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `aibuddy7se.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
 进程资源统计、浏览器发现、系统文件关联和 Hook 陈旧锁查询已按 [Python 操作与 PS2 兼容规格](windows-7-python-operations.md)改用旧系统可用的 WMI/.NET 接口，不再要求 WMF 5.1。Agent 的批量文件与 Office 处理优先用随包 Python。仍需在目标 Win7/PowerShell 2.0/.NET 3.5 机器验收；现代 Windows 运行探针不等于旧系统验证通过。
 
@@ -103,7 +103,7 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ```bat
 set ELECTRON_RUN_AS_NODE=1
-"ZCode Win7 Experimental.exe" "resources\win7\runtime-smoke.cjs" "resources\app.asar" > "%TEMP%\zcode-win7-check.txt" 2>&1
+"aibuddy7se.exe" "resources\win7\runtime-smoke.cjs" "resources\app.asar" > "%TEMP%\zcode-win7-check.txt" 2>&1
 set ELECTRON_RUN_AS_NODE=
 ```
 
@@ -135,3 +135,9 @@ set ELECTRON_RUN_AS_NODE=
 2026-11-12 更新：Python 优先与 PS2 调用修订 `78b36139` 的 [Actions 43136043699](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699) 全部通过，新增真实系统查询、JSON 往返及跨进程活锁保护验收。该包替代上述 `6f555881` 交付；[下载、摘要和验证记录](windows-7-python-operations.md#验证记录2026-11-12)。Win7/PS2 真机仍待验收。
 
 本机完整 pre-push 门禁使用明确 base `b95ebaffeab641907b38652f45c1502bd762972d` 通过；affected engineering 因覆盖 169/169 文件由既有策略跳过，不能算全量测试通过。目标工程探针实际执行。基础与离线版都仍需用户 Win7 SP1 x64 真机验收，Windows Server 2022 CI 不构成 Win7 已兼容的结论。
+
+## aibuddy7se · Win7 特别版
+
+新版复用 AIbuddy 图标，显示名为 `aibuddy7se`，安装包为 `aibuddy7se-3.18.0-win7-x64.exe`。原试验版的数据目录与安装标识保留，升级不会主动迁移或删除会话和设置。
+
+进入 **设置 → 通用 → 系统能力自测**，点击「开始自测」，完成后可「导出报告」。本地检查不联网、不调用模型；单项失败后继续。Git 是可选项；模型 API、真实 SSH/SFTP 与显卡交互仍需实际操作验证。Win7 默认减少动效，关闭引导 WebGL、装饰粒子和启动图标动画。新增功能验证见 [aibuddy7se 规格](../../specs/aibuddy7se.md)。

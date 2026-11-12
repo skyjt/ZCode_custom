@@ -2153,3 +2153,38 @@ export const zcodeSessionFileSchema = z.object({
   fileChanges: z.array(zcodePersistedFileChangeSchema).optional(),
   turnCheckpoints: z.array(zcodePersistedTurnCheckpointSchema).optional(),
 });
+
+/** 固定离线自测子进程的输出边界，不接受任意命令或路径。 */
+export const systemSelfTestReportSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    createdAt: z.string().datetime(),
+    elapsedMs: z.number().nonnegative(),
+    system: z
+      .object({
+        platform: z.string().max(40),
+        release: z.string().max(80),
+        arch: z.string().max(40),
+        electron: z.string().max(80),
+        node: z.string().max(80),
+      })
+      .strict(),
+    checks: z
+      .array(
+        z
+          .object({
+            id: z
+              .string()
+              .regex(/^[a-zA-Z]+$/)
+              .max(40),
+            status: z.enum(["pass", "fail", "warn", "not-tested"]),
+            detail: z.string().max(1200),
+            durationMs: z.number().nonnegative(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(30),
+  })
+  .strict();
+export type SystemSelfTestReport = z.infer<typeof systemSelfTestReportSchema>;

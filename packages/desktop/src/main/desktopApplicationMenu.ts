@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { app, BrowserWindow, Menu } from "electron";
 import {
   DesktopCommandIds,
@@ -29,7 +30,8 @@ export function getDesktopMenuLabel(
   locale: Locale,
   id: (typeof desktopMenuMessageIds)[keyof typeof desktopMenuMessageIds],
 ) {
-  return getDesktopMenuMessage(locale, id);
+  const label = getDesktopMenuMessage(locale, id);
+  return ZCODE_WIN7_EDITION ? label.replaceAll("ZCode", "aibuddy7se") : label;
 }
 
 export function resolveSystemApplicationLocale(): Locale {

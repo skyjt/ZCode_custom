@@ -1,3 +1,5 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import aibuddyLogo from "@/assets/aibuddy.png";
 import { PluginUiWorkspaceProvider } from "@/plugin-ui/index.js";
 /* eslint-disable max-lines -- App 当前集中编排 workspace 级状态、导航、Git 派生数据和 shell wiring；已将新增 side pane memory 桥接抽出，剩余拆分需要按 shell 边界单独重构。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1370,7 +1372,7 @@ export function App({
             fileChangeFindNavigationRequestId={fileChangeFindState.navigationRequestId}
             fileChangeFindQuery={fileChangeFindState.query}
             onFileChangeFindMatchCountChange={setFileChangeFindMatchCount}
-            appLogoUrl={appLogoUrl}
+            appLogoUrl={ZCODE_WIN7_EDITION ? aibuddyLogo : appLogoUrl}
             platform={platform}
             reloadSessionDisabled={reloadSessionDisabled}
             reloadSessionPending={reloadSessionPending}

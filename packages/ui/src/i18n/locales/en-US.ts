@@ -1,6 +1,34 @@
 import { requestSecurityMessagesEnUS } from "@/request-security-edition/messages.js";
 /** English translations */
 const enUS: Record<string, string> = {
+  "settings.selfTest.title": "System self-test · Win7 edition",
+  "settings.selfTest.description":
+    "Check local compatibility on demand. No network or model requests. Usually seconds; up to about two minutes.",
+  "settings.selfTest.run": "Run self-test",
+  "settings.selfTest.running": "Testing…",
+  "settings.selfTest.progress": "Checking the runtime and bundled tools…",
+  "settings.selfTest.error":
+    "Self-test or export did not finish. Check the installation and try again.",
+  "settings.selfTest.export": "Export report",
+  "settings.selfTest.saved": "Report saved",
+  "settings.selfTest.pass": "Passed",
+  "settings.selfTest.fail": "Failed",
+  "settings.selfTest.warn": "Attention",
+  "settings.selfTest.not-tested": "Not tested",
+  "settings.selfTest.limits":
+    "Passing confirms these local operations only. Model services, real SSH/SFTP connections and GPU interaction need manual verification.",
+  "settings.selfTest.check.system": "Operating system and runtime",
+  "settings.selfTest.check.files": "Unicode paths and file I/O",
+  "settings.selfTest.check.sqlite": "SQLite database",
+  "settings.selfTest.check.terminal": "WinPTY terminal",
+  "settings.selfTest.check.desktopCredentials": "Desktop credentials",
+  "settings.selfTest.check.agentCredentials": "Agent credentials",
+  "settings.selfTest.check.search": "File search tools",
+  "settings.selfTest.check.pythonOffice": "Python / Office / PDF",
+  "settings.selfTest.check.powershell": "PowerShell / WMI / .NET",
+  "settings.selfTest.check.ssh": "PuTTY SSH tools",
+  "settings.selfTest.check.git": "Git (optional)",
+  "settings.selfTest.check.connections": "Capabilities requiring real connections",
   "plugin.discovery.installAndEnable": "Install and enable in this workspace",
   "plugin.discovery.enableInWorkspace": "Enable in this workspace",
   "plugin.discovery.workspaceInstall":

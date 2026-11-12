@@ -1,3 +1,5 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import aibuddyLogo from "@/assets/aibuddy.png";
 import type { ReactNode } from "react";
 import { cn } from "@/components/lib/utils.js";
 
@@ -32,6 +34,17 @@ export function ZCodeStartupLogoBadge({
   animated?: boolean;
   size?: "default" | "titlebar";
 }) {
+  if (ZCODE_WIN7_EDITION)
+    return (
+      <img
+        src={aibuddyLogo}
+        alt=""
+        aria-hidden="true"
+        data-app-logo="aibuddy7se"
+        data-desktop-logo-badge={size === "titlebar" ? "true" : undefined}
+        className={size === "titlebar" ? "size-5 object-contain" : "size-24 object-contain"}
+      />
+    );
   return (
     <div
       data-desktop-logo-badge={size === "titlebar" ? "true" : undefined}
@@ -58,6 +71,16 @@ export function ZCodeStartupLogo({
   className?: string;
   animated?: boolean;
 }) {
+  if (ZCODE_WIN7_EDITION)
+    return (
+      <img
+        src={aibuddyLogo}
+        alt=""
+        aria-hidden="true"
+        data-app-logo="aibuddy7se"
+        className={cn("object-contain", className)}
+      />
+    );
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

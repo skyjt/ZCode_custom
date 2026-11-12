@@ -6,6 +6,11 @@ export type ZCodeProductFlavor = "production" | "preview";
 export type ArmsRumEnv = "local" | "prod";
 
 // 非构建环境（如 e2e 测试的 mocha）下 define 不存在，用 typeof 检查 + fallback 避免 ReferenceError
+declare const __ZCODE_WIN7_EDITION__: boolean;
+export const ZCODE_WIN7_EDITION =
+  typeof __ZCODE_WIN7_EDITION__ !== "undefined" && __ZCODE_WIN7_EDITION__;
+export const ZCODE_APP_DISPLAY_NAME = ZCODE_WIN7_EDITION ? "aibuddy7se" : "ZCode";
+
 declare const __ZCODE_ENV__: string;
 declare const __ZCODE_PRODUCT_FLAVOR__: string;
 declare const __ZCODE_ARMS_RUM_ENDPOINT__: string;

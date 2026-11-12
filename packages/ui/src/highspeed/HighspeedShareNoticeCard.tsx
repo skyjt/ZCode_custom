@@ -1,3 +1,4 @@
+import { ZCODE_APP_DISPLAY_NAME } from "@zcode/shared";
 import { useEffect, useState, type CSSProperties } from "react";
 import { CopyIcon, EyeIcon, XIcon, ZapIcon } from "lucide-react";
 import { animate, motion, useReducedMotion } from "motion/react";
@@ -74,7 +75,11 @@ export function HighspeedShareNoticeCard({
             data-highspeed-card-background="dark"
           />
           <div className="highspeed-sidebar-share-card__content">
-            <div className="highspeed-sidebar-share-card__title" role="img" aria-label="ZCode">
+            <div
+              className="highspeed-sidebar-share-card__title"
+              role="img"
+              aria-label={ZCODE_APP_DISPLAY_NAME}
+            >
               <ZCodeWordmarkLogo className="highspeed-sidebar-share-card__wordmark" />
             </div>
             <Button

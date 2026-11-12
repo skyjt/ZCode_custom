@@ -21,7 +21,7 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
   let timer;
   try {
     runtime = await spawnWindowsRuntimeHost({
-      command: join(app, "ZCode Win7 Experimental.exe"),
+      command: join(app, "aibuddy7se.exe"),
       args: [join(app, "resources/glm/zcode.cjs"), "app-server", "--stdio", "--prepare-storage"],
       cwd: folder,
       env,

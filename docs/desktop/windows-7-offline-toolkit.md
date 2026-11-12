@@ -12,7 +12,7 @@
 
 1. 在可联网的电脑下载 Actions artifact，解开外层压缩包后将全部文件拷入内网。包内 `.exe` 是安装器，内层 `.zip` 是可直接解压运行的程序，`SHA256SUMS.txt` 可核对文件完整性。
 2. 先解开程序 ZIP，在 `resources/offline-tools/prerequisites` 找到系统前置包，按系统已有补丁情况安装。已检查随包 VS2019 安装器的 Burn 清单：46 个 payload 均为 embedded，其中包含 `Windows6.1-KB2999226-x64.msu`（UCRT），无需安装时在线下载；补丁适用性仍以目标 Win7 安装器结果为准。
-3. 安装或直接运行 `ZCode Win7 Experimental.exe`。首次页面选「使用 API Key」→「跳过」，再关闭职业引导（右上角关闭或 Escape），即可进入工作区。
+3. 安装或直接运行 `aibuddy7se.exe`。首次页面选「使用 API Key」→「跳过」，再关闭职业引导（右上角关闭或 Escape），即可进入工作区。
 4. 在设置的模型供应商中新增内网服务，填写实际 Base URL、认证配置与模型名称，协议须与服务器匹配。安装包不含模型权重，接通模型前可使用终端及下述独立工具诊断。
 5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
 6. 用测试文档和测试 Linux 账号验收聊天中的 `docx` / `xlsx` / `pptx` / `pdf`、`ssh-sftp`、`offline-toolkit`。SSH 首连先向服务器管理员核实主机指纹；私钥和密码留在本机，不粘贴到模型消息中。
@@ -49,48 +49,48 @@ sequenceDiagram
 
 ## 影响扫描
 
-| 项目 | 结论 |
-| --- | --- |
-| 意图/能力 | 离线部署、Office 编辑、SSH/SFTP、本机 Python |
-| 改动层/模式 | 构建资产、运行环境、技能指令；planning→implementation |
-| 主要种子 | Win7 build/bootstrap、Office SKILL.md、official-plugin-definitions、bundled-skills、prepare-agent-node-bundle |
-| 范围之外 | 新编辑器 UI、模型权重、Linux Server 离线全量资产、全平台 Python 替换 |
+| 项目        | 结论                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| 意图/能力   | 离线部署、Office 编辑、SSH/SFTP、本机 Python                                                                  |
+| 改动层/模式 | 构建资产、运行环境、技能指令；planning→implementation                                                         |
+| 主要种子    | Win7 build/bootstrap、Office SKILL.md、official-plugin-definitions、bundled-skills、prepare-agent-node-bundle |
+| 范围之外    | 新编辑器 UI、模型权重、Linux Server 离线全量资产、全平台 Python 替换                                          |
 
 ### UI Surface Matrix
 
-| 场景/入口 | 共享实现 | 草稿/默认来源 | 校验/提交 | 权威持久化 | 模式隔离 |
-| --- | --- | --- | --- | --- | --- |
-| 聊天中编辑 Office | 既有 Skill→Bash；既有文档查看器 | 用户提示、插件技能 | 执行权限、随包 Python、另存验证 | 工作区文件 | 查看器不写文件；现代版无工具路径覆盖 |
-| 终端/聊天 SSH/SFTP | 既有终端/Bash→PuTTY | 用户提供地址与密钥/指纹 | SSH 主机校验、服务器权限 | 远端文件；PuTTY 用户配置 | 不启动远端 Agent，不修改远端 workspace identity |
-| 内网模型设置 | 既有模型配置 UI/服务 | 用户选择 API endpoint | 既有 provider 校验 | 既有设置/凭据 owner | 不要求云账户；不内置凭据 |
+| 场景/入口          | 共享实现                        | 草稿/默认来源           | 校验/提交                       | 权威持久化               | 模式隔离                                        |
+| ------------------ | ------------------------------- | ----------------------- | ------------------------------- | ------------------------ | ----------------------------------------------- |
+| 聊天中编辑 Office  | 既有 Skill→Bash；既有文档查看器 | 用户提示、插件技能      | 执行权限、随包 Python、另存验证 | 工作区文件               | 查看器不写文件；现代版无工具路径覆盖            |
+| 终端/聊天 SSH/SFTP | 既有终端/Bash→PuTTY             | 用户提供地址与密钥/指纹 | SSH 主机校验、服务器权限        | 远端文件；PuTTY 用户配置 | 不启动远端 Agent，不修改远端 workspace identity |
+| 内网模型设置       | 既有模型配置 UI/服务            | 用户选择 API endpoint   | 既有 provider 校验              | 既有设置/凭据 owner      | 不要求云账户；不内置凭据                        |
 
 ### Shared And Divergent Behavior
 
-| 关注项 | 共享 | 差异及理由 |
-| --- | --- | --- |
-| UI/选项来源 | 原聊天、终端、文档预览、模型设置 | 无新增 UI/写入入口 |
-| 默认/校验 | 原权限、文件读写、SSH 验证 | Win7 应用 PATH 优先使用随包工具 |
-| 提交/恢复 | 原进程及会话生命周期 | 工具资产随安装升级，不存为会话事实 |
+| 关注项      | 共享                             | 差异及理由                         |
+| ----------- | -------------------------------- | ---------------------------------- |
+| UI/选项来源 | 原聊天、终端、文档预览、模型设置 | 无新增 UI/写入入口                 |
+| 默认/校验   | 原权限、文件读写、SSH 验证       | Win7 应用 PATH 优先使用随包工具    |
+| 提交/恢复   | 原进程及会话生命周期             | 工具资产随安装升级，不存为会话事实 |
 
 ### Feature Relationships / Owners
 
-| 级别/关系 | owner 与写入点 | 证据 |
-| --- | --- | --- |
-| must-inspect Office→执行依赖 | 构建脚本拥有只读资产；Agent 执行器拥有命令 | document-skills-plugin.md、Office SKILL.md |
-| must-inspect 技能发现→缓存升级 | bootstrap 官方 seed；版本是 filesystem 缓存身份 | bundled-plugins.ts:isSeedCurrent |
-| must-inspect desktop→进程环境 | Win7 bootstrap 唯一设置应用路径 | win7-environment.mjs；Host 原环境继承 |
-| invariant-only 远程工作区 | 原远程连接、LocalEnvironment、workspaceIdentity owner | remoteAssetInstaller.ts；ssh-backend.ts |
-| evidence-only 登录/内网 API | 原 provider 可用性 owner | useProviderAvailabilityLoginEntryGuard.ts |
+| 级别/关系                      | owner 与写入点                                        | 证据                                       |
+| ------------------------------ | ----------------------------------------------------- | ------------------------------------------ |
+| must-inspect Office→执行依赖   | 构建脚本拥有只读资产；Agent 执行器拥有命令            | document-skills-plugin.md、Office SKILL.md |
+| must-inspect 技能发现→缓存升级 | bootstrap 官方 seed；版本是 filesystem 缓存身份       | bundled-plugins.ts:isSeedCurrent           |
+| must-inspect desktop→进程环境  | Win7 bootstrap 唯一设置应用路径                       | win7-environment.mjs；Host 原环境继承      |
+| invariant-only 远程工作区      | 原远程连接、LocalEnvironment、workspaceIdentity owner | remoteAssetInstaller.ts；ssh-backend.ts    |
+| evidence-only 登录/内网 API    | 原 provider 可用性 owner                              | useProviderAvailabilityLoginEntryGuard.ts  |
 
 ### Must-Preserve Invariants
 
-| 不变量 | 验证 |
-| --- | --- |
-| 不覆盖系统 Python/HOME/PATH | 工程环境测试 |
-| 不安装时下载/不破坏源文档 | 打包后的 Python CRUD/原件摘要验证，pip no-index |
-| 不接受错误 SSH 主机 | 回环 SSH 服务 + 错误指纹拒绝 + SFTP 往返 |
-| 正式版及缓存升级一致 | 插件版本工程检查；Win7 独立数据目录 |
-| Win7 支持不由现代 CI 推断 | PE 静态导入筛查 + 用户 Win7 真机验收 |
+| 不变量                      | 验证                                            |
+| --------------------------- | ----------------------------------------------- |
+| 不覆盖系统 Python/HOME/PATH | 工程环境测试                                    |
+| 不安装时下载/不破坏源文档   | 打包后的 Python CRUD/原件摘要验证，pip no-index |
+| 不接受错误 SSH 主机         | 回环 SSH 服务 + 错误指纹拒绝 + SFTP 往返        |
+| 正式版及缓存升级一致        | 插件版本工程检查；Win7 独立数据目录             |
+| Win7 支持不由现代 CI 推断   | PE 静态导入筛查 + 用户 Win7 真机验收            |
 
 ### Codegraph Evidence
 
@@ -102,10 +102,10 @@ sequenceDiagram
 
 ### 已确认决策（2026-11-12）
 
-| 问题 | 用户确认/实现范围 | owner |
-| --- | --- | --- |
-| Office 编辑方式 | 优先内容编辑、表格处理和批量生成；不要求所见即所得，使用已有随包 Python 与 Office 技能 | 用户 |
-| 模型部署位置 | 连接内网已有模型 API；程序及依赖离线部署，不内置模型权重 | 用户 |
+| 问题            | 用户确认/实现范围                                                                      | owner |
+| --------------- | -------------------------------------------------------------------------------------- | ----- |
+| Office 编辑方式 | 优先内容编辑、表格处理和批量生成；不要求所见即所得，使用已有随包 Python 与 Office 技能 | 用户  |
+| 模型部署位置    | 连接内网已有模型 API；程序及依赖离线部署，不内置模型权重                               | 用户  |
 
 ## 验收目录与交付
 
@@ -115,17 +115,17 @@ Windows Server 2022 CI 已实际执行：工程回归、现代/强制 Win7 Job �
 
 本地 root 与 CLI 类型检查、Lint 通过，保留存量告警（root 538、CLI 86）；最新工程探针 9 项、CLI 插件/技能回归 62 项通过，完整 pre-push 门禁通过。affected engineering 因既有策略选中全套 169/169 而跳过，不能算全量业务/工程测试通过。**Win7 SP1 x64 真机、真实内网模型、真实 Linux 服务、Office 预览的视觉结果仍未验收**；CI 结果不等于 Win7 已验证兼容。
 
-| ID | 场景 | 执行方式/期望 |
-| --- | --- | --- |
-| OFF-01 | 摘要损坏/依赖缺失 | 构建立即失败，不能产出缺件包 |
-| OFF-02 | 无系统 Python 的干净目录、中文路径 | 从打包资源启动 Python，导入全部依赖；无联网安装 |
-| OFF-03 | DOCX/XLSX/PPTX 创建→改副本→重读 | 内容准确，原件摘要保持，公式文本保留 |
-| OFF-04 | PDF/CSV/JSON/ZIP/SQLite | 随包库/标准库运行，PDF 写后可读取 |
-| OFF-05 | SSH/SFTP | 本地 fixture 服务真实协议验证 exec、文件往返，错误主机指纹失败 |
-| OFF-06 | 内置技能/Office 面板 | Agent 能列出离线技能；Office 技能进入离线分支；预览原产物可用 |
-| OFF-07 | 断公网启动及内网模型 | CI 确认防火墙服务与全部 profile 已启用，再阻断成品出站，等初始化退出，经 API Key→跳过进入工作区 sidebar，登录层须消失；不能只认初始化页面文字或仅创建未生效的防火墙规则。用户填内网 API 后再验对话/工具调用 |
-| OFF-08 | Win7 安装和终端 | 用户真机安装、Python/Office、SSH/SFTP；保留诊断与退出码 |
-| OFF-09 | 表格处理与批量生成 | 用户在 Win7 接通内网模型后，用虚构的多行表格驱动多份 DOCX/PPTX 生成并输出 XLSX 汇总；核对数量、文件名、逐行内容和原件摘要。该端到端场景尚未验收，不由单文件库探针通过推断 |
+| ID     | 场景                               | 执行方式/期望                                                                                                                                                                                               |
+| ------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OFF-01 | 摘要损坏/依赖缺失                  | 构建立即失败，不能产出缺件包                                                                                                                                                                                |
+| OFF-02 | 无系统 Python 的干净目录、中文路径 | 从打包资源启动 Python，导入全部依赖；无联网安装                                                                                                                                                             |
+| OFF-03 | DOCX/XLSX/PPTX 创建→改副本→重读    | 内容准确，原件摘要保持，公式文本保留                                                                                                                                                                        |
+| OFF-04 | PDF/CSV/JSON/ZIP/SQLite            | 随包库/标准库运行，PDF 写后可读取                                                                                                                                                                           |
+| OFF-05 | SSH/SFTP                           | 本地 fixture 服务真实协议验证 exec、文件往返，错误主机指纹失败                                                                                                                                              |
+| OFF-06 | 内置技能/Office 面板               | Agent 能列出离线技能；Office 技能进入离线分支；预览原产物可用                                                                                                                                               |
+| OFF-07 | 断公网启动及内网模型               | CI 确认防火墙服务与全部 profile 已启用，再阻断成品出站，等初始化退出，经 API Key→跳过进入工作区 sidebar，登录层须消失；不能只认初始化页面文字或仅创建未生效的防火墙规则。用户填内网 API 后再验对话/工具调用 |
+| OFF-08 | Win7 安装和终端                    | 用户真机安装、Python/Office、SSH/SFTP；保留诊断与退出码                                                                                                                                                     |
+| OFF-09 | 表格处理与批量生成                 | 用户在 Win7 接通内网模型后，用虚构的多行表格驱动多份 DOCX/PPTX 生成并输出 XLSX 汇总；核对数量、文件名、逐行内容和原件摘要。该端到端场景尚未验收，不由单文件库探针通过推断                                   |
 
 无需新增交互 E2E：复用原 UI；新增工程打包探针在最终产物上运行。覆盖矩阵如上；用户确认继续采用内容编辑和内网 API 路线，完整办公引擎与本地模型权重不在本次范围。构建信息、版本/摘要、许可和测试指南一起交付。实际验证结果记录在本节下方，现代 Windows CI 与 Win7 实测分开。
 
@@ -142,3 +142,9 @@ Windows Server 2022 CI 已实际执行：工程回归、现代/强制 Win7 Job �
 Win7 的模型环境增加简短 Python 指引，详细配方按需加载 offline-toolkit，避免逐轮重复。系统采样、关联程序查询及 Hook 锁恢复移除 PS3+/.NET4 专用语法，保留原系统接口与权限；不新增 Python 服务或解释器。范围、验收和真机边界见 [Python 操作规格](windows-7-python-operations.md)。
 
 2026-11-12 交付更新：`78b36139` 的 [Actions 43136043699](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699) 全部通过。[新版离线试验包](https://github.com/skyjt/ZCode_custom/actions/runs/43136043699/artifacts/13907659218)替代上述 2026-11-11 交付，保留至 2026-11-26；大小、摘要和新增验收见 [验证记录](windows-7-python-operations.md#验证记录2026-11-12)。
+
+## aibuddy7se · Win7 特别版
+
+新版复用 AIbuddy 图标，显示名为 `aibuddy7se`，安装包为 `aibuddy7se-3.18.0-win7-x64.exe`。原试验版的数据目录与安装标识保留，升级不会主动迁移或删除会话和设置。
+
+进入 **设置 → 通用 → 系统能力自测**，点击「开始自测」，完成后可「导出报告」。本地检查不联网、不调用模型；单项失败后继续。Git 是可选项；模型 API、真实 SSH/SFTP 与显卡交互仍需实际操作验证。Win7 默认减少动效，关闭引导 WebGL、装饰粒子和启动图标动画。新增功能验证见 [aibuddy7se 规格](../../specs/aibuddy7se.md)。

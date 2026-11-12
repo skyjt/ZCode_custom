@@ -1,6 +1,33 @@
 import { requestSecurityMessagesZhCN } from "@/request-security-edition/messages.js";
 /** 中文翻译 */
 const zhCN: Record<string, string> = {
+  "settings.selfTest.title": "系统能力自测 · Win7 特别版",
+  "settings.selfTest.description":
+    "手动检测本机兼容性，不联网、不调用模型。通常几十秒，最多约两分钟。",
+  "settings.selfTest.run": "开始自测",
+  "settings.selfTest.running": "正在自测…",
+  "settings.selfTest.progress": "正在检查运行环境与随包工具，请稍候…",
+  "settings.selfTest.error": "自测或导出未完成。请检查安装是否完整，然后重试。",
+  "settings.selfTest.export": "导出报告",
+  "settings.selfTest.saved": "报告已保存",
+  "settings.selfTest.pass": "通过",
+  "settings.selfTest.fail": "失败",
+  "settings.selfTest.warn": "注意",
+  "settings.selfTest.not-tested": "未测试",
+  "settings.selfTest.limits":
+    "通过表示这些本地操作已成功；模型服务、真实 SSH/SFTP 连接和显卡交互仍需实际验证。",
+  "settings.selfTest.check.system": "操作系统与运行时",
+  "settings.selfTest.check.files": "中文路径与文件读写",
+  "settings.selfTest.check.sqlite": "SQLite 数据库",
+  "settings.selfTest.check.terminal": "WinPTY 终端",
+  "settings.selfTest.check.desktopCredentials": "桌面凭据存储",
+  "settings.selfTest.check.agentCredentials": "Agent 凭据存储",
+  "settings.selfTest.check.search": "文件搜索工具",
+  "settings.selfTest.check.pythonOffice": "Python / Office / PDF",
+  "settings.selfTest.check.powershell": "PowerShell / WMI / .NET",
+  "settings.selfTest.check.ssh": "PuTTY SSH 工具",
+  "settings.selfTest.check.git": "Git（可选）",
+  "settings.selfTest.check.connections": "需要实际连接验证的能力",
   "plugin.discovery.installAndEnable": "安装并在当前工作区启用",
   "plugin.discovery.enableInWorkspace": "在当前工作区启用",
   "plugin.discovery.workspaceInstall":

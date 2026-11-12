@@ -36,7 +36,7 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           exit $LASTEXITCODE
       - name: Engineering regression
-        run: node --test scripts/test/win7-build.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+        run: node --test scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs
       - name: Legacy Windows system API acceptance
         timeout-minutes: 3
         run: node scripts/win7/compat-smoke.mjs
@@ -68,7 +68,7 @@ jobs:
       - name: Packaged runtime smoke
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 1
-        run: node scripts/win7/run-runtime-smoke.mjs "packages/desktop/dist/win7/win-unpacked/ZCode Win7 Experimental.exe" packages/desktop/dist/win7/win-unpacked/resources/app.asar
+        run: node scripts/win7/run-runtime-smoke.mjs "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe" packages/desktop/dist/win7/win-unpacked/resources/app.asar
       - name: Packaged Agent storage and process ownership
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 2
@@ -121,10 +121,10 @@ jobs:
           Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 3
+        timeout-minutes: 5
         shell: pwsh
         run: |
-          $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/ZCode Win7 Experimental.exe").Path
+          $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe").Path
           $rule = "ZCode-offline-smoke-$env:GITHUB_RUN_ID"
           $profiles = Get-NetFirewallProfile | Select-Object Name,Enabled
           try {
@@ -152,7 +152,7 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: ZCode-Win7-Offline-Experimental-x64
+          name: aibuddy7se-Win7-Offline-x64
           retention-days: 14
           if-no-files-found: error
           path: |

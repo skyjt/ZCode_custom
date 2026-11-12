@@ -1,3 +1,4 @@
+import { ZCODE_APP_DISPLAY_NAME, ZCODE_WIN7_EDITION } from "@zcode/shared";
 /* oxlint-disable eslint(max-lines) */
 /**
  * WelcomeScreen —— OAuth / API Key 登录入口
@@ -678,11 +679,12 @@ function LoginPanelHeader({
 }
 
 function LoginPanelLogo() {
+  if (ZCODE_WIN7_EDITION) return <ZCodeAboutLogo className="size-16" />;
   return (
     // 登录 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。
     <div
       className="relative flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:border before:border-[rgba(255,255,255,0.1)]"
-      aria-label="ZCode"
+      aria-label={ZCODE_APP_DISPLAY_NAME}
       role="img"
     >
       <ZCodeAboutLogo className="h-auto w-10" />

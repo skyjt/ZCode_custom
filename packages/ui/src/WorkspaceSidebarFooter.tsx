@@ -1,3 +1,4 @@
+import { ZCODE_APP_DISPLAY_NAME } from "@zcode/shared";
 import { useSetInterfaceModeWithTelemetry } from "@/lib/appTelemetry.js";
 import { SidebarNativeTooltip, ControlHintTooltip } from "@/ControlHintTooltip.js";
 /* oxlint-disable eslint(max-lines) -- footer 聚合账户、主题、模式和快捷键菜单。 */
@@ -71,7 +72,7 @@ function getSidebarProfileName(user?: UserInfo | null): string {
     return username;
   }
 
-  return "ZCode";
+  return ZCODE_APP_DISPLAY_NAME;
 }
 
 function getSidebarProfileBadge(

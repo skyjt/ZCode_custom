@@ -1,3 +1,5 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
 /**
  * 草稿态空态问候：时间问候语 + ZCode Logo。
  * 自旧版 ChatView/ChatViewEmptyState.tsx 恢复（该组件随旧 ChatView 删除，
@@ -175,15 +177,22 @@ export function ConversationDraftEmptyState({
         className,
       )}
     >
-      <div
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute left-1/2 top-1/2 aspect-[5/4] w-[min(72vw,25rem)] -mt-10",
-          "-translate-x-1/2 -translate-y-1/2 text-foreground-subtlest",
-        )}
-      >
-        <ZCodeEmptyStateLogo className="h-full w-full" />
-      </div>
+      {ZCODE_WIN7_EDITION ? (
+        <ZCodeAboutLogo className="size-24" />
+      ) : (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute left-1/2 top-1/2 aspect-[5/4] w-[min(72vw,25rem)] -mt-10",
+            "-translate-x-1/2 -translate-y-1/2 text-foreground-subtlest",
+          )}
+        >
+          <ZCodeEmptyStateLogo className="h-full w-full" />
+        </div>
+      )}
+      {ZCODE_WIN7_EDITION && (
+        <p className="text-ui-sm text-muted-foreground">aibuddy7se · Win7 特别版</p>
+      )}
       <p
         ref={greetingContainerRef}
         data-v4-draft-greeting="true"

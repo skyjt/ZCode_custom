@@ -17,6 +17,22 @@ rules:
     - "evidence-only"
 
 nodes:
+  - id: "capability.win7-edition-self-test"
+    kind: "capability"
+    label: "aibuddy7se offline system capability self-test"
+    aliases: ["Win7 特别版", "系统能力自测", "aibuddy7se"]
+    docs: ["specs/aibuddy7se.md"]
+    codeSeeds:
+      - file: "scripts/win7/system-self-test.cjs"
+        symbol: "main"
+      - file: "packages/ui/src/settingsPageHelpers.tsx"
+        symbol: "SystemCompatibilityCheck"
+      - file: "packages/desktop/src/main/desktopMainIpcPlatform.ts"
+        symbol: "registerPlatformIpcHandlers"
+    invariants:
+      - "Main owns one in-flight offline probe; renderer uses IPlatformService, never arbitrary commands."
+      - "Branding preserves Win7 installation and data identity; modern and web builds stay unchanged."
+      - "Static visuals still deliver presentation callbacks; no model or network requests in self-test."
   - id: "capability.archive-permanent-deletion"
     kind: "capability"
     label: "Permanent deletion of archived conversations"
