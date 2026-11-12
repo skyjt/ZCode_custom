@@ -63,3 +63,5 @@ sequenceDiagram
 ## 成包验收中的测试环境修正
 
 第一次成包（024e654f，Actions 43147442412）运行时、Agent、PE、Python Office 和 SSH/SFTP 全部通过，UI 在 reduced-motion 断言处停止，后续自测界面未覆盖。确认 Playwright 的 page.emulatedMedia() 默认返回 no-preference 并经 CDP 覆盖原浏览器设置；本机带 force-prefers-reduced-motion 启动 Chrome 复现 false，emulateMedia({reducedMotion:null}) 恢复 true。验收连接后清除模拟，只读取产品真实值，不把模拟设为 reduce 来制造通过。补充同一次自测中的并发 IPC 请求一致性与 JSON 报告留存。
+
+Actions 43150016981 第二次运行已通过自测 UI、12 项报告和并发请求一致性；主题切换脚本因主界面/设置页各有 login-trigger 触发严格定位失败。修正为 settings-page 内的触发按钮，保留现有双入口，不改产品 UI。第一次运行的旧进程采样空结果在同一提交复跑后通过，原因尚未确认，不改采样超时。

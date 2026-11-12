@@ -56,6 +56,7 @@ try {
   const reducedMotion = await page.evaluate(
     () => matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  console.log(`Actual reduced-motion preference: ${reducedMotion}`);
   assert.equal(await page.getByTestId("onboarding-page").locator("canvas").count(), 0);
   await page.keyboard.press("Escape");
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 30000 });
@@ -83,7 +84,7 @@ try {
     await page.getByTestId("system-self-test-results").innerText(),
   );
   for (const theme of ["Light theme", "Dark theme"]) {
-    await page.getByTestId("login-trigger").click();
+    await page.getByTestId("settings-page").getByTestId("login-trigger").click();
     await page.getByRole("menuitem", { name: "App theme", exact: true }).hover();
     await page.getByRole("menuitemradio", { name: theme, exact: true }).click();
     await page.waitForFunction(
