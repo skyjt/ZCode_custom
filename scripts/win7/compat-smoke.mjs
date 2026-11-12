@@ -30,6 +30,8 @@ try {
       ].join("\n"),
     },
     bundle: true,
+    // CI 此时尚未构建 CLI；探针从 contracts 的公开源码入口打包，避免依赖本机 dist 缓存。
+    alias: { "@zcode/contracts": join(root, "apps/zcode-cli/packages/contracts/src/index.ts") },
     platform: "node",
     format: "cjs",
     outfile: bundle,
