@@ -18,7 +18,7 @@
 3. Agent 先写 `.py` 再调用，避免 PowerShell 3+ 命令、Bash heredoc、CMD/PowerShell 环境变量混用。外部程序使用参数数组、`shell=False`、检查退出码，保持现有审批、取消、目录和输出限制；批量操作输出摘要而非全部内容。下载材料继续遵守既有 `-I` 隔离规则。
 4. 应用调用的是 Windows 自带 `powershell.exe`（不是 pwsh）：进程读取使用 PS2/PS5.1 都提供的 Get-WmiObject；WMI CreationDate 转换到 UTC ticks 后交给既有解析器。CPU 两项数值显式相加；查询失败、超时、取消以及 PID 重用保护保持原契约，不以空身份强杀进程。
 5. 文件关联仍由现有 Shell COM 接口枚举与启动，保留不透明 ID、重查、图标限制和只读查询；移除 C#4 可选参数、.NET4 IsNullOrWhiteSpace 和 PS3 ConvertTo-Json 依赖，使用 Win7 随系统 .NET3.5 的 JavaScriptSerializer。安装资源查询输出明确字段的 Hashtable 数组，不序列化 WMI/PSObject 包装器。
-6. Hook 陈旧锁仍由原 trust-store owner 回收，使用 PS2 可执行的 UTC DateTime 差值计算 Unix 毫秒；无法核实进程身份仍保守不回收。
+6. Hook 陈旧锁仍由原 trust-store owner 回收，使用 PS2 可执行的 UTC DateTime 差值计算 Unix 毫秒；无法核实进程身份仍保守不回收。锁内本进程身份必须来自 `process.uptime()`，不能使用 `os.uptime()` 的系统开机时间，否则外部进程会把活锁误判为 PID 已复用；验证真实活 owner 超龄后仍不能被回收。
 7. 修正文档中的终端命令：使用 CMD/PowerShell 都能运行的 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`，不要求用户升级 PowerShell。
 
 ## UI Surface Matrix / Shared And Divergent Behavior

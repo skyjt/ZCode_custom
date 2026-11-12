@@ -43,7 +43,8 @@ async function defaultWriteLockOwnerMetadata(
 let ownStartTimeMs: number | undefined;
 function currentProcessStartTimeMs(): number {
   if (ownStartTimeMs === undefined) {
-    ownStartTimeMs = Math.round(Date.now() - uptime() * 1_000);
+    // os.uptime 是系统开机时间，会让外部 probe 把活 owner 误判成 PID 复用。
+    ownStartTimeMs = Math.round(Date.now() - process.uptime() * 1_000);
   }
   return ownStartTimeMs;
 }

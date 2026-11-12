@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -36,9 +36,12 @@ try {
     logLevel: "warning",
   });
   const api = createRequire(import.meta.url)(bundle);
+  const liveStorePath = join(folder, "live-owner.json");
   child = spawn(process.execPath, [
     "-e",
-    "console.log('ready'); setInterval(() => {}, 1000)",
+    "const api = require(process.argv[1]); api.createFileWorkspaceHookTrustStore({filePath: process.argv[2], beforeRename: async () => {console.log('ready'); await new Promise(() => {})}}).grant([]).catch(error => {console.error(error); process.exit(1)}); setInterval(() => {}, 1000)",
+    bundle,
+    liveStorePath,
     marker,
   ]);
   await once(child.stdout, "data");
@@ -89,6 +92,18 @@ try {
   );
   assert.equal(JSON.parse(stdout).applications[0].name, text);
   console.log("PASS native file associations and legacy JSON Unicode/quote/backslash roundtrip");
+
+  const liveLockPath = `${liveStorePath}.lock`;
+  const liveOwner = await readFile(liveLockPath, "utf8");
+  await utimes(liveLockPath, new Date(0), new Date(0));
+  const contender = api.createFileWorkspaceHookTrustStore({
+    filePath: liveStorePath,
+    staleLockMs: 1,
+    lockTimeoutMs: 300,
+  });
+  await assert.rejects(contender.grant([]), /Timed out acquiring/);
+  assert.equal(await readFile(liveLockPath, "utf8"), liveOwner);
+  console.log("PASS a real live owner keeps its aged lock across processes");
 
   const storePath = join(folder, "trust.json");
   const lockPath = `${storePath}.lock`;

@@ -69,6 +69,19 @@ afterEach(async () => {
 });
 
 describe("FileWorkspaceHookTrustStore lock ownership（CR-02）", () => {
+  it("锁元数据记录进程启动时间，与外部 identity probe 的时间基准一致", async () => {
+    const filePath = join(await root(), "trust.json");
+    const store = createFileWorkspaceHookTrustStore({
+      filePath,
+      beforeRename: async () => {
+        const owner = JSON.parse(await readFile(`${filePath}.lock`, "utf8"));
+        expect(owner.pid).toBe(process.pid);
+        expect(Math.abs(owner.startTime - (Date.now() - process.uptime() * 1_000))).toBeLessThan(2_000);
+      },
+    });
+    await store.grant([]);
+  });
+
   it("契约 3a（CR-01）：pid 存活但启动时间不一致（PID 复用）→ 超龄锁必须被回收", async () => {
     const dir = await root();
     const filePath = join(dir, "workspace-hook-trust-v1.json");
