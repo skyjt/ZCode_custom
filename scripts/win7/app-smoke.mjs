@@ -44,6 +44,8 @@ try {
   browser = await chromium.connectOverCDP(endpoint);
   const context = browser.contexts()[0];
   page = context.pages()[0] || (await context.waitForEvent("page", { timeout: 30000 }));
+  // Playwright 默认模拟 no-preference，会覆盖产品实际动效偏好；清除模拟再验收。
+  await page.emulateMedia({ reducedMotion: null, colorScheme: null });
   // 初始化页也有正文和 preload；必须走到真实工作区，不能把“正在初始化”当作启动成功。
   await page.getByTestId("login-use-api-key-button").waitFor({ timeout: 90000 });
   await page.getByTestId("login-use-api-key-button").click();
@@ -51,9 +53,8 @@ try {
   // 首次安装的职业引导替换工作区正文；使用现有 Escape 关闭入口，不绕过应用状态。
   await page.getByTestId("onboarding-page").waitFor({ timeout: 30000 });
   assert.equal(await page.title(), "aibuddy7se · Win7 特别版");
-  assert.equal(
-    await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches),
-    true,
+  const reducedMotion = await page.evaluate(
+    () => matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   assert.equal(await page.getByTestId("onboarding-page").locator("canvas").count(), 0);
   await page.keyboard.press("Escape");
@@ -66,7 +67,12 @@ try {
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-en-US").click();
   await page.getByTestId("system-self-test-run").click();
+  const reports = await page.evaluate(() =>
+    Promise.all([window.zcode.runSystemSelfTest(), window.zcode.runSystemSelfTest()]),
+  );
   await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
+  assert.deepEqual(reports[0], reports[1], "Main must share the in-flight report");
+  await writeFile(join(output, "system-self-test.json"), JSON.stringify(reports[0], null, 2));
   const checks = page.locator("[data-self-test-status]");
   assert.ok((await checks.count()) >= 10);
   assert.equal(await page.locator('[data-self-test-status="fail"]').count(), 0);
@@ -92,6 +98,7 @@ try {
   await page.getByTestId("settings-locale-select-item-zh-CN").click();
   await page.getByText("系统能力自测 · Win7 特别版", { exact: true }).waitFor();
   await page.screenshot({ path: join(output, "startup.png") });
+  assert.equal(reducedMotion, true, "Win7 must enable the actual reduced-motion preference");
   await writeFile(
     join(output, "startup.json"),
     JSON.stringify(
@@ -107,7 +114,9 @@ try {
       2,
     ),
   );
-  console.log("PASS packaged app enters workspace without cloud login, with preload bridge");
+  console.log(
+    "PASS branded workspace, reduced motion, offline self-test, concurrent admission and translated/theme UI",
+  );
 } catch (error) {
   if (page && !page.isClosed()) {
     await page.screenshot({ path: join(output, "startup-failure.png") });

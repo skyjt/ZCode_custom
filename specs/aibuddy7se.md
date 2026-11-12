@@ -59,3 +59,7 @@ sequenceDiagram
 - 本次 React 文件额外无忽略 Hooks 扫描：仅发现既有 App useMemo 多余依赖、设置终端选项每次 render 重建；均与此次 logo/自测路径无关，新回调依赖无诊断。
 - Win7 标记下 renderer 生产构建通过，HTML 标题与静态 AIbuddy 图标已检查。未新增外部依赖。
 - 特性图新增种子文件/符号有效；无新悬空边，保留原有两个缺失端点。实际 Windows 自测结果、深浅主题与中文版截图待 CI 验收。
+
+## 成包验收中的测试环境修正
+
+第一次成包（024e654f，Actions 43147442412）运行时、Agent、PE、Python Office 和 SSH/SFTP 全部通过，UI 在 reduced-motion 断言处停止，后续自测界面未覆盖。确认 Playwright 的 page.emulatedMedia() 默认返回 no-preference 并经 CDP 覆盖原浏览器设置；本机带 force-prefers-reduced-motion 启动 Chrome 复现 false，emulateMedia({reducedMotion:null}) 恢复 true。验收连接后清除模拟，只读取产品真实值，不把模拟设为 reduce 来制造通过。补充同一次自测中的并发 IPC 请求一致性与 JSON 报告留存。
