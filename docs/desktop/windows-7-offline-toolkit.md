@@ -12,9 +12,9 @@
 
 ## 安装与首次使用
 
-1. 在可联网的电脑下载 Actions artifact，解开外层压缩包后将全部文件拷入内网。包内 `.exe` 是安装器，内层 `.zip` 是可直接解压运行的程序，`SHA256SUMS.txt` 可核对文件完整性。
-2. 先解开程序 ZIP，在 `resources/offline-tools/prerequisites` 找到系统前置包，按系统已有补丁情况安装。已检查随包 VS2019 安装器的 Burn 清单：46 个 payload 均为 embedded，其中包含 `Windows6.1-KB2999226-x64.msu`（UCRT），无需安装时在线下载；补丁适用性仍以目标 Win7 安装器结果为准。
-3. 安装或直接运行 `aibuddy7se.exe`。首次启动直接进入工作区；在设置 → 模型供应商添加自定义内网 API。
+1. 在可联网的电脑下载 `aibuddy7se-Win7-Offline-x64` Actions artifact，解开平台外层压缩容器后，将唯一的 EXE 安装器拷入内网；以后不再生成便携 ZIP。同一运行的 `Win7-build-diagnostics` 提供 `SHA256SUMS.txt`、版本和指南。
+2. 运行 EXE 完成安装，安装器不会自动启动应用。在安装目录的 `resources/offline-tools/prerequisites` 找到系统前置包，按系统已有补丁情况安装。已检查随包 VS2019 安装器的 Burn 清单：46 个 payload 均为 embedded，其中包含 `Windows6.1-KB2999226-x64.msu`（UCRT），无需安装时在线下载；补丁适用性仍以目标 Win7 安装器结果为准。
+3. 从开始菜单启动 `aibuddy7se`。首次启动直接进入工作区；在设置 → 模型供应商添加自定义内网 API。
 4. 在设置的模型供应商中新增内网服务，填写实际 Base URL、认证配置与模型名称，协议须与服务器匹配。安装包不含模型权重，接通模型前可使用终端及下述独立工具诊断。
 5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
 6. 用测试文档和测试 Linux 账号验收聊天中的 `docx` / `xlsx` / `pptx` / `pdf`、`ssh-sftp`、`offline-toolkit`。SSH 首连先向服务器管理员核实主机指纹；私钥和密码留在本机，不粘贴到模型消息中。

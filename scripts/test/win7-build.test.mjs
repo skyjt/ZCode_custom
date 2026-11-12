@@ -4,23 +4,62 @@ import { test } from "node:test";
 import { join, win32 } from "node:path";
 import { runInNewContext } from "node:vm";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { offlineRuntime, prepareOfflineTools } from "../win7/prepare-offline-tools.mjs";
 import { verifyRuntimeArchive, win7BuildEnv } from "../win7/build.mjs";
 import { configureWin7Environment, configureOfflineTools } from "../win7/win7-environment.mjs";
 import { patchPnpmInstallSource } from "../win7/patch-pnpm.mjs";
 import { compute7zCompressArgs } from "app-builder-lib/out/targets/archive.js";
+import { parse as parseYaml } from "yaml";
+
+test("Win7 ships only an EXE while retaining offline resources and package acceptance", async () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `
+      import config from './scripts/win7/electron-builder.config.mjs';
+      console.log(JSON.stringify({ targets: config.win.target, runAfterFinish: config.nsis.runAfterFinish,
+        offlineTools: config.extraResources.some(resource => resource.to === 'offline-tools') }));
+    `,
+    ],
+    {
+      cwd: join(import.meta.dirname, "../.."),
+      encoding: "utf8",
+      env: { ...win7BuildEnv(), ZCODE_WIN7_ELECTRON_DIST: "unused-config-probe" },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    targets: ["nsis"],
+    runAfterFinish: false,
+    offlineTools: true,
+  });
+  const workflow = parseYaml(
+    await readFile(
+      new URL("../../.github/workflows/win7-experimental.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const steps = workflow.jobs.build.steps;
+  const installer = steps.find((step) => step.with?.name === "aibuddy7se-Win7-Offline-x64");
+  assert.equal(installer.with.path.trim(), "packages/desktop/dist/win7/*.exe");
+  assert.equal(installer.with["if-no-files-found"], "error");
+  assert.ok(steps.some((step) => step.name === "Packaged application startup"));
+  assert.ok(steps.some((step) => step.name === "Packaged offline Office and SSH SFTP"));
+});
 
 test("Win7 packaging uses level 5 with the installed compressor without changing modern defaults", () => {
   const previous = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
   try {
     delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
-    assert.ok(compute7zCompressArgs("zip").includes("-mx=7"));
+    assert.ok(compute7zCompressArgs("7z").includes("-mx=9"));
     process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = win7BuildEnv({
       ELECTRON_BUILDER_COMPRESSION_LEVEL: "9",
     }).ELECTRON_BUILDER_COMPRESSION_LEVEL;
-    for (const format of ["zip", "7z"]) assert.ok(compute7zCompressArgs(format).includes("-mx=5"));
+    assert.ok(compute7zCompressArgs("7z").includes("-mx=5"));
   } finally {
     if (previous === undefined) delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;
     else process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = previous;

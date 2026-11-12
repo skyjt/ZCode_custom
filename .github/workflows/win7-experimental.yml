@@ -125,12 +125,16 @@ jobs:
         shell: pwsh
         run: |
           $dist = 'packages/desktop/dist/win7'
-          Copy-Item docs/desktop/windows-7-local-compatibility.md "$dist/Win7-test-guide.md"
-          Copy-Item docs/desktop/windows-7-offline-toolkit.md "$dist/Win7-offline-guide.md"
-          Copy-Item docs/desktop/windows-7-office2013.md "$dist/Office2013-guide.md"
-          Copy-Item scripts/win7/runtime.json "$dist/runtime.json"
-          "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$dist/build-info.txt"
-          Get-ChildItem $dist -File | Where-Object { $_.Extension -in '.exe','.zip' } | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$dist/SHA256SUMS.txt"
+          $diagnostics = '.cache/win7-acceptance'
+          $installers = @(Get-ChildItem $dist -File -Filter '*.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one EXE installer' }
+          if (Get-ChildItem $dist -File -Filter '*.zip') { throw 'Portable ZIP must not be generated' }
+          Copy-Item docs/desktop/windows-7-local-compatibility.md "$diagnostics/Win7-test-guide.md"
+          Copy-Item docs/desktop/windows-7-offline-toolkit.md "$diagnostics/Win7-offline-guide.md"
+          Copy-Item docs/desktop/windows-7-office2013.md "$diagnostics/Office2013-guide.md"
+          Copy-Item scripts/win7/runtime.json "$diagnostics/runtime.json"
+          "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$diagnostics/build-info.txt"
+          $installers | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$diagnostics/SHA256SUMS.txt"
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 5
@@ -168,9 +172,4 @@ jobs:
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
-          path: |
-            packages/desktop/dist/win7/*.exe
-            packages/desktop/dist/win7/*.zip
-            packages/desktop/dist/win7/*.txt
-            packages/desktop/dist/win7/*.md
-            packages/desktop/dist/win7/runtime.json
+          path: packages/desktop/dist/win7/*.exe

@@ -24,7 +24,7 @@
 
 1. 显示名称 `aibuddy7se`；沿用原 Win7 试验版的 appId 与 `ZCode Win7 Experimental` Electron userData，保持升级数据连续。默认业务目录为 `%USERPROFILE%/.zcode-win7-home/.zcode`，不导入正式版数据库。
 2. 复用既有 `ZCODE_DESKTOP_HOME_DIR` / `ZCODE_DATA_BASE_DIR` 隔离机制；早期设置读取、默认工作区与设置服务必须使用同一隔离 home。CLI 的默认数据库和 storage.dir 不读取 DATA_BASE_DIR，入口必须同时设置已有的 `ZCODE_SESSION_DB_PATH` / `ZCODE_STORAGE_DIR`，清除旧别名 `ZCODE_SESSION_DB`，避免写正式版会话库。入口与 Agent smoke 共用同一环境构造，验收路径必须等于指定临时数据库。
-3. 编译期关闭自动更新；不发布到现代版更新源。产物是未签名试验 NSIS 安装器与 zip；每次手动测试升级，卸载不删除项目或业务数据。
+3. 编译期关闭自动更新；不发布到现代版更新源。只生成未签名试验 NSIS EXE 安装器，不生成便携 ZIP；每次手动测试升级，卸载不删除项目或业务数据。
 4. 核心目标：打开工作区、文件编辑/搜索、模型对话/流式输出、工具审批/取消、本地终端、基本 Git、历史重启恢复。Windows 7 的 Git/外部 MCP/外部 shell 需由用户安装其兼容版本，包内 Agent 不依赖系统 Node。
 5. 当前 `packages/zcode-cua` 明确为占位包，不恢复已删除的 Computer Use 实现。复杂浏览器预览和其他扩展只按实测声明支持。
 6. 不关闭 TLS 校验、Chromium sandbox、权限检查或凭据保护来换取启动成功。
@@ -89,13 +89,15 @@ bootstrap 在归组前崩溃不会创建 CLI；supervisor 在此时崩溃，boot
 
 ### 离线打包耗时（2026-11-12）
 
-基线 [Actions 43159673571](https://github.com/skyjt/ZCode_custom/actions/runs/43159673571) 共 18 分 20 秒，构建步骤 14 分 31 秒；ZIP 压缩阶段约 3 分 57 秒，两个 Rust 组件编译分别约 71/66 秒。包仍同时提供完整 NSIS 安装器和便携 ZIP。
+基线 [Actions 43159673571](https://github.com/skyjt/ZCode_custom/actions/runs/43159673571) 共 18 分 20 秒，构建步骤 14 分 31 秒；ZIP 压缩阶段约 3 分 57 秒，两个 Rust 组件编译分别约 71/66 秒。压缩优化后的 [Actions 43164960698](https://github.com/skyjt/ZCode_custom/actions/runs/43164960698) 共 16 分 9 秒，构建 12 分 32 秒，其中便携 ZIP 压缩仍占约 1 分 15 秒。
+
+用户随后明确以后只交付 EXE。`scripts/win7/electron-builder.config.mjs` 是 Win7 输出格式的唯一配置，target 仅保留 `nsis`；不新增格式开关。Actions 的 `aibuddy7se-Win7-Offline-x64` 产物只匹配 EXE；SHA-256、版本和指南移入既有 `Win7-build-diagnostics`。上传前要求恰好一个 EXE、没有便携 ZIP，防止仅凭指南存在就误判安装器可交付。GitHub artifact 自身的下载压缩容器不属于便携程序。
 
 构建脚本是 Win7 打包环境的唯一所有者：仅此版本把 electron-builder 压缩等级固定为 5，覆盖外部同名环境变量；现代版本沿用原值。采用现有压缩器和格式，允许包体略增换取较短等待，不删除运行资源或关闭校验。工程回归直接验证当前安装的压缩器收到等级 5，现代默认不受影响。
 
-Actions 缓存仅包含 Electron/凭据源码 ZIP 与离线工具下载档案，以 Windows runner/架构及两份固定资产清单的摘要为 key，不做前缀回退。命中后仍逐一校验 SHA-256、重新展开并构建；不缓存应用产物、凭据或用户数据。上传 EXE/ZIP 时使用 `compression-level: 0`，避免再次压缩已压缩内容。首次执行会建立缓存，后续命中收益需另次执行确认。
+Actions 缓存仅包含 Electron/凭据源码 ZIP 与离线工具下载档案，以 Windows runner/架构及两份固定资产清单的摘要为 key，不做前缀回退。命中后仍逐一校验 SHA-256、重新展开并构建；不缓存应用产物、凭据或用户数据。上传 EXE 时使用 `compression-level: 0`，避免再次压缩已压缩内容。首次执行已建立缓存，后续命中收益需另次执行确认。
 
-验收：Office 文件保护回归、全部既有成包检查及断网启动必须通过才能上传交付物；比较实际构建时间、包体及 SHA-256，并核对包内 Office 2013 辅助脚本。现代 Windows CI 不替代 Win7/Office 2013 真机验收。
+验收：工程回归加载实际打包配置和 Actions，确认只有 NSIS/EXE，离线资源和安装后不自动启动的规则保留。Office 文件保护回归、全部既有成包检查及断网启动必须通过才能上传交付物；`win-unpacked` 继续用于成包自测，不压缩成交付 ZIP。比较实际构建时间、包体及 SHA-256。现代 Windows CI 不替代 Win7/Office 2013 真机验收。
 
 - 平台：`terminalService.ts` 的统一选择；native `main.cpp` / CMake、现有 native 与 Host acceptance。
 - 隔离：打包入口与配置，早期数据设置和默认工作区读取；复用现有身份/路径 override。
@@ -105,7 +107,7 @@ Actions 缓存仅包含 Electron/凭据源码 ZIP 与离线工具下载档案，
 
 ## Win7 真机验收清单（由用户执行）
 
-从本次 Actions 的 `aibuddy7se-Win7-Offline-x64` artifact 下载并解压。先按 [离线工具包说明](windows-7-offline-toolkit.md)检查系统前置补丁，再安装其中的 `.exe`；也可解压内部应用 `.zip`，运行 `aibuddy7se.exe`。安装器完成后不自动启动，手动从开始菜单或解压目录启动。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
+从本次 Actions 的 `aibuddy7se-Win7-Offline-x64` artifact 下载并解压，运行其中唯一的 `.exe`。安装器完成后不自动启动；按 [离线工具包说明](windows-7-offline-toolkit.md)从安装目录检查和安装随包系统前置补丁，再从开始菜单启动。摘要与指南位于同一运行的 `Win7-build-diagnostics`。包不自带 Git，基本 Git 功能需要已有 Win7 兼容 Git。
 
 进程资源统计、浏览器发现、系统文件关联和 Hook 陈旧锁查询已按 [Python 操作与 PS2 兼容规格](windows-7-python-operations.md)改用旧系统可用的 WMI/.NET 接口，不再要求 WMF 5.1。Agent 的批量文件与 Office 处理优先用随包 Python。仍需在目标 Win7/PowerShell 2.0/.NET 3.5 机器验收；现代 Windows 运行探针不等于旧系统验证通过。
 
