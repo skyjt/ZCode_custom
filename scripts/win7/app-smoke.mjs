@@ -113,6 +113,13 @@ try {
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-en-US").click();
   await page.getByTestId("settings-back-button").click();
+  const missingModelBanner = page.getByTestId("chat-error-banner");
+  await missingModelBanner.waitFor();
+  assert.match(await missingModelBanner.innerText(), /Configure a custom model/);
+  assert.equal(
+    await missingModelBanner.getByRole("button", { name: "Upgrade", exact: true }).count(),
+    0,
+  );
   await page.getByTestId("workspace-help-menu-trigger").click();
   for (const name of ["Feedback", "Request a feature", "Product docs", "Community"]) {
     assert.equal(await page.getByRole("menuitem", { name, exact: true }).count(), 0);
@@ -123,7 +130,11 @@ try {
     context.waitForEvent("page"),
     page.getByRole("menuitem", { name: /^About/ }).click(),
   ]);
-  await about.getByText("aibuddy7se", { exact: true }).waitFor();
+  await about.locator("#about-title").waitFor();
+  assert.match(
+    await about.locator("#about-title").innerText(),
+    /^aibuddy7se\s+(?:version|版本)\s+\d+\.\d+\.\d+/i,
+  );
   assert.doesNotMatch(await about.locator("body").innerText(), /zcode/i);
   assert.ok((await about.locator('img[src^="data:image/png"]').count()) > 0);
   await about.screenshot({ path: join(output, "about.png") });

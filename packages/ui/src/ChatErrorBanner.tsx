@@ -9,6 +9,7 @@ import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
  */
 import { useState } from "react";
 import {
+  ZCODE_WIN7_EDITION,
   MEDIA_BUDGET_CURRENT_ATTACHMENT_TOO_LARGE_ERROR_CODE,
   MEDIA_BUDGET_CURRENT_IMAGE_TOO_LARGE_ERROR_CODE,
   MEDIA_BUDGET_CURRENT_VIDEO_TOO_LARGE_ERROR_CODE,
@@ -120,8 +121,10 @@ export function resolveChatErrorBannerDisplayMessage(
     });
   if (isModelConfigMissingError(error)) {
     return intl.formatMessage({
-      id:
-        modelConfigTarget === "remote"
+      // 内网版没有云套餐入口；缺模型时只提示配置可用的自定义 API。
+      id: ZCODE_WIN7_EDITION
+        ? "chat.error.noAvailableModelIntranet"
+        : modelConfigTarget === "remote"
           ? "chat.error.remoteNoAvailableModel"
           : "chat.error.noAvailableModel",
     });
@@ -318,7 +321,7 @@ export function ChatErrorBanner({
 
         {modelConfigMissing ? (
           <>
-            {onOpenUpgrade ? (
+            {!ZCODE_WIN7_EDITION && onOpenUpgrade ? (
               <CodingPlanEntryButton
                 type="button"
                 variant="default"
@@ -400,7 +403,7 @@ export function ChatErrorBanner({
 
         {/* Bugfix: 错误横幅本身就是异常态，不能再经过 Radix Tooltip 的 Popper/Slot 状态链。
             这里改成普通 Button，避免无可用模型等错误触发横幅时发生 Maximum update depth 循环。 */}
-        {!modelConfigMissing ? (
+        {!ZCODE_WIN7_EDITION && !modelConfigMissing ? (
           <Button
             type="button"
             variant="outline"

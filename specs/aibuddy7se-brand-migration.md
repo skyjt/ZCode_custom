@@ -39,6 +39,8 @@ Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/
 
 验收当前实际挂载的工作区帮助菜单（旧 WindowsCaptionMenuButton 已无调用）：保留关于、资源管理器和导出日志；不提供上游反馈、需求、社区和产品文档入口，也不探测社区。仅更换 URL 中的名称会产生不存在的品牌域名，因此不能以文本替换代替入口清理。
 
+缺少模型时，Win7 错误横幅只引导配置自定义模型，保留设置按钮，移除云套餐升级按钮；其它错误保留复制、详情、重试/重连，不提供云反馈按钮。现代/Web 文案与动作不变。运行 43404254541 的真实 GUI 暴露了该遗漏，并证明旧 SQLite/密文迁移已正常进入工作区；关于窗口标题将产品名与版本放在同一个 h1，验收按完整 heading 校验，不按单独的文本元素查找产品名。
+
 实际依赖以 rg 与受控模块上下文核对（本环境无 Codegraph）。入口：Win7 builder/installer/bootstrap → credential-security、session SQLite → preload/UI、Agent、离线工具。现代/Web 不改变运行语义；Desktop continuous 与远端 replayable 仍由既有 owner 管理。远端独立旧版服务不升级成新版协议，需使用相同品牌版本。
 
 | 场景                             | 必须断言                                      | 证据                                    |
