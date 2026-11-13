@@ -1,4 +1,4 @@
-> 云端接手已完成：运行时代码 `4e336a8bbbe1b564c228053987735f887e4e2bf6`，Actions [43408181317](https://github.com/skyjt/ZCode_custom/actions/runs/43408181317) 全绿；EXE 与截图均已下载核对。完整 SHA-256、下载位置与仍待真机验收项目见 [品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-13-云端验收记录)。以下交接故障描述保留为历史证据，不代表当前仍然失败。
+> 云端接手及本轮内存优化已完成：运行时代码 `ddd6e31003b6ca4b6e5d4a18fd9110928840254a`，Actions [43485739797](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797) 全绿（Windows 工程 29/29）；EXE、SHA-256、品牌扫描与最终截图均已下载核对。当前下载与仍待真机验收项目见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-13-内存优化后复验)。[内存实测](../../specs/aibuddy7se-memory.md#2026-11-13-最终成包验收)：同机启动空闲 90 秒工作集合计约下降 20%，配置模型但未发送约下降 62%；30 秒初始占用与任务期间高占用仍未解决。以下原始交接故障描述保留为历史证据，不代表当前仍然失败。
 
 # aibuddy7se 云端开发交接（2026-11-13）
 
@@ -27,11 +27,11 @@
 - 该截图还显示缺模型横幅残留 Upgrade；`dbe5ac6b` 已给 `ChatErrorBanner.tsx` 的 Win7 分支隐藏升级/云反馈，改为中英文自定义模型提示。对应 GUI 断言已补；仍需下一轮实际成包通过。
 - 首轮品牌扫描 28,547 个文本文件通过；仅 `legacy-data.cjs`、`legacy-migration.mjs`、`legacy-storage.js` 作为旧数据识别保留旧字符串。用户文档、原始数据副本、真实项目路径、workspaceIdentity 和上游开发源码/历史不做盲目替换。
 
-## 工程约束与已执行验证
+## 工程约束与交接时验证（历史）
 
 先读根 AGENTS.md 及 architecture-governance skill；新增行为先更新对应 spec。不要恢复已退役的 App 业务单测。Node `24.14.0`、pnpm `10.33.2` 以 mise.toml 为准，勿使用其他 pnpm 导致锁文件/依赖变化。
 
-本地最近：`pnpm typecheck` 通过；`pnpm lint` 为 538 条既有告警、0 错误；此次修改的 ChatErrorBanner 单独 Oxlint 为 0 告警/0 错误，未改变 Hooks 调用顺序或依赖。架构检查新增/基线违规均 0，正常 pre-push 门禁通过。工程入口：
+交接时本地：`pnpm typecheck` 通过；`pnpm lint` 为 538 条既有告警、0 错误；当时修改的 ChatErrorBanner 单独 Oxlint 为 0 告警/0 错误，未改变 Hooks 调用顺序或依赖。架构检查新增/基线违规均 0，正常 pre-push 门禁通过。当前云端 Lint 为 533 条既有告警、0 错误，最终验收见文首链接。工程入口：
 
 ```sh
 node scripts/check-workspace-freshness.mjs
@@ -41,7 +41,7 @@ pnpm lint
 pnpm architecture:check --changed
 ```
 
-macOS 最近工程结果为 25 项中 24 通过、1 项 Windows 原生注册表测试跳过；Windows 该项已实际失败，不能写成全通过。推送正常执行 pre-push，不绕过门禁。
+交接时 macOS 工程结果为 25 项中 24 通过、1 项 Windows 原生注册表测试跳过；Windows 该项当时实际失败，之后已修复并在最终 29/29 工程回归中通过。推送正常执行 pre-push，不绕过门禁。
 
 ## 完成时应留下的记录
 

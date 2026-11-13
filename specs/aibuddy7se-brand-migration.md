@@ -64,3 +64,16 @@ Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/
 - 优化实测：继续沿用品牌与 sourcemap 同一次 ASAR 解封装，完整处理耗时 109,846 ms（解包 32,561 ms，重新封装 47,726 ms），原生依赖检查照常执行。安装器构建步骤 11 分 43 秒，整个 job 16 分 05 秒；不能把单阶段优化称为整体耗时固定下降。本次未移除或放宽任何 Actions 门禁。
 
 仍未验收：Win7 SP1 x64 真机/PowerShell 2.0/.NET 3.5、真实 Office 2013 导出、真实模型与内网 SSH、实际旧 NSIS 覆盖升级和完整应用退出后重启升级。Server 2022 的虚构 fixture 与无 Office 的 COM 探针不能替代这些验收；已有原始数据保留规则仍适用。
+
+## 2026-11-13 内存优化后复验
+
+最新交付运行时代码为 `ddd6e31003b6ca4b6e5d4a18fd9110928840254a`，已正常推送到 `skyjt/ZCode_custom` 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43485739797](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797) 全部通过（job `132093688183`）；此版本替代上方历史产物作为当前下载。
+
+- 原有迁移、安全负例与离线能力门禁全部保留并重新通过。Windows 工程回归现为 29/29，无跳过，真实注册表不同 command 负例仍执行；真实旧 SQLite/OS 密文、源数据保留、冲突拒绝、Agent/WinPTY、Office 库、SSH/SFTP、技能、PE 导入及防火墙阻断成包 GUI 均通过。
+- 最终本地 Node 24.14.0 / pnpm 10.33.2 类型检查通过，Lint 533 条既有告警、0 错误，架构新增/基线违规 0，正常 pre-push 门禁通过。Linux 工程回归 27 通过、2 项 Windows 原生检查跳过；上述 Windows 运行补齐验证。
+- 人工查看最终启动、关于、帮助菜单、浅色/深色代码预览、系统自测、模型设置和首次回复截图；名称/Logo/版本正确，缺模型提示只引导自定义模型，没有云升级或上游社区入口。首次发送真实经过 UI 与共享 Agent 到本机虚构模型并显示回复，只有一个聊天 runtime；不是实际内网模型验收。
+- `brand-audit.json` 扫描 28,553 个文本文件通过，仍仅 `legacy-data.cjs`、`legacy-migration.mjs`、`legacy-storage.js` 保留旧识别字符串。新版没有修改原始数据保留及 Windows 自定义入口保护规则。
+- [当前 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14069470959)外层 artifact ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，254,611,286 字节，无便携包。下载后实际 SHA-256 与 runner 记录一致：`512861188eb378e6adfe78e2f9e2d027039eea645a1907f601204ff795be08ae`。[当前诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14068442796)，保留期 14 天。
+- 同机对照：启动就绪 90 秒工作集合计由 1166.57 降至 929.41 MiB；配置模型但未发送时由 2480.32 降至 944.85 MiB。启动 30 秒仍约 1372 MiB，打开插件页并首次回复后仍约 2910 MiB；本轮不能声称活动任务或真实浏览器内存已解决。口径、完整数据与取舍见[内存优化 spec](aibuddy7se-memory.md#2026-11-13-最终成包验收)。
+
+上方 Win7 真机、PowerShell 2.0/.NET 3.5、真实 Office 2013、真实模型/内网 SSH、实际旧 NSIS 覆盖安装及完整退出重启升级的未验收范围仍然成立。文档记录提交不改变此已验收 EXE 对应的运行时代码。
