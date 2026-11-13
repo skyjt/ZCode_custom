@@ -157,7 +157,7 @@ bool createLegacyCli(HANDLE job, const HANDLE (&stdioHandles)[3], const std::wst
 int wmain(int argc, wchar_t** argv) {
   if (argc > 1 && std::wstring(argv[1]) == L"--bootstrap") return bootstrap(argc, argv);
   if (argc == 2 && std::wstring(argv[1]) == L"--version") {
-    std::puts("zcode-runtime-host 1"); return 0;
+    std::puts("runtime-host 1"); return 0;
   }
   if (argc == 3 && std::wstring(argv[1]) == L"--check-empty") {
     Handle previous{OpenJobObjectW(JOB_OBJECT_QUERY, FALSE, argv[2])};

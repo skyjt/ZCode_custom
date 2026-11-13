@@ -59,7 +59,9 @@ try {
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 30000 });
   await page.getByTestId("login-api-key-skip-button").waitFor({ state: "hidden" });
   assert.equal(await page.getByTestId("database-startup-status").count(), 0);
-  assert.equal(await page.evaluate(() => typeof window.zcode), "object");
+  assert.equal(await page.evaluate(() => typeof window.aibuddy7se), "object");
+  assert.equal(await page.evaluate(() => typeof window.zcode), "undefined");
+  assert.doesNotMatch(await page.locator("body").innerText(), /zcode/i);
   assert.ok((await page.locator('[data-app-logo="aibuddy7se"]').count()) > 0);
   const preferences = page.getByTestId("sidebar").getByTestId("login-trigger");
   assert.equal((await preferences.innerText()).trim(), "aibuddy7se");
@@ -72,7 +74,7 @@ try {
   await page.getByTestId("settings-locale-select-item-en-US").click();
   await page.getByTestId("system-self-test-run").click();
   const reports = await page.evaluate(() =>
-    Promise.all([window.zcode.runSystemSelfTest(), window.zcode.runSystemSelfTest()]),
+    Promise.all([window.aibuddy7se.runSystemSelfTest(), window.aibuddy7se.runSystemSelfTest()]),
   );
   await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
   assert.deepEqual(reports[0], reports[1], "Main must share the in-flight report");
@@ -101,6 +103,7 @@ try {
   assert.equal(await page.getByTestId("settings-mobile-push-switch").count(), 0);
   assert.equal(await page.getByTestId("settings-section-nav-usage").count(), 0);
   assert.equal(await page.getByTestId("settings-section-nav-shares").count(), 0);
+  assert.doesNotMatch(await page.locator("body").innerText(), /zcode/i);
   await page.getByTestId("settings-section-nav-modelProvider").click();
   await page.getByTestId("model-provider-add-provider-button").click();
   assert.equal(await page.locator('[data-testid^="model-provider-template-item-"]').count(), 1);
@@ -130,6 +133,7 @@ try {
   await page.getByTestId("sidebar").waitFor({ timeout: 60000 });
   assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
   await page.getByTestId("task-settings-button").click();
+  assert.doesNotMatch(await page.locator("body").innerText(), /zcode/i);
   await page.getByTestId("settings-section-nav-modelProvider").click();
   await page.getByTestId(providerTestId).click();
   assert.equal(await page.getByTestId("model-provider-base-url-input").inputValue(), baseUrl);

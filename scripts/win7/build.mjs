@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { runCommand } from "../spawn-command.mjs";
 import { runRuntimeSmoke } from "./run-runtime-smoke.mjs";
 import { prepareOfflineTools } from "./prepare-offline-tools.mjs";
+import { prepareBrand } from "./prepare-brand.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 export const runtime = JSON.parse(
@@ -158,6 +159,7 @@ async function build() {
       join(root, "scripts/win7/win7-environment.mjs"),
       join(root, "packages/desktop/out/win7-environment.mjs"),
     );
+    await prepareBrand(root);
     runCommand(
       "pnpm",
       [

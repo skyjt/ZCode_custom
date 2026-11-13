@@ -20,8 +20,9 @@ nodes:
   - id: "capability.win7-edition-self-test"
     kind: "capability"
     label: "aibuddy7se offline system capability self-test"
-    aliases: ["Win7 特别版", "系统能力自测", "aibuddy7se", "内网精简", "无账号启动"]
-    docs: ["specs/aibuddy7se.md", "specs/aibuddy7se-intranet.md"]
+    aliases: ["Win7 特别版", "系统能力自测", "aibuddy7se", "内网精简", "无账号启动", "完整品牌迁移"]
+    docs:
+      ["specs/aibuddy7se.md", "specs/aibuddy7se-intranet.md", "specs/aibuddy7se-brand-migration.md"]
     codeSeeds:
       - file: "scripts/win7/system-self-test.cjs"
         symbol: "main"
@@ -31,7 +32,7 @@ nodes:
         symbol: "registerPlatformIpcHandlers"
     invariants:
       - "Main owns one in-flight offline probe; renderer uses IPlatformService, never arbitrary commands."
-      - "Branding preserves Win7 installation and data identity; modern and web builds stay unchanged."
+      - "Win7 branding migrates legacy data before Main starts, preserves the opaque installer upgrade GUID, and leaves modern/web builds unchanged."
       - "Static visuals still deliver presentation callbacks; no model or network requests in self-test."
       - "Win7 skips account/promotion flows and official background downloads, retaining explicit API/SSH and local plugins without deleting saved data."
   - id: "capability.archive-permanent-deletion"

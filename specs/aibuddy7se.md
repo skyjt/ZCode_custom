@@ -3,7 +3,7 @@
 ## 产品规则与范围
 
 - Win7 构建显示名、可执行文件、安装包、菜单及自身图标统一为 `aibuddy7se`，界面标注「Win7 特别版」。复用 `skyjt/ZCode_custom` 主分支 `eddafa6ec4517ccd71f2d5dbe0e917e855da8332` 的 AIbuddy 图标；保留上游署名和供应商图标。
-- 本次是现有 Win7 包的升级：保留安装 appId、`.zcode-win7-home`、Electron `ZCode Win7 Experimental` userData、凭据键和内部协议，避免改名造成会话/配置丢失。现代 Desktop、Web、手机不切换产品身份。
+- Win7 的完整品牌与旧数据迁移以 [品牌迁移规格](aibuddy7se-brand-migration.md) 为准；显示名、运行时标识、目录、凭据命名空间及协议统一为 aibuddy7se。旧版验收记录是历史证据，不代表新的迁移已经通过。现代 Desktop、Web、手机不切换产品身份。
 - 设置 → 常规提供手动「系统能力自测」，不在启动或后台周期运行，不请求模型、不访问外网。一次运行逐项检查，单项失败后继续；明确通过、失败、警告、未测试，支持导出 JSON。
 - 检查本机 OS/架构、Unicode 文件读写、SQLite、WinPTY、两套凭据组件、搜索工具、随包 Python/Office、PuTTY、WMI/PowerShell 2.0/.NET 调用。Git 缺失是可选能力警告；真实模型、SSH 服务器和 Win7 视觉/驱动兼容不能由本地自测宣称通过。
 - 自测只操作独立临时目录与随机生成的测试凭据，结束清理；不读取会话、模型密钥或用户文件。报告仅含版本和检查结果，异常消息清除用户目录。

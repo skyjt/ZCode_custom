@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { configureOfflineTools, configureWin7Environment } from "./win7-environment.mjs";
 
 const app = resolve(process.argv[2]);
-const home = await mkdtemp(join(tmpdir(), "zcode-skills-"));
+const home = await mkdtemp(join(tmpdir(), "aibuddy7se-skills-"));
 const env = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
 configureWin7Environment(env, home);
 configureOfflineTools(join(app, "resources"), env);
@@ -16,12 +16,12 @@ try {
   for (const name of ["offline-toolkit", "ssh-sftp", "docx", "xlsx", "pptx", "pdf"]) {
     const { stdout } = await execute(
       join(app, "aibuddy7se.exe"),
-      [join(app, "resources/glm/zcode.cjs"), "skills", "inspect", name, "--json"],
+      [join(app, "resources/glm/aibuddy7se.cjs"), "skills", "inspect", name, "--json"],
       { cwd: home, env, timeout: 30000, maxBuffer: 1024 * 1024 },
     );
     const result = JSON.parse(stdout);
     assert.ok(
-      result.skill?.content?.includes("ZCODE_OFFLINE_TOOLS"),
+      result.skill?.content?.includes("AIBUDDY7SE_OFFLINE_TOOLS"),
       `${name} must resolve offline guidance`,
     );
   }

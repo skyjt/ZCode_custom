@@ -43,7 +43,7 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           exit $LASTEXITCODE
       - name: Engineering regression
-        run: node --test scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+        run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs
       - name: Office tool file safety and Windows registration probe
         run: python -B scripts/test/win7-office-native.test.py
       - name: Legacy Windows system API acceptance
@@ -82,6 +82,14 @@ jobs:
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 2
         run: node scripts/win7/agent-smoke.cjs packages/desktop/dist/win7/win-unpacked .cache/runtime-host-acceptance/Release/adapter.cjs
+      - name: Packaged legacy credential migration
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          & packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe scripts/win7/migration-smoke.cjs packages/desktop/dist/win7/win-unpacked
+          exit $LASTEXITCODE
       - name: Check Win7 native imports
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         shell: pwsh
@@ -92,7 +100,7 @@ jobs:
           $binaries = @(
             "$app/resources/tools/ripgrep/rg.exe",
             "$app/resources/tools/ugrep/ugrep.exe",
-            "$app/resources/tools/runtime-host/zcode-runtime-host.exe",
+            "$app/resources/tools/runtime-host/aibuddy7se-runtime-host.exe",
             "$app/resources/app.asar.unpacked/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
             "$app/resources/glm/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/pty.node",

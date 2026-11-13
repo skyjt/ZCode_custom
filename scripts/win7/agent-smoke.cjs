@@ -8,7 +8,7 @@ const app = resolve(process.argv[2]);
 const { spawnWindowsRuntimeHost } = require(resolve(process.argv[3]));
 process.env.ZCODE_RUNTIME_HOST_PATH = join(
   app,
-  "resources/tools/runtime-host/zcode-runtime-host.exe",
+  "resources/tools/runtime-host/aibuddy7se-runtime-host.exe",
 );
 
 (async () => {
@@ -22,7 +22,7 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
   try {
     runtime = await spawnWindowsRuntimeHost({
       command: join(app, "aibuddy7se.exe"),
-      args: [join(app, "resources/glm/zcode.cjs"), "app-server", "--stdio", "--prepare-storage"],
+      args: [join(app, "resources/glm/aibuddy7se.cjs"), "app-server", "--stdio", "--prepare-storage"],
       cwd: folder,
       env,
       signal: new AbortController().signal,
@@ -38,7 +38,7 @@ process.env.ZCODE_RUNTIME_HOST_PATH = join(
         try {
           const message = JSON.parse(line);
           if (message.method === "startup/storagePath") {
-            assert.equal(resolve(message.params.path), env.ZCODE_SESSION_DB_PATH);
+            assert.equal(resolve(message.params.path), env.AIBUDDY7SE_SESSION_DB_PATH);
             observed = true;
             runtime.child.stdin.write(
               JSON.stringify({ method: "startup/storagePathReady" }) + "\n",

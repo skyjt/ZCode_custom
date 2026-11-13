@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import base from "../../packages/desktop/electron-builder.config.js";
 import { runtime } from "./build.mjs";
+import { brandPackagedApplication } from "./brand-package.mjs";
 
 if (
   !process.env.ZCODE_WIN7_ELECTRON_DIST ||
@@ -14,16 +15,24 @@ if (
 
 export default {
   ...base,
-  appId: "dev.zcode.app.win7.experimental",
+  appId: "dev.aibuddy7se.app",
   productName: "aibuddy7se",
   electronVersion: runtime.version,
   electronDist: process.env.ZCODE_WIN7_ELECTRON_DIST,
   extraMetadata: {
-    ...base.extraMetadata,
-    name: "zcode-win7-experimental",
+    version: base.extraMetadata.version,
+    name: "aibuddy7se",
+    author: "aibuddy7se",
+    homepage: null,
+    aibuddy7seProductFlavor: base.extraMetadata.zcodeProductFlavor,
     description: "aibuddy7se · Win7 特别版",
     main: "out/win7-bootstrap.mjs",
-    zcodeWin7Runtime: runtime,
+    aibuddy7seWin7Runtime: runtime,
+  },
+  protocols: [{ name: "aibuddy7se", schemes: ["aibuddy7se"] }],
+  async afterPack(context) {
+    await base.afterPack(context);
+    await brandPackagedApplication(context);
   },
   extraResources: [
     ...base.extraResources.filter(
@@ -33,10 +42,22 @@ export default {
       from: resolve(import.meta.dirname, "branding", name),
       to: name,
     })),
-    { from: resolve(import.meta.dirname, "branding/icon.ico"), to: "tray_icon.ico" },
-    { from: resolve(import.meta.dirname, "system-self-test.cjs"), to: "win7/system-self-test.cjs" },
-    { from: resolve(import.meta.dirname, "runtime-smoke.cjs"), to: "win7/runtime-smoke.cjs" },
-    { from: resolve(import.meta.dirname, "runtime.json"), to: "win7/runtime.json" },
+    {
+      from: resolve(import.meta.dirname, "branding/icon.ico"),
+      to: "tray_icon.ico",
+    },
+    {
+      from: resolve(import.meta.dirname, "system-self-test.cjs"),
+      to: "win7/system-self-test.cjs",
+    },
+    {
+      from: resolve(import.meta.dirname, "runtime-smoke.cjs"),
+      to: "win7/runtime-smoke.cjs",
+    },
+    {
+      from: resolve(import.meta.dirname, "runtime.json"),
+      to: "win7/runtime.json",
+    },
     {
       from: resolve(import.meta.dirname, "../../.cache/win7-offline-tools"),
       to: "offline-tools",
@@ -57,6 +78,9 @@ export default {
   },
   nsis: {
     ...base.nsis,
+    // 保留已发布安装器 GUID，实现覆盖升级；运行时 appId 与协议已切换新品牌。
+    guid: "717ba403-67c3-5aea-b283-7ad76d047678",
+    include: resolve(import.meta.dirname, "../../.cache/win7-brand/installer.nsh"),
     installerIcon: resolve(import.meta.dirname, "branding/icon.ico"),
     uninstallerIcon: resolve(import.meta.dirname, "branding/icon.ico"),
     installerHeaderIcon: resolve(import.meta.dirname, "branding/icon.ico"),

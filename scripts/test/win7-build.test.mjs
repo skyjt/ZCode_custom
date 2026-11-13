@@ -104,7 +104,7 @@ test("offline tools use application PATH without duplicate Windows path keys or 
   assert.equal(env.HOME, "/home");
   assert.equal(env.PYTHONPATH, undefined);
   assert.equal(env.PIP_NO_INDEX, "1");
-  assert.equal(env.ZCODE_OFFLINE_TOOLS, join("/resources", "offline-tools"));
+  assert.equal(env.AIBUDDY7SE_OFFLINE_TOOLS, join("/resources", "offline-tools"));
   const path = env.Path;
   configureOfflineTools("/resources", env);
   assert.equal(env.Path, path);
@@ -124,20 +124,20 @@ test("Win7 isolates Agent databases without redirecting Git or SSH home", () => 
   const env = {
     HOME: "/real-home",
     USERPROFILE: "/real-home",
-    ZCODE_SESSION_DB: "/formal.db",
-    ZCODE_SESSION_DB_PATH: "/formal-other.db",
+    AIBUDDY7SE_SESSION_DB: "/formal.db",
+    AIBUDDY7SE_SESSION_DB_PATH: "/formal-other.db",
   };
   const home = configureWin7Environment(env, "/test-home", "/app-data");
-  assert.equal(env.ZCODE_DESKTOP_APPLICATION_NAME, "aibuddy7se");
-  assert.equal(env.ZCODE_WIN7_EDITION, "1");
-  assert.equal(env.ZCODE_DESKTOP_USER_DATA_DIR, join("/app-data", "ZCode Win7 Experimental"));
-  assert.equal(home, join("/test-home", ".zcode-win7-home"));
+  assert.equal(env.AIBUDDY7SE_DESKTOP_APPLICATION_NAME, "aibuddy7se");
+  assert.equal(env.AIBUDDY7SE_WIN7_EDITION, "1");
+  assert.equal(env.AIBUDDY7SE_DESKTOP_USER_DATA_DIR, join("/app-data", "aibuddy7se"));
+  assert.equal(home, join("/test-home", ".aibuddy7se-home"));
   assert.equal(env.HOME, "/real-home");
   assert.equal(env.USERPROFILE, "/real-home");
-  assert.equal(env.ZCODE_SESSION_DB, undefined);
-  assert.equal(env.ZCODE_SESSION_DB_PATH, join(home, ".zcode/cli/db/db.sqlite"));
-  assert.equal(env.ZCODE_STORAGE_DIR, join(home, ".zcode"));
-  assert.equal(env.ZCODE_DATA_BASE_DIR, home);
+  assert.equal(env.AIBUDDY7SE_SESSION_DB, undefined);
+  assert.equal(env.AIBUDDY7SE_SESSION_DB_PATH, join(home, ".aibuddy7se/cli/db/db.sqlite"));
+  assert.equal(env.AIBUDDY7SE_STORAGE_DIR, join(home, ".aibuddy7se"));
+  assert.equal(env.AIBUDDY7SE_DATA_BASE_DIR, home);
 });
 
 test("Win7 runtime rejects modified archives and cannot enable modern auto-update", () => {

@@ -28,7 +28,7 @@ const { DatabaseSync } = require("node:sqlite");
     if (process.argv[2].endsWith("app.asar")) {
       for (const requireKeyring of [
         load,
-        createRequire(join(dirname(resolve(process.argv[2])), "glm/zcode.cjs")),
+        createRequire(join(dirname(resolve(process.argv[2])), "glm/aibuddy7se.cjs")),
       ]) {
         const { AsyncEntry } = requireKeyring("@napi-rs/keyring");
         const entry = new AsyncEntry("ZCode Win7 runtime acceptance", randomUUID());
