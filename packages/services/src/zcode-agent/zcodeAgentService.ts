@@ -4253,6 +4253,25 @@ export function createZCodeAgentService(
     return client;
   }
 
+  async function getWorkspacePresentationClient(
+    workspace: ZCodeAgentWorkspaceTarget,
+  ): Promise<ZCodeProtocolClient> {
+    if (
+      !ZCODE_WIN7_EDITION ||
+      !isLocalActiveWorkspaceClient(workspace) ||
+      processManager.getExistingClient(workspace)
+    ) {
+      return getReadOnlyClient(workspace);
+    }
+    // 成包内存验收确认：空白草稿读取 slash 目录也会隐式启动常驻 chat Agent。
+    // 目录只依赖插件元数据；复用可回收的管理面，保留原 workspace、配置与策略，不登记聊天 owner。
+    await options?.prepareRuntimeWorkspace?.(workspace);
+    const client = await getPluginManagementClient();
+    wireClient(client, workspace, "plugin");
+    await enqueueDynamicWorkflowPolicySync({ client, workspace });
+    return client;
+  }
+
   // 全局工作流的载体运行时选择：
   // 调用方只给 `{ scope: "global" }` 不带 workspace 时，先复用任一已活跃的**本地** runtime
   // （existing-only 语义：只看 activeClientsByWorkspaceKey，绝不为此拉起新进程），否则回落到
@@ -4449,11 +4468,15 @@ export function createZCodeAgentService(
    * 每一步在执行时才读生效模式，后入队的步骤必然读到更新的选择，慢请求不会在新结论之后落地。
    * 与 CLI 已持有的策略相同就不发；关闭时发 enabled:false，让在线 CLI 的斜杠目录去掉 workflow。
    */
-  function enqueueDynamicWorkflowPolicySync(entry: ActiveWorkspaceClient): Promise<void> {
+  function enqueueDynamicWorkflowPolicySync(
+    entry: Pick<ActiveWorkspaceClient, "client" | "workspace"> &
+      Partial<Pick<ActiveWorkspaceClient, "dynamicWorkflowPolicyMode">>,
+  ): Promise<void> {
     const workspaceKey = resolveWorkspaceKey(entry.workspace);
     const previous = dynamicWorkflowPolicySyncByClient.get(entry.client) ?? Promise.resolve();
     const current = previous.then(async () => {
       const mode = await resolveDynamicWorkflowGate();
+      // 管理面没有聊天 entry 的策略缓存；undefined 表示未知，必须同步当前值，不能沿用旧目录策略。
       if (mode === entry.dynamicWorkflowPolicyMode) return;
       const enabled = isDynamicWorkflowModeEnabled(mode);
       try {
@@ -5058,7 +5081,7 @@ export function createZCodeAgentService(
       try {
         let presentation: ZCodeWorkspacePresentation | undefined;
         for (let attempt = 0; attempt < 2; attempt += 1) {
-          const client = await getReadOnlyClient(params);
+          const client = await getWorkspacePresentationClient(params);
           try {
             await ensureAccountProviderConfigSynced({
               client,

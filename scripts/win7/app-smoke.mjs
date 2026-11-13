@@ -306,11 +306,21 @@ try {
       /agent process started.*shared-local-tasks/,
       "Empty draft and model configuration must not prestart the chat Agent",
     );
+    assert.match(
+      log,
+      /workspace\/readPresentation 完成.*"slashCommandCount":[1-9][0-9]*/,
+      "On-demand startup must retain the real workspace command catalog",
+    );
     // 90 秒启动采样后插件管理 lane 已退出，设置页必须能按需重建并读取真实安装清单。
     await page.getByTestId("task-settings-button").click();
     await page.getByTestId("settings-section-nav-plugin").click();
     await page.getByTestId("plugin-settings-plugin-row").first().waitFor({ timeout: 60000 });
     await page.getByTestId("settings-back-button").click();
+    assert.doesNotMatch(
+      log,
+      /agent process started.*shared-local-tasks/,
+      "Plugin management must not prestart the chat Agent",
+    );
     assert.equal(
       modelFixture.requests.filter((request) => request.path === "/v1/chat/completions").length,
       0,
