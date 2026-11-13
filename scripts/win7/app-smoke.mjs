@@ -20,6 +20,10 @@ execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome
 });
 env.USERPROFILE = fixtureHome;
 env.HOME = fixtureHome;
+// 只改 USERPROFILE 会使 Electron 在进入 Bootstrap 前找不到 appData，必须创建完整的测试用户目录。
+env.APPDATA = join(fixtureHome, "AppData", "Roaming");
+env.LOCALAPPDATA = join(fixtureHome, "AppData", "Local");
+await Promise.all([env.APPDATA, env.LOCALAPPDATA].map((path) => mkdir(path, { recursive: true })));
 const child = spawn(
   join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],

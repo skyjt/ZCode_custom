@@ -30,6 +30,8 @@ sequenceDiagram
 
 升级 GUI 验收必须实际从旧 SQLite 和 OS 密文启动。若在 DevTools/窗口出现前失败，Bootstrap 输出不含路径或密钥的阶段日志，Windows CI 保存一次性 runner 的桌面错误窗口截图；不能增加等待时间或改回无旧数据的新装来绕过失败。
 
+Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/Local 并设置 APPDATA/LOCALAPPDATA，不能只覆盖 HOME/USERPROFILE。运行 43401763520 的原生错误截图确认，缺少这些目录会使 Electron 在进入迁移前抛出 `Failed to get 'appData' path`；此证据不能归因为迁移数据库或密钥失败。
+
 验收当前实际挂载的工作区帮助菜单（旧 WindowsCaptionMenuButton 已无调用）：保留关于、资源管理器和导出日志；不提供上游反馈、需求、社区和产品文档入口，也不探测社区。仅更换 URL 中的名称会产生不存在的品牌域名，因此不能以文本替换代替入口清理。
 
 实际依赖以 rg 与受控模块上下文核对（本环境无 Codegraph）。入口：Win7 builder/installer/bootstrap → credential-security、session SQLite → preload/UI、Agent、离线工具。现代/Web 不改变运行语义；Desktop continuous 与远端 replayable 仍由既有 owner 管理。远端独立旧版服务不升级成新版协议，需使用相同品牌版本。
