@@ -440,10 +440,47 @@ export function migrateLegacyEnvironment(env) {
   }
 }
 
+// reg query /ve 会忽略搜索过滤，且控制台代码页会损坏中文；使用 Win7 的 .NET API 读取原值。
+export async function readWindowsShellCommand(key) {
+  if (!key.startsWith("HKCU\\")) throw new Error("Expected HKCU registry key");
+  const encodedKey = Buffer.from(key.slice(5), "utf8").toString("base64");
+  const script = `
+$ErrorActionPreference = 'Stop'
+$key = $null
+try {
+  $path = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedKey}'))
+  $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($path)
+  if ($null -eq $key) { exit 0 }
+  if ($key.GetValueNames() -notcontains '') { exit 0 }
+  if ($key.GetValueKind('') -ne [Microsoft.Win32.RegistryValueKind]::String) { exit 0 }
+  $value = $key.GetValue('', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+  [Console]::Write([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($value)))
+} catch { [Console]::Error.Write('Registry command read failed'); exit 1 }
+finally { if ($null -ne $key) { $key.Close() } }
+`;
+  const { stdout } = await execFileAsync(
+    "powershell.exe",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-EncodedCommand",
+      Buffer.from(script, "utf16le").toString("base64"),
+    ],
+    { windowsHide: true, encoding: "utf8" },
+  );
+  const encoded = stdout.trim();
+  if (!encoded) return null;
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded))
+    throw new Error("Invalid registry command response");
+  return Buffer.from(encoded, "base64").toString("utf8");
+}
+
 export async function migrateLegacyWindowsShell({
   platform = process.platform,
   executablePath = process.execPath,
   runReg = (args) => execFileAsync("reg.exe", args, { windowsHide: true }),
+  readCommand = readWindowsShellCommand,
 } = {}) {
   if (platform !== "win32") return;
   // 旧菜单不属于 NSIS 清单；只清理仍指向本 EXE 的完整命令，保留并存安装和用户改写。
@@ -462,24 +499,8 @@ export async function migrateLegacyWindowsShell({
     [root + "zcode", "shell\\open\\command", `"${executablePath}" "%1"`],
   ];
   for (const [key, child, expected] of entries) {
-    let stdout;
-    try {
-      // 由 Windows 原生比较 Unicode 数据，避免按 UTF-8 解码系统代码页后误判中文安装路径。
-      ({ stdout } = await runReg([
-        "query",
-        `${key}\\${child}`,
-        "/ve",
-        "/f",
-        expected,
-        "/d",
-        "/e",
-        "/t",
-        "REG_SZ",
-      ]));
-    } catch (error) {
-      if (error.code === 1) continue;
-      throw error;
-    }
-    if (/\bREG_SZ\b/.test(stdout)) await runReg(["delete", key, "/f"]);
+    const command = await readCommand(`${key}\\${child}`);
+    if (typeof command === "string" && command.toLowerCase() === expected.toLowerCase())
+      await runReg(["delete", key, "/f"]);
   }
 }

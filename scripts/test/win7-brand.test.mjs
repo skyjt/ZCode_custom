@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { prepareBrand } from "../win7/prepare-brand.mjs";
 import { createPackage, extractAll, extractFile, uncache } from "@electron/asar";
 import { cleanupPackagedSourcemaps } from "../../packages/desktop/scripts/packaged-sourcemap-cleanup.mjs";
@@ -17,6 +17,7 @@ import {
   withLegacyInstanceLock,
   migrateLegacyEnvironment,
   migrateLegacyWindowsShell,
+  readWindowsShellCommand,
 } from "../win7/legacy-migration.mjs";
 
 const root = join(import.meta.dirname, "../..");
@@ -35,34 +36,25 @@ test("Windows shell migration removes only commands owned by this executable and
     [protocol + "\\shell\\open\\command", `"${exe}" "%1"`],
   ]);
   const deleted = [];
-  const runReg = async ([operation, key, ...args]) => {
-    if (operation === "query") {
-      if (!values.has(key)) throw Object.assign(new Error("missing"), { code: 1 });
-      assert.deepEqual(args.slice(0, 2), ["/ve", "/f"]);
-      assert.deepEqual(args.slice(3), ["/d", "/e", "/t", "REG_SZ"]);
-      return {
-        stdout:
-          values.get(key).toLowerCase() === args[2].toLowerCase()
-            ? `${key}\r\n    (默认)    REG_SZ    OEM-encoded-command\r\n`
-            : "0 matches",
-      };
-    }
+  const readCommand = async (key) => values.get(key) ?? null;
+  const runReg = async ([operation, key]) => {
+    assert.equal(operation, "delete");
     deleted.push(key);
     for (const path of values.keys()) if (path.startsWith(key + "\\")) values.delete(path);
     return { stdout: "" };
   };
-  await migrateLegacyWindowsShell({ platform: "darwin", executablePath: exe, runReg });
+  await migrateLegacyWindowsShell({ platform: "darwin", executablePath: exe, runReg, readCommand });
   assert.deepEqual(deleted, []);
-  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg });
+  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg, readCommand });
   assert.deepEqual(deleted, [directory, protocol]);
-  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg });
+  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg, readCommand });
   assert.deepEqual(deleted, [directory, protocol]);
   await assert.rejects(
     migrateLegacyWindowsShell({
       platform: "win32",
       executablePath: exe,
-      runReg: async ([operation]) => {
-        if (operation === "query") return { stdout: `REG_SZ    "${exe}" --open-workspace "%1"` };
+      readCommand: async () => `"${exe}" --open-workspace "%1"`,
+      runReg: async () => {
         throw new Error("access denied");
       },
     }),
@@ -73,29 +65,30 @@ test("Windows shell migration removes only commands owned by this executable and
 test(
   "native registry exact searches preserve Unicode paths and reject different commands",
   { skip: process.platform !== "win32" },
-  () => {
+  async () => {
     const key = `HKCU\\Software\\aibuddy7se-test-${process.pid}-${Date.now()}`;
     const command = '"C:\\办公助手\\aibuddy7se.exe" --open-workspace "%1"';
     try {
-      execFileSync("reg.exe", ["add", key, "/ve", "/t", "REG_SZ", "/d", command, "/f"], {
-        stdio: "ignore",
-      });
-      for (const [query, matches] of [
-        [command, true],
-        [command.replace("办公助手", "other-app"), false],
+      for (const [value, type] of [
+        [command, "REG_SZ"],
+        [command.replace("办公助手", "other-app"), "REG_SZ"],
+        [command + " --custom", "REG_SZ"],
+        [command, "REG_EXPAND_SZ"],
       ]) {
-        const result = spawnSync(
-          "reg.exe",
-          ["query", key, "/ve", "/f", query, "/d", "/e", "/t", "REG_SZ"],
-          { encoding: "utf8" },
+        execFileSync("reg.exe", ["add", key, "/ve", "/t", type, "/d", value, "/f"], {
+          stdio: "ignore",
+        });
+        const actual = await readWindowsShellCommand(key);
+        assert.equal(actual, type === "REG_SZ" ? value : null);
+        assert.equal(
+          actual?.toLowerCase() === command.toLowerCase(),
+          value === command && type === "REG_SZ",
         );
-        assert.ifError(result.error);
-        assert.equal(/\bREG_SZ\b/.test(result.stdout), matches);
-        if (matches) assert.equal(result.status, 0);
       }
     } finally {
       execFileSync("reg.exe", ["delete", key, "/f"], { stdio: "ignore" });
     }
+    assert.equal(await readWindowsShellCommand(key), null);
   },
 );
 

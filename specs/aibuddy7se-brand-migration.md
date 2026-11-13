@@ -14,7 +14,7 @@ Bootstrap 是唯一迁移所有者，在导入 Main/Host 前执行。旧实例�
 
 Bootstrap 在数据迁移成功后、加载 Main 前，清理 HKCU 中指向当前可执行文件的旧 Directory/Drive 右键菜单及旧 URL 协议键；Main 沿用现有唯一注册路径创建新名称入口。只接受旧版本实际生成的完整 command（路径比较不区分大小写），其它安装位置、开发入口或用户自定义命令不删。不存在的键视为已完成，删除失败拒绝进入应用；重复启动无副作用。
 
-命令匹配由 `reg query /f /d /e /t REG_SZ` 原生完成，避免用 UTF-8 解析系统代码页输出时破坏中文路径；工程门禁使用隔离的注册表测试键验证精确匹配与不匹配。
+默认 command 由 Win7 自带 PowerShell 2.0 / .NET Registry API 读取，仅接受 REG_SZ；UTF-8 内容经 Base64 输出，避免系统代码页损坏中文路径。在 JavaScript 中核对完整命令（不区分大小写），不能以 reg query 的过滤结果或退出码判断归属。读取错误拒绝迁移；缺少值/非 REG_SZ/不同命令保留。工程门禁使用隔离的真实 Windows 注册表键验证中文路径、不同安装位置、自定义参数及非字符串值。
 
 ```mermaid
 sequenceDiagram
