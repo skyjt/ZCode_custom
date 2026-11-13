@@ -50,7 +50,6 @@ import { useTokenRefresh } from "@/hooks/useTokenRefresh.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SSHDialog } from "@/SSHDialog.js";
-import { SettingsPage } from "@/SettingsPage.js";
 import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
 import { CodingPlanUpgradeDialogProvider } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { RewardsProvider } from "@/rewards/RewardsProvider.js";
@@ -137,6 +136,11 @@ import type {
   RemoteConnectionOpenPreference,
 } from "@/app-shell/types.js";
 import { DEFAULT_LUCIDE_STROKE_WIDTH } from "@/components/icons/windowIcons.js";
+
+// 设置页及其编辑器不参与工作区首屏；使用本地 chunk，离线首次打开仍可加载。
+const SettingsPage = lazy(() =>
+  import("@/SettingsPage.js").then((module) => ({ default: module.SettingsPage })),
+);
 
 type WelcomeScreenOpenReason =
   | "startup-provider-required"
@@ -1575,7 +1579,11 @@ function RootInner({
           variant="panel"
           className="h-full"
         >
-          <SettingsPage {...settingsLayerProps} />
+          <Suspense
+            fallback={<RootStartupLoading label={intl.formatMessage({ id: "common.loading" })} />}
+          >
+            <SettingsPage {...settingsLayerProps} />
+          </Suspense>
         </ScopedErrorBoundary>
         {onboardingDialog}
       </RootShell>
@@ -1631,7 +1639,13 @@ function RootInner({
               variant="panel"
               className="h-full"
             >
-              <SettingsPage {...settingsLayerProps} />
+              <Suspense
+                fallback={
+                  <RootStartupLoading label={intl.formatMessage({ id: "common.loading" })} />
+                }
+              >
+                <SettingsPage {...settingsLayerProps} />
+              </Suspense>
             </ScopedErrorBoundary>
           ) : null
         ) : (

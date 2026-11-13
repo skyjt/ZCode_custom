@@ -1,10 +1,16 @@
 name: Win7 experimental x64
 on:
   workflow_dispatch:
+    inputs:
+      memory_baseline_run:
+        description: "Optional successful Win7 run ID for same-runner memory comparison"
+        required: false
+        type: string
   push:
     branches: [codex/win7-experimental]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: win7-experimental-${{ github.ref }}
   cancel-in-progress: true
@@ -43,7 +49,15 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           exit $LASTEXITCODE
       - name: Engineering regression
-        run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs
+        run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs scripts/test/win7-memory-profile.test.mjs
+      - name: Renderer memory cache browser acceptance
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $browser = @("$env:ProgramFiles/Google/Chrome/Application/chrome.exe", "${env:ProgramFiles(x86)}/Microsoft/Edge/Application/msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (!$browser) { throw 'Browser required for renderer cache acceptance' }
+          node scripts/win7/renderer-memory-smoke.mjs "$browser"
+          exit $LASTEXITCODE
       - name: Office tool file safety and Windows registration probe
         run: python -B scripts/test/win7-office-native.test.py
       - name: Legacy Windows system API acceptance
@@ -139,9 +153,17 @@ jobs:
           Copy-Item scripts/win7/runtime.json "$diagnostics/runtime.json"
           "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$diagnostics/build-info.txt"
           $installers | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$diagnostics/SHA256SUMS.txt"
+      - name: Download optional memory baseline
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && inputs.memory_baseline_run != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: aibuddy7se-Win7-Offline-x64
+          path: .cache/win7-memory-baseline/installer
+          run-id: ${{ inputs.memory_baseline_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 5
+        timeout-minutes: 10
         shell: pwsh
         run: |
           $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe").Path
@@ -157,10 +179,26 @@ jobs:
             New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block -Enabled True -Profile Any | Out-Null
             $activeRule = Get-NetFirewallRule -DisplayName $rule -PolicyStore ActiveStore
             if ($activeRule.Enabled -ne 'True' -or $activeRule.Action -ne 'Block') { throw 'Offline firewall rule is not active' }
-            node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
+            if (Test-Path .cache/win7-memory-baseline/installer) {
+              $baseline = Resolve-Path .cache/win7-memory-baseline
+              $installer = @(Get-ChildItem "$baseline/installer" -Filter '*.exe')
+              if ($installer.Count -ne 1) { throw 'Expected one baseline installer' }
+              & 7z x $installer[0].FullName "-o$baseline/nsis" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'Cannot extract baseline NSIS payload' }
+              $payload = @(Get-ChildItem "$baseline/nsis" -Recurse -Filter 'app-64.7z')
+              if ($payload.Count -ne 1) { throw 'Expected one baseline x64 payload' }
+              & 7z x $payload[0].FullName "-o$baseline/app" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'Cannot extract baseline application' }
+              $baselineExe = (Resolve-Path "$baseline/app/aibuddy7se.exe").Path
+              New-NetFirewallRule -DisplayName "$rule-baseline" -Direction Outbound -Program $baselineExe -Action Block -Enabled True -Profile Any | Out-Null
+              node scripts/win7/app-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline --measure-memory --baseline
+              if ($LASTEXITCODE) { throw 'Baseline packaged memory/startup check failed' }
+            }
+            node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance --measure-memory
             if ($LASTEXITCODE) { throw 'Offline packaged startup failed' }
           } finally {
             Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
+            Remove-NetFirewallRule -DisplayName "$rule-baseline" -ErrorAction SilentlyContinue
             foreach ($profile in $profiles) { Set-NetFirewallProfile -Name $profile.Name -Enabled $profile.Enabled }
           }
       - uses: actions/upload-artifact@v4

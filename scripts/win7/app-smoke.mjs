@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright-core";
+import { profileStartupMemory } from "./memory-profile.mjs";
 
 // 在一次性 Windows CI 用户下启动最终产物；不向模型发请求，不访问开发者的数据。
 const appDir = resolve(process.argv[2]);
@@ -76,6 +77,21 @@ try {
   await page.emulateMedia({ reducedMotion: null, colorScheme: null });
   // 内网版必须直接进入真实工作区；不能再靠跳过登录或关闭引导通过验收。
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 90000 });
+  if (process.argv.includes("--measure-memory")) {
+    const samples = await profileStartupMemory(page, child.pid, output);
+    if (!process.argv.includes("--baseline")) {
+      assert.equal(samples.at(-1).diffWorkers, 1, "Win7 must use one functioning diff worker");
+      assert.equal(
+        await page.evaluate(() =>
+          performance
+            .getEntriesByType("resource")
+            .some((entry) => /\/SettingsPage-[^/]+\.js/.test(entry.name)),
+        ),
+        false,
+        "Settings must not load before opening them",
+      );
+    }
+  }
   assert.throws(
     () => execFileSync("reg.exe", ["query", legacyShellKey], { stdio: "ignore" }),
     (error) => error.status === 1,
@@ -167,6 +183,23 @@ try {
     await page.screenshot({
       path: join(output, theme === "Dark theme" ? "self-test-dark.png" : "self-test-light.png"),
     });
+    await page.getByTestId("settings-section-nav-appearance").click();
+    // 真实设置页的两份代码预览必须完成 token 渲染，单 Worker 不能只启动不处理队列。
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("diffs-container")].filter(
+          (element) =>
+            element.shadowRoot?.textContent?.includes("themePreview") &&
+            element.shadowRoot.querySelector("span[style*='--']"),
+        ).length >= 2,
+    );
+    await page.screenshot({
+      path: join(
+        output,
+        theme === "Dark theme" ? "code-preview-dark.png" : "code-preview-light.png",
+      ),
+    });
+    await page.getByTestId("settings-section-nav-general").click();
   }
   assert.equal(await page.getByTestId("settings-mobile-push-switch").count(), 0);
   assert.equal(await page.getByTestId("settings-section-nav-usage").count(), 0);

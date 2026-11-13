@@ -7,20 +7,20 @@ import { uiMemoryDiagnosticsRegistry } from "@/lib/memoryDiagnostics.js";
 type GetTaskSnapshotParams = Parameters<IZCodeTaskService["getTaskSnapshot"]>[0];
 type GetTaskSnapshotResult = Promise<ZCodeTaskSnapshot | null>;
 type GetTaskSnapshotWithEtagParams = Parameters<IZCodeTaskService["getTaskSnapshotWithEtag"]>[0];
+type SnapshotCacheEntry = { etag: string; snapshot: ZCodeTaskSnapshot; sizeBytes: number };
 
 const zcodeTaskServiceProxyCache = new WeakMap<IZCodeTaskService, IZCodeTaskService>();
 const snapshotInflightRequestsByService = new WeakMap<
   IZCodeTaskService,
   Map<string, GetTaskSnapshotResult>
 >();
-const snapshotCacheByService = new WeakMap<
-  IZCodeTaskService,
-  Map<string, { etag: string; snapshot: ZCodeTaskSnapshot }>
->();
+const snapshotCacheByService = new WeakMap<IZCodeTaskService, Map<string, SnapshotCacheEntry>>();
 const SNAPSHOT_CACHE_STORAGE_KEY = "zcode-task-snapshot-cache:v1";
 const SNAPSHOT_CACHE_MAX_ENTRY_BYTES = 256 * 1024;
 const SNAPSHOT_CACHE_MAX_TOTAL_BYTES = 2 * 1024 * 1024;
 const SNAPSHOT_CACHE_MAX_ENTRIES = 20;
+const SNAPSHOT_MEMORY_MAX_ENTRY_BYTES = 2 * 1024 * 1024;
+const SNAPSHOT_MEMORY_MAX_TOTAL_BYTES = 8 * 1024 * 1024;
 type PersistedSnapshotCacheEntry = {
   key: string;
   etag: string;
@@ -32,11 +32,33 @@ let persistedSnapshotCacheLoaded = false;
 const persistedSnapshotCache = new Map<string, PersistedSnapshotCacheEntry>();
 // 内存诊断计数器：WeakMap 无法枚举，记住最近一个
 // service 的内存缓存（renderer 内实际只有一个 task service 实例）。
-let latestSnapshotCache: Map<string, { etag: string; snapshot: ZCodeTaskSnapshot }> | undefined;
+let latestSnapshotCache: Map<string, SnapshotCacheEntry> | undefined;
 uiMemoryDiagnosticsRegistry.register("taskSnapshotCache", () => ({
   entries: latestSnapshotCache?.size ?? 0,
+  serializedBytes: latestSnapshotCache
+    ? [...latestSnapshotCache.values()].reduce((sum, entry) => sum + entry.sizeBytes, 0)
+    : 0,
   persisted: persistedSnapshotCache.size,
 }));
+
+function rememberSnapshot(
+  cache: Map<string, SnapshotCacheEntry>,
+  key: string,
+  entry: SnapshotCacheEntry,
+): void {
+  // 旧内存 Map 没有持久化缓存的限额，浏览多个长会话后会一直保留快照。
+  // 这里只释放可重取的缓存引用；在途请求和活动会话仍持有本次需要的正文。
+  cache.delete(key);
+  if (entry.sizeBytes > SNAPSHOT_MEMORY_MAX_ENTRY_BYTES) return;
+  cache.set(key, entry);
+  let total = [...cache.values()].reduce((sum, value) => sum + value.sizeBytes, 0);
+  while (cache.size > SNAPSHOT_CACHE_MAX_ENTRIES || total > SNAPSHOT_MEMORY_MAX_TOTAL_BYTES) {
+    const oldest = cache.entries().next().value;
+    if (!oldest) break;
+    cache.delete(oldest[0]);
+    total -= oldest[1].sizeBytes;
+  }
+}
 
 export function buildSnapshotDedupeKey(params: GetTaskSnapshotParams): string {
   return [
@@ -76,9 +98,7 @@ function getOrCreateSnapshotInflightMap(
   return created;
 }
 
-function getOrCreateSnapshotCacheMap(
-  service: IZCodeTaskService,
-): Map<string, { etag: string; snapshot: ZCodeTaskSnapshot }> {
+function getOrCreateSnapshotCacheMap(service: IZCodeTaskService): Map<string, SnapshotCacheEntry> {
   if (!service || typeof service !== "object") {
     return new Map();
   }
@@ -87,7 +107,7 @@ function getOrCreateSnapshotCacheMap(
     latestSnapshotCache = existing;
     return existing;
   }
-  const created = new Map<string, { etag: string; snapshot: ZCodeTaskSnapshot }>();
+  const created = new Map<string, SnapshotCacheEntry>();
   snapshotCacheByService.set(service, created);
   latestSnapshotCache = created;
   return created;
@@ -180,14 +200,14 @@ function readPersistedSnapshotEntry(key: string) {
   if (!entry) {
     return null;
   }
-  return { etag: entry.etag, snapshot: entry.snapshot };
+  return { etag: entry.etag, snapshot: entry.snapshot, sizeBytes: entry.sizeBytes };
 }
 
 function writePersistedSnapshotEntry(
   key: string,
   etag: string,
   snapshot: ZCodeTaskSnapshot,
-): void {
+): number {
   ensurePersistedSnapshotCacheLoaded();
   const serializedSnapshot = JSON.stringify(snapshot);
   const sizeBytes = new TextEncoder().encode(serializedSnapshot).byteLength;
@@ -196,7 +216,7 @@ function writePersistedSnapshotEntry(
     // 这里只持久化小体积快照，超限时删除旧缓存，避免“为了加速加载反而造成存储压力”。
     persistedSnapshotCache.delete(key);
     flushPersistedSnapshotCache();
-    return;
+    return sizeBytes;
   }
 
   persistedSnapshotCache.set(key, {
@@ -208,6 +228,7 @@ function writePersistedSnapshotEntry(
   });
   prunePersistedSnapshotCache();
   flushPersistedSnapshotCache();
+  return sizeBytes;
 }
 
 function deletePersistedSnapshotEntry(key: string): void {
@@ -234,8 +255,8 @@ function createZCodeTaskServiceProxy(service: IZCodeTaskService): IZCodeTaskServ
         }
         const cachedSnapshotEntry =
           snapshotCache.get(requestKey) ?? readPersistedSnapshotEntry(requestKey);
-        if (cachedSnapshotEntry && !snapshotCache.has(requestKey)) {
-          snapshotCache.set(requestKey, cachedSnapshotEntry);
+        if (cachedSnapshotEntry) {
+          rememberSnapshot(snapshotCache, requestKey, cachedSnapshotEntry);
         }
 
         // 远控首屏恢复时，多个 hook 会并发请求同一 task snapshot，
@@ -261,13 +282,13 @@ function createZCodeTaskServiceProxy(service: IZCodeTaskService): IZCodeTaskServ
               const nextEntry = {
                 etag: fallbackResult.etag,
                 snapshot: fallbackResult.snapshot,
+                sizeBytes: writePersistedSnapshotEntry(
+                  requestKey,
+                  fallbackResult.etag,
+                  fallbackResult.snapshot,
+                ),
               };
-              snapshotCache.set(requestKey, nextEntry);
-              writePersistedSnapshotEntry(
-                requestKey,
-                fallbackResult.etag,
-                fallbackResult.snapshot,
-              );
+              rememberSnapshot(snapshotCache, requestKey, nextEntry);
             }
             return fallbackResult.snapshot;
           }
@@ -275,13 +296,13 @@ function createZCodeTaskServiceProxy(service: IZCodeTaskService): IZCodeTaskServ
             const nextEntry = {
               etag: firstResult.etag,
               snapshot: firstResult.snapshot,
+              sizeBytes: writePersistedSnapshotEntry(
+                requestKey,
+                firstResult.etag,
+                firstResult.snapshot,
+              ),
             };
-            snapshotCache.set(requestKey, nextEntry);
-            writePersistedSnapshotEntry(
-              requestKey,
-              firstResult.etag,
-              firstResult.snapshot,
-            );
+            rememberSnapshot(snapshotCache, requestKey, nextEntry);
           } else if (!firstResult.snapshot) {
             snapshotCache.delete(requestKey);
             deletePersistedSnapshotEntry(requestKey);

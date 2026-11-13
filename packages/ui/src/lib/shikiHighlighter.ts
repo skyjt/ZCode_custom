@@ -57,14 +57,39 @@ const highlighterCache = new Map<
   string,
   Promise<HighlighterGeneric<BundledLanguage, BundledTheme>>
 >();
-const tokensCache = new Map<string, TokenizedCode>();
+const tokensCache = new Map<string, { result: TokenizedCode; bytes: number }>();
+const TOKENS_CACHE_MAX_ENTRIES = 100;
+const TOKENS_CACHE_MAX_BYTES = 4 * 1024 * 1024;
+let tokensCacheBytes = 0;
 const subscribers = new Map<string, Set<(result: TokenizedCode) => void>>();
-// 内存诊断计数器：tokensCache 目前无淘汰，是审计里
-// renderer 最可疑的增长点，先把条数落到日志里。
+// token 缓存只保留可复用结果，数量和体积双重限额避免流式代码/长期会话无限增长。
 uiMemoryDiagnosticsRegistry.register("shiki", () => ({
   tokensCache: tokensCache.size,
+  tokensCacheEstimatedBytes: tokensCacheBytes,
   highlighters: highlighterCache.size,
 }));
+
+function cacheTokens(key: string, result: TokenizedCode): void {
+  // 这是保留预算（字符串 UTF-16 + token/数组开销估算），不是对实际 V8 堆的承诺。
+  let bytes = key.length * 2 + 128;
+  for (const line of result.tokens) {
+    bytes += 32;
+    for (const token of line)
+      bytes += 96 + token.content.length * 2 + (token.color?.length ?? 0) * 2;
+  }
+  const previous = tokensCache.get(key);
+  if (previous) tokensCacheBytes -= previous.bytes;
+  tokensCache.delete(key);
+  if (bytes > TOKENS_CACHE_MAX_BYTES) return;
+  tokensCache.set(key, { result, bytes });
+  tokensCacheBytes += bytes;
+  while (tokensCache.size > TOKENS_CACHE_MAX_ENTRIES || tokensCacheBytes > TOKENS_CACHE_MAX_BYTES) {
+    const oldest = tokensCache.entries().next().value;
+    if (!oldest) break;
+    tokensCache.delete(oldest[0]);
+    tokensCacheBytes -= oldest[1].bytes;
+  }
+}
 
 const getResolvedCodeTheme = (theme?: BundledTheme): BundledTheme => {
   if (theme) {
@@ -78,15 +103,8 @@ const getResolvedCodeTheme = (theme?: BundledTheme): BundledTheme => {
   return "github-light";
 };
 
-const getCodeTokensCacheKey = (
-  code: string,
-  language: BundledLanguage,
-  theme: BundledTheme,
-) => {
-  const start = code.slice(0, 100);
-  const end = code.length > 100 ? code.slice(-100) : "";
-  return `${theme}:${language}:${code.length}:${start}:${end}`;
-};
+const getCodeTokensCacheKey = (code: string, language: BundledLanguage, theme: BundledTheme) =>
+  `${theme}:${language}:${code}`;
 const getHighlighter = (
   language: BundledLanguage,
   theme: BundledTheme,
@@ -142,13 +160,15 @@ export const highlightCode = (
 
   const cached = tokensCache.get(tokensCacheKey);
   if (cached) {
+    tokensCache.delete(tokensCacheKey);
+    tokensCache.set(tokensCacheKey, cached);
     // 缓存命中时也需要通知 effect，但不能同步触发 setState。
     // 历史消息恢复时大量代码块会在同一次提交后挂载；同步 callback 会把 cache-hit 变成嵌套更新，
     // 和 Streamdown 的重渲染叠在一起时容易触发 React #185。推迟到微任务后再交给幂等 setter。
     if (callback) {
-      queueMicrotask(() => callback(cached));
+      queueMicrotask(() => callback(cached.result));
     }
-    return cached;
+    return cached.result;
   }
 
   if (callback) {
@@ -177,7 +197,7 @@ export const highlightCode = (
         tokens: result.tokens,
       };
 
-      tokensCache.set(tokensCacheKey, tokenized);
+      cacheTokens(tokensCacheKey, tokenized);
 
       const subs = subscribers.get(tokensCacheKey);
       if (subs) {

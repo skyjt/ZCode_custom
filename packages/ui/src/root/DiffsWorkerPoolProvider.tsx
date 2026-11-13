@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo } from "react";
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   WorkerPoolContextProvider,
   useWorkerPool,
@@ -17,6 +18,9 @@ function createDiffsWorker(): Worker {
 }
 
 function resolveWorkerPoolSize(): number {
+  // Win7 内网版优先降低常驻 RAM：每个 Worker 都有独立的高亮堆和 WASM 内存。
+  // 保留同一个池的任务队列，用单 Worker 串行处理，不丢弃代码/Diff 渲染任务。
+  if (ZCODE_WIN7_EDITION) return 1;
   if (typeof navigator === "undefined") {
     return 2;
   }
@@ -85,6 +89,7 @@ export function DiffsWorkerPoolProvider({ children }: { children: ReactNode }) {
       poolOptions={{
         workerFactory: createDiffsWorker,
         poolSize,
+        totalASTLRUCacheSize: ZCODE_WIN7_EDITION ? 16 : 100,
       }}
       highlighterOptions={highlighterOptions}
     >

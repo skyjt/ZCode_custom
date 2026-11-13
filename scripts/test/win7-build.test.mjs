@@ -44,7 +44,11 @@ test("Win7 ships only an EXE while retaining offline resources and package accep
     ),
   );
   const steps = workflow.jobs.build.steps;
-  const installer = steps.find((step) => step.with?.name === "aibuddy7se-Win7-Offline-x64");
+  const installer = steps.find(
+    (step) =>
+      step.uses?.startsWith("actions/upload-artifact@") &&
+      step.with?.name === "aibuddy7se-Win7-Offline-x64",
+  );
   assert.equal(installer.with.path.trim(), "packages/desktop/dist/win7/*.exe");
   assert.equal(installer.with["if-no-files-found"], "error");
   assert.ok(steps.some((step) => step.name === "Packaged application startup"));
