@@ -22,6 +22,29 @@ await prepareBrand(root);
 const helpers = createRequire(import.meta.url)(join(root, "packages/desktop/out/legacy-data.cjs"));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
+test("Chromium website databases retain their own schemas and values during userData migration", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brand-browser-"));
+  try {
+    const appData = join(directory, "appdata");
+    const source = join(appData, "ZCode Win7 Experimental");
+    await mkdir(source, { recursive: true });
+    const db = new DatabaseSync(join(source, "History"));
+    db.exec(
+      "CREATE TABLE zcode_website_data(value TEXT); INSERT INTO zcode_website_data VALUES('zcode://user-bookmark')",
+    );
+    db.close();
+    await migrateWin7Data({ userHome: directory, appData, helpers });
+    const copied = new DatabaseSync(join(appData, "aibuddy7se/History"));
+    assert.equal(
+      copied.prepare("SELECT value FROM zcode_website_data").get().value,
+      "zcode://user-bookmark",
+    );
+    copied.close();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("branding shares one ASAR cleanup pass, even when there are no sourcemaps; modern clean archives stay untouched", async () => {
   const directory = await mkdtemp(join(tmpdir(), "brand-asar-"));
   try {
@@ -73,7 +96,7 @@ test("custom roots, task path keys and user documents migrate without rewriting 
     await mkdir(join(oldRoot, "workspace/default"), { recursive: true });
     await writeFile(
       join(oldHome, ".zcode/v2/setting.json"),
-      JSON.stringify({ dataBaseDir: custom }),
+      JSON.stringify({ dataBaseDir: ` ${custom} ` }),
     );
     const document = '{ "zcode": "ZCode 用户内容", "modelId": "zcode-user-model" }';
     await writeFile(join(oldRoot, "workspace/default/user.json"), document);

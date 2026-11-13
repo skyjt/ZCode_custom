@@ -73,13 +73,21 @@ function ownedValue(value, moves, key = "") {
   return value;
 }
 
-export async function migrateDatabase(source, destination, moves, migrations) {
+export async function migrateDatabase(
+  source,
+  destination,
+  moves,
+  migrations,
+  preserveSchema = false,
+) {
   const original = new DatabaseSync(source, { readOnly: true });
   try {
     await backup(original, destination);
   } finally {
     original.close();
   }
+  // Chromium 数据属于浏览器和网站；不能把其 schema、Cookie 或书签当应用内部标识改写。
+  if (preserveSchema) return;
   const db = new DatabaseSync(destination);
   try {
     db.exec("PRAGMA foreign_keys=OFF; BEGIN IMMEDIATE");
@@ -267,7 +275,7 @@ async function copyMigrated(source, stage, destination, options, chromium = fals
       await file.close();
     }
     if (header.toString() === "SQLite format 3\0")
-      await migrateDatabase(from, to, options.moves, options.helpers.migrations);
+      await migrateDatabase(from, to, options.moves, options.helpers.migrations, chromium);
     else if (entry.name === "credentials.json")
       await migrateCredentials(from, to, final, options.helpers, options.env);
     else if (
@@ -321,9 +329,9 @@ export async function migrateWin7Data({ userHome, appData, helpers, env = proces
     if (
       typeof dataBaseDir === "string" &&
       dataBaseDir.trim() &&
-      resolve(dataBaseDir) !== resolve(oldHome)
+      resolve(dataBaseDir.trim()) !== resolve(oldHome)
     )
-      plan.push([join(dataBaseDir, ".zcode"), join(dataBaseDir, ".aibuddy7se")]);
+      plan.push([join(dataBaseDir.trim(), ".zcode"), join(dataBaseDir.trim(), ".aibuddy7se")]);
   }
   if (appData)
     plan.push([join(appData, "ZCode Win7 Experimental"), join(appData, "aibuddy7se"), true]);
