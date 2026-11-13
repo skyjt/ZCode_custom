@@ -3,8 +3,9 @@ import { spawn, execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright-core";
-import { profileStartupMemory } from "./memory-profile.mjs";
+import { profileStartupMemory, sampleMemory } from "./memory-profile.mjs";
 
 // 在一次性 Windows CI 用户下启动最终产物；不向模型发请求，不访问开发者的数据。
 const appDir = resolve(process.argv[2]);
@@ -48,6 +49,7 @@ const child = spawn(
 let log = "";
 let browser;
 let page;
+const interactionMemory = [];
 try {
   const endpoint = await new Promise((done, fail) => {
     const timer = setTimeout(() => fail(new Error("Packaged app startup timed out")), 60000);
@@ -184,6 +186,11 @@ try {
       path: join(output, theme === "Dark theme" ? "self-test-dark.png" : "self-test-light.png"),
     });
     await page.getByTestId("settings-section-nav-appearance").click();
+    await page
+      .getByTestId("settings-page")
+      .locator("diffs-container")
+      .first()
+      .scrollIntoViewIfNeeded();
     // 真实设置页的两份代码预览必须完成 token 渲染，单 Worker 不能只启动不处理队列。
     await page.waitForFunction(
       () =>
@@ -199,6 +206,9 @@ try {
         theme === "Dark theme" ? "code-preview-dark.png" : "code-preview-light.png",
       ),
     });
+    if (process.argv.includes("--measure-memory")) {
+      interactionMemory.push(await sampleMemory(page, child.pid, `code-preview-${theme}`));
+    }
     await page.getByTestId("settings-section-nav-general").click();
   }
   assert.equal(await page.getByTestId("settings-mobile-push-switch").count(), 0);
@@ -269,6 +279,15 @@ try {
   console.log(
     "PASS intranet workspace without login, reduced motion, offline self-test, concurrent admission and translated/theme UI",
   );
+  if (process.argv.includes("--measure-memory")) {
+    await page.getByTestId("settings-back-button").click();
+    await delay(30000);
+    interactionMemory.push(await sampleMemory(page, child.pid, "settings-closed-30s"));
+    await writeFile(
+      join(output, "memory-interaction.json"),
+      JSON.stringify({ samples: interactionMemory }, null, 2),
+    );
+  }
 } catch (error) {
   // DevTools 未就绪时保留原生错误窗口，必须在 finally 终止测试进程之前截图。
   try {
