@@ -1,3 +1,5 @@
+> 云端接手已完成：运行时代码 `4e336a8bbbe1b564c228053987735f887e4e2bf6`，Actions [43408181317](https://github.com/skyjt/ZCode_custom/actions/runs/43408181317) 全绿；EXE 与截图均已下载核对。完整 SHA-256、下载位置与仍待真机验收项目见 [品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-13-云端验收记录)。以下交接故障描述保留为历史证据，不代表当前仍然失败。
+
 # aibuddy7se 云端开发交接（2026-11-13）
 
 用户要求将项目转到云端继续开发，电脑将离线。唯一推送目标为 `https://github.com/skyjt/ZCode_custom.git` 的 `codex/win7-experimental` 分支，禁止推到上游 `zai-org/ZCode`。本次交接前运行时代码提交为 `dbe5ac6b37a3e346cd1284676bacb19ce0d0f9d8`。本文件随历史验收记录同步，不改变运行时代码。
@@ -9,11 +11,11 @@
 - 修复当前失败，跑通 Windows Actions 全部成包验收，再交付经过 SHA-256 核对的 EXE 与下载位置。不能将尚未通过验收的产物当成成品。
 - 继续使用现有 Actions；已将品牌转换合并入 sourcemap 清理的同一次 ASAR 解包/封装，保留原生依赖检查。首轮对应阶段约 161 秒，合并后某次约 103 秒；整体 runner 耗时仍有波动，勿承诺固定总时长。
 
-## 当前阻塞：注册表精确匹配测试失败
+## 已解决：注册表精确匹配测试失败（历史证据）
 
 [Actions 43406675895](https://github.com/skyjt/ZCode_custom/actions/runs/43406675895)，job `131822577764`，在 Engineering regression 阶段失败：25 项中 24 通过，`native registry exact searches preserve Unicode paths and reject different commands` 的不匹配场景得到 `true !== false`。本轮未打包/发布。
 
-定位入口：`scripts/win7/legacy-migration.mjs` 的 `migrateLegacyWindowsShell` 和 `scripts/test/win7-brand.test.mjs`。当前 `reg query /ve /f ... /d /e /t REG_SZ` 在真实 Windows 上仍返回不匹配的默认值；不能依赖该过滤结果删除旧键。修复必须读取并严格核对默认 command，正确支持中文路径、Windows 7 自带工具，并保留指向其他安装位置、开发入口、用户改写的旧键。删除失败不得冒充成功。保留或改进真实 Windows 的负例，不得删除测试、放宽断言或只保留 mock。相关代码尚未有通过 Windows 的最终交付。
+定位入口：`scripts/win7/legacy-migration.mjs` 的 `migrateLegacyWindowsShell` 和 `scripts/test/win7-brand.test.mjs`。当前 `reg query /ve /f ... /d /e /t REG_SZ` 在真实 Windows 上仍返回不匹配的默认值；不能依赖该过滤结果删除旧键。修复必须读取并严格核对默认 command，正确支持中文路径、Windows 7 自带工具，并保留指向其他安装位置、开发入口、用户改写的旧键。删除失败不得冒充成功。保留或改进真实 Windows 的负例，不得删除测试、放宽断言或只保留 mock。此历史阻塞已由 `4e336a8b` 修复，Windows 43408181317 全部通过；最终证据见品牌迁移 spec 的 2026-11-13 云端验收记录。
 
 旧键是 HKCU 的 Directory/Drive `ZCode.OpenInZCode` 与 `zcode` URL 协议；只有完全指向当前 EXE 的旧命令才属于迁移范围。Main 沿用现有注册路径写入新名称。此逻辑用于修复已有右键菜单不会因源码/安装包改名自动移除的遗漏。
 

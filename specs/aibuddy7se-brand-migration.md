@@ -43,11 +43,24 @@ Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/
 
 实际依赖以 rg 与受控模块上下文核对（本环境无 Codegraph）。入口：Win7 builder/installer/bootstrap → credential-security、session SQLite → preload/UI、Agent、离线工具。现代/Web 不改变运行语义；Desktop continuous 与远端 replayable 仍由既有 owner 管理。远端独立旧版服务不升级成新版协议，需使用相同品牌版本。
 
-| 场景                             | 必须断言                                      | 证据                                    |
-| -------------------------------- | --------------------------------------------- | --------------------------------------- |
-| 新装、重复启动                   | 新标识/新目录，只有新 preload，启动自测可运行 | 工程 + 成包 GUI，待执行                 |
-| 默认/自定义旧数据                | 原文/路径/身份不变，新表/协议/键有效，源不变  | 虚构 SQLite/JSON 迁移，待执行           |
-| 密文 v1/v2、缺失 OS key          | 可验证读取；缺密钥拒绝且不发布目标            | 注入凭据库回归，待执行                  |
-| 目标已有数据、重复迁移、失败重试 | 无覆盖、无丢失、幂等完成                      | 工程回归，待执行                        |
-| 成包资源/安装元数据              | 无活跃旧标识，迁移识别允许；新图标，EXE-only  | 扫描 + 实际 Windows 启动，待执行        |
-| Win7 / Office 2013 实机          | 真机安装、旧配置/会话、Office/PDF             | 本地环境不可验证，不以 Server 2022 替代 |
+| 场景                             | 必须断言                                      | 证据                                                                      |
+| -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| 新装、重复启动                   | 新标识/新目录，只有新 preload，启动自测可运行 | 43408181317：工程 + 成包 GUI 通过（新装/系统自测；迁移 fixture 重复运行） |
+| 默认/自定义旧数据                | 原文/路径/身份不变，新表/协议/键有效，源不变  | 43408181317：真实 schema 的虚构 SQLite/JSON fixture 通过                  |
+| 密文 v1/v2、缺失 OS key          | 可验证读取；缺密钥拒绝且不发布目标            | 43408181317：v1/v2、缺 key 工程回归及成包 Windows OS 密钥迁移通过         |
+| 目标已有数据、重复迁移、失败重试 | 无覆盖、无丢失、幂等完成                      | 43408181317：冲突、幂等及失败保留源数据工程回归通过                       |
+| 成包资源/安装元数据              | 无活跃旧标识，迁移识别允许；新图标，EXE-only  | 43408181317：28,547 文本扫描 + Server 2022 成包 GUI 通过，EXE-only        |
+| Win7 / Office 2013 实机          | 真机安装、旧配置/会话、Office/PDF             | 本地环境不可验证，不以 Server 2022 替代                                   |
+
+## 2026-11-13 云端验收记录
+
+运行时代码为 `4e336a8bbbe1b564c228053987735f887e4e2bf6`，已正常推送到用户 fork 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43408181317](https://github.com/skyjt/ZCode_custom/actions/runs/43408181317) 全部通过（job `131827629878`）。记录提交仅更新文档，不改变该产物对应的运行时代码。
+
+- 修复证据：此前 43406675895 在真实 Windows 的不同 command 负例失败（`true !== false`）。现改为 .NET 读取默认 REG_SZ，经 Base64 传输 Unicode；真实 Windows 原生中文路径、不同安装路径、自定义参数、REG_EXPAND_SZ 拒绝及键不存在检查全部通过。工程回归 25/25 通过，无跳过；安全负例保留。
+- 云端 Linux：Node 24.14.0、pnpm 10.33.2；`pnpm typecheck` 通过；`pnpm lint` 538 条既有告警、0 错误，本次工程文件专项扫描 0 告警/错误；架构新增/基线违规均 0；正常 pre-push 门禁通过。Linux 工程回归 24 通过、1 项 Windows 原生检查跳过，另由上述 Windows 运行全部验证。
+- 成包检查：Windows 系统 API、现代/legacy 进程归属、Agent stdio/SQLite/Job、WinPTY、真实 Windows Credential Manager 与旧密文迁移、离线 Python/Office 库、SSH 命令/错误 host key 拒绝/SFTP 字节回环、离线技能发现、PE 静态导入全部通过。Firewall 启用后阻断应用出站，旧 SQLite/OS 密文 fixture 实际进入工作区，GUI 检查通过。
+- 人工查看 diagnostics 的 `startup.png`、`about.png`、`help-menu.png`：新 Logo/名称正确，关于标题包含版本 3.18.0，帮助菜单无上游反馈/社区/文档，缺模型提示为配置自定义模型且无 Upgrade。`brand-audit.json` 扫描 28,547 个文本文件通过；仅三份迁移识别文件保留旧名称。
+- 下载后的外层 artifact ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`（254,572,283 字节），无便携 ZIP。实际 EXE SHA-256 与 runner `SHA256SUMS.txt` 一致：`1c266bf0387b055934b0d3952a0c0e924726612a09b1586d69e8d93010b2768b`。[EXE 下载 artifact](https://github.com/skyjt/ZCode_custom/actions/runs/43408181317/artifacts/14028309752)；[诊断截图与校验记录](https://github.com/skyjt/ZCode_custom/actions/runs/43408181317/artifacts/14028967414)。Artifacts 保留 14 天，外层 ZIP 仅为 GitHub 传输容器。
+- 优化实测：继续沿用品牌与 sourcemap 同一次 ASAR 解封装，完整处理耗时 109,846 ms（解包 32,561 ms，重新封装 47,726 ms），原生依赖检查照常执行。安装器构建步骤 11 分 43 秒，整个 job 16 分 05 秒；不能把单阶段优化称为整体耗时固定下降。本次未移除或放宽任何 Actions 门禁。
+
+仍未验收：Win7 SP1 x64 真机/PowerShell 2.0/.NET 3.5、真实 Office 2013 导出、真实模型与内网 SSH、实际旧 NSIS 覆盖升级和完整应用退出后重启升级。Server 2022 的虚构 fixture 与无 Office 的 COM 探针不能替代这些验收；已有原始数据保留规则仍适用。
