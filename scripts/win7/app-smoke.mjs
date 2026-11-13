@@ -343,6 +343,14 @@ try {
       ),
     );
     await page.screenshot({ path: join(output, "first-send.png") });
+    if (process.argv.includes("--measure-memory")) {
+      // 延迟分配不等于任务阶段的内存降幅；保留首次实际回复后的整棵进程树证据。
+      await delay(30_000);
+      await writeFile(
+        join(output, "memory-after-first-send.json"),
+        JSON.stringify(await sampleMemory(page, child.pid, "first-reply-30s"), null, 2),
+      );
+    }
   }
 } catch (error) {
   // DevTools 未就绪时保留原生错误窗口，必须在 finally 终止测试进程之前截图。
