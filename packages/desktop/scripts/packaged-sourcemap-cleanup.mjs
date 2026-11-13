@@ -84,6 +84,7 @@ export async function cleanupPackagedSourcemaps({
   runTimedAsync,
   replaceAppAsarFromStaging,
   pruneStagingDirectory = null,
+  transformStagingDirectory = null,
   logger = console,
 }) {
   if (existsSync(appAsarPath)) {
@@ -96,7 +97,9 @@ export async function cleanupPackagedSourcemaps({
       const stripSummary = stripSourceMappingUrlCommentsInDirectory(stagingDir);
       const mapSummary = removeSourceMapFilesInDirectory(stagingDir);
       const pruneSummary = pruneStagingDirectory ? await pruneStagingDirectory(stagingDir) : null;
+      if (transformStagingDirectory) await transformStagingDirectory(stagingDir);
       if (
+        transformStagingDirectory ||
         stripSummary.referencesRemoved > 0 ||
         mapSummary.filesRemoved > 0 ||
         (pruneSummary?.packagesRemoved ?? 0) > 0

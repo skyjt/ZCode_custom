@@ -467,11 +467,12 @@ async function injectHoistedRuntimeModulesIntoAsar(context) {
   }
 }
 
-async function stripPackagedSourcemapReferences(context) {
+async function stripPackagedSourcemapReferences(context, transformStagingDirectory) {
   // electron-builder 的 files 规则能排除 .map 文件，但无法删除 JS/CSS 末尾
   // 指向 sourcemap 的注释；afterPack 注入运行时依赖后也可能重新带入第三方 sourceMappingURL。
   // 这里统一清理 app.asar 与 unpacked/extraResources，保证最终发布包不暴露 sourcemap 路径入口。
   await cleanupPackagedSourcemaps({
+    transformStagingDirectory,
     appAsarPath: resolveAppAsarPath(context),
     resourcesDir: resolvePackagedResourcesDir(context),
     runAsarCommand,
@@ -710,7 +711,7 @@ export default {
       context.electronPlatformName === "darwin" ? resources : context.appOutDir;
     await stageElectronNotices(extractedLicenseRoot, resources, framework.version);
   },
-  afterPack: async (context) => {
+  afterPack: async (context, { transformStagingDirectory } = {}) => {
     const actualWindowsTarget =
       context.electronPlatformName === "win32"
         ? resolveElectronBuilderWindowsTarget({
@@ -723,7 +724,7 @@ export default {
       injectHoistedRuntimeModulesIntoAsar(context),
     );
     await runTimedAsync("afterPack:stripPackagedSourcemapReferences", () =>
-      stripPackagedSourcemapReferences(context),
+      stripPackagedSourcemapReferences(context, transformStagingDirectory),
     );
     runTimedSync("afterPack:assertPackagedNativeResourcePolicy", () =>
       assertPackagedNativeResourcePolicy(context),

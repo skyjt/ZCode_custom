@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import base from "../../packages/desktop/electron-builder.config.js";
 import { runtime } from "./build.mjs";
-import { brandPackagedApplication } from "./brand-package.mjs";
+import { auditBrandTree, brandTree, brandPackagedApplication } from "./brand-package.mjs";
 
 if (
   !process.env.ZCODE_WIN7_ELECTRON_DIST ||
@@ -31,8 +31,15 @@ export default {
   },
   protocols: [{ name: "aibuddy7se", schemes: ["aibuddy7se"] }],
   async afterPack(context) {
-    await base.afterPack(context);
-    await brandPackagedApplication(context);
+    let report;
+    await base.afterPack(context, {
+      transformStagingDirectory: async (stage) => {
+        await brandTree(stage);
+        report = await auditBrandTree(stage);
+      },
+    });
+    if (!report) throw new Error("Win7 ASAR branding did not run");
+    await brandPackagedApplication(context, report);
   },
   extraResources: [
     ...base.extraResources.filter(

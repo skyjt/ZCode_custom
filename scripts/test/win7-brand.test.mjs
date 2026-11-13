@@ -7,6 +7,8 @@ import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { prepareBrand } from "../win7/prepare-brand.mjs";
+import { createPackage, extractAll, extractFile, uncache } from "@electron/asar";
+import { cleanupPackagedSourcemaps } from "../../packages/desktop/scripts/packaged-sourcemap-cleanup.mjs";
 import { brandText, brandTree } from "../win7/brand-package.mjs";
 import {
   migrateWin7Data,
@@ -19,6 +21,46 @@ const root = join(import.meta.dirname, "../..");
 await prepareBrand(root);
 const helpers = createRequire(import.meta.url)(join(root, "packages/desktop/out/legacy-data.cjs"));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+
+test("branding shares one ASAR cleanup pass, even when there are no sourcemaps; modern clean archives stay untouched", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brand-asar-"));
+  try {
+    const source = join(directory, "source"),
+      resources = join(directory, "resources"),
+      archive = join(resources, "app.asar");
+    await mkdir(source);
+    await mkdir(resources);
+    await writeFile(join(source, "index.js"), "window.zcode");
+    await createPackage(source, archive);
+    let packs = 0,
+      extracts = 0;
+    const options = {
+      appAsarPath: archive,
+      resourcesDir: resources,
+      runAsarCommand: (args) => {
+        extracts++;
+        extractAll(args[1], args[2]);
+      },
+      runTimedSync: (_label, run) => run(),
+      runTimedAsync: (_label, run) => run(),
+      replaceAppAsarFromStaging: async ({ sourceDir, appAsarPath }) => {
+        packs++;
+        await createPackage(sourceDir, appAsarPath);
+      },
+      logger: { log() {} },
+    };
+    await cleanupPackagedSourcemaps(options);
+    assert.equal(packs, 0);
+    await cleanupPackagedSourcemaps({ ...options, transformStagingDirectory: brandTree });
+    assert.equal(extracts, 2);
+    assert.equal(packs, 1);
+    // 生产封装使用独立 CLI；本用例同进程重读时须丢弃旧 archive header 缓存。
+    uncache(archive);
+    assert.equal(extractFile(archive, "index.js").toString(), "window.aibuddy7se");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("custom roots, task path keys and user documents migrate without rewriting user content", async () => {
   const directory = await mkdtemp(join(tmpdir(), "brand-custom-"));
@@ -35,6 +77,13 @@ test("custom roots, task path keys and user documents migrate without rewriting 
     );
     const document = '{ "zcode": "ZCode 用户内容", "modelId": "zcode-user-model" }';
     await writeFile(join(oldRoot, "workspace/default/user.json"), document);
+    const plugin = join(oldRoot, "cli/plugins/@zcode/zcode-demo");
+    await mkdir(plugin, { recursive: true });
+    await writeFile(
+      join(plugin, "package.json"),
+      JSON.stringify({ name: "@zcode/zcode-demo", main: "zcode.js", engines: { zcode: "*" } }),
+    );
+    await writeFile(join(plugin, "zcode.js"), "module.exports = process.env.ZCODE_OFFLINE_TOOLS");
     await mkdir(join(oldRoot, "v2"));
     const db = new DatabaseSync(join(oldRoot, "v2/tasks-index.sqlite"));
     db.exec(
@@ -54,6 +103,16 @@ test("custom roots, task path keys and user documents migrate without rewriting 
     db.close();
     await migrateWin7Data({ userHome: directory, helpers });
     assert.equal(await readFile(join(newRoot, "workspace/default/user.json"), "utf8"), document);
+    const newPlugin = join(newRoot, "cli/plugins/@aibuddy7se/aibuddy7se-demo");
+    assert.deepEqual(JSON.parse(await readFile(join(newPlugin, "package.json"), "utf8")), {
+      name: "@aibuddy7se/aibuddy7se-demo",
+      main: "aibuddy7se.js",
+      engines: { aibuddy7se: "*" },
+    });
+    assert.equal(
+      await readFile(join(newPlugin, "aibuddy7se.js"), "utf8"),
+      "module.exports = process.env.AIBUDDY7SE_OFFLINE_TOOLS",
+    );
     const migrated = new DatabaseSync(join(newRoot, "v2/tasks-index.sqlite"));
     const task = migrated.prepare("SELECT workspace_key, workspace_path, title FROM tasks").get();
     assert.equal(task.workspace_key, join(newRoot, "workspace/default"));

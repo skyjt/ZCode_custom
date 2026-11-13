@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { chromium } from "playwright-core";
@@ -11,6 +11,15 @@ const output = resolve(process.argv[3]);
 await mkdir(output, { recursive: true });
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
+const fixtureHome = await mkdtemp(join(tmpdir(), "aibuddy7se-gui-migration-"));
+const fixtureScript = resolve(import.meta.dirname, "migration-smoke.cjs");
+execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome, "seed"], {
+  env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
+  stdio: "inherit",
+  timeout: 30000,
+});
+env.USERPROFILE = fixtureHome;
+env.HOME = fixtureHome;
 const child = spawn(
   join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],
@@ -51,6 +60,10 @@ try {
   assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
   assert.equal(await page.getByTestId("onboarding-page").count(), 0);
   assert.equal(await page.title(), "aibuddy7se · Win7 特别版");
+  const migrated = JSON.parse(
+    await readFile(join(fixtureHome, ".aibuddy7se-home/.aibuddy7se/v2/credentials.json"), "utf8"),
+  );
+  assert.match(migrated["fixture-key"], /^enc:v2:os:/);
   const reducedMotion = await page.evaluate(
     () => matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -72,6 +85,23 @@ try {
   await page.getByTestId("task-settings-button").click();
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-en-US").click();
+  await page.getByTestId("settings-back-button").click();
+  await page.getByTestId("workspace-help-menu-trigger").click();
+  for (const name of ["Feedback", "Request a feature", "Product docs", "Community"]) {
+    assert.equal(await page.getByRole("menuitem", { name, exact: true }).count(), 0);
+  }
+  assert.doesNotMatch(await page.getByRole("menu").innerText(), /zcode/i);
+  await page.screenshot({ path: join(output, "help-menu.png") });
+  const [about] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("menuitem", { name: /^About/ }).click(),
+  ]);
+  await about.getByText("aibuddy7se", { exact: true }).waitFor();
+  assert.doesNotMatch(await about.locator("body").innerText(), /zcode/i);
+  assert.ok((await about.locator('img[src^="data:image/png"]').count()) > 0);
+  await about.screenshot({ path: join(output, "about.png") });
+  await about.close();
+  await page.getByTestId("task-settings-button").click();
   await page.getByTestId("system-self-test-run").click();
   const reports = await page.evaluate(() =>
     Promise.all([window.aibuddy7se.runSystemSelfTest(), window.aibuddy7se.runSystemSelfTest()]),
@@ -191,4 +221,9 @@ try {
     }
   }
   await writeFile(join(output, "startup.log"), log);
+  execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome, "cleanup"], {
+    env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
+    stdio: "inherit",
+    timeout: 30000,
+  });
 }

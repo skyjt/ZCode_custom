@@ -5,20 +5,27 @@ import {
   cp,
   mkdir,
   mkdtemp,
+  open,
   readdir,
   readFile,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
-import { basename, dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { DatabaseSync, backup } from "node:sqlite";
 
 const marker = ".aibuddy7se-migration.json";
 const brand = (s) =>
   s.replace(/zcode/gi, (m) =>
-    m === "ZCODE" ? "AIBUDDY7SE" : m === "ZCode" ? "Aibuddy7se" : "aibuddy7se",
+    m === "ZCODE"
+      ? "AIBUDDY7SE"
+      : m === "ZCode"
+        ? "Aibuddy7se"
+        : m === "zCode"
+          ? "aiBuddy7se"
+          : "aibuddy7se",
   );
 const hash = (s) => createHash("sha256").update(s).digest("hex");
 const quote = (s) => '"' + s.replaceAll('"', '""') + '"';
@@ -55,7 +62,7 @@ function ownedValue(value, moves, key = "") {
   }
   if (Array.isArray(value)) return value.map((item) => ownedValue(item, moves, key));
   if (value && typeof value === "object") {
-    const result = {};
+    const result = Object.create(null);
     for (const [name, item] of Object.entries(value)) {
       const next = brand(name);
       if (Object.hasOwn(result, next)) throw new Error("Conflicting migrated configuration keys");
@@ -183,7 +190,7 @@ async function migrateCredentials(source, staged, destination, helpers, env) {
     env,
     keyStore: newStore,
   });
-  const result = {};
+  const result = Object.create(null);
   for (const [key, plain] of values) {
     const encrypted = await newCipher.encrypt(plain);
     if ((await newCipher.decrypt(encrypted)) !== plain)
@@ -235,19 +242,56 @@ async function copyMigrated(source, stage, destination, options, chromium = fals
       ) {
         // 用户文件和回滚副本按字节复制；其中的 JSON/SQLite 也不能当产品配置改写。
         await cp(from, to, { recursive: true, verbatimSymlinks: true });
-      } else await copyMigrated(from, to, final, options, chromium);
+      } else
+        await copyMigrated(
+          from,
+          to,
+          final,
+          {
+            ...options,
+            productPlugin:
+              options.productPlugin ||
+              (/[/\\]plugins[/\\]/.test(from) && /^@?zcode(?:$|[-_.])/.test(entry.name)),
+          },
+          chromium,
+        );
       continue;
     }
     if (!entry.isFile()) throw new Error("Unsupported migration file type");
-    const bytes = await readFile(from);
-    if (bytes.subarray(0, 16).toString() === "SQLite format 3\0")
+    // 大型二进制文件只读 magic；不能为判断 SQLite 把附件/浏览器数据整份装进内存。
+    const header = Buffer.alloc(16);
+    const file = await open(from, "r");
+    try {
+      await file.read(header, 0, header.length, 0);
+    } finally {
+      await file.close();
+    }
+    if (header.toString() === "SQLite format 3\0")
       await migrateDatabase(from, to, options.moves, options.helpers.migrations);
     else if (entry.name === "credentials.json")
       await migrateCredentials(from, to, final, options.helpers, options.env);
-    else if (!chromium && entry.name.endsWith(".json")) {
+    else if (
+      options.productPlugin &&
+      [
+        ".js",
+        ".cjs",
+        ".mjs",
+        ".json",
+        ".md",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".html",
+        ".css",
+        ".svg",
+      ].includes(extname(entry.name))
+    ) {
+      // 自有命名空间插件的代码引用必须与目录一起切换，否则包名已改、require 仍找旧路径。
+      await writeFile(to, brand(await readFile(from, "utf8")), { mode: 0o600 });
+    } else if (!chromium && entry.name.endsWith(".json")) {
       let parsed;
       try {
-        parsed = JSON.parse(bytes.toString("utf8"));
+        parsed = JSON.parse(await readFile(from, "utf8"));
       } catch {
         throw new Error(`Invalid JSON during migration: ${entry.name}`);
       }
@@ -259,6 +303,12 @@ async function copyMigrated(source, stage, destination, options, chromium = fals
 }
 
 export async function migrateWin7Data({ userHome, appData, helpers, env = process.env }) {
+  env = {
+    ...env,
+    ZCODE_CREDENTIAL_SECRET: env.AIBUDDY7SE_CREDENTIAL_SECRET ?? env.ZCODE_CREDENTIAL_SECRET,
+    ZCODE_CREDENTIAL_SECRET_FILE:
+      env.AIBUDDY7SE_CREDENTIAL_SECRET_FILE ?? env.ZCODE_CREDENTIAL_SECRET_FILE,
+  };
   const oldHome = join(userHome, ".zcode-win7-home"),
     newHome = join(userHome, ".aibuddy7se-home");
   const plan = [
@@ -351,7 +401,7 @@ export async function withLegacyInstanceLock(app, appData, operation) {
 
 export function migrateLegacyEnvironment(env) {
   for (const key of Object.keys(env)) {
-    if (!/^ZCODE_/.test(key)) continue;
+    if (!key.startsWith("ZCODE_")) continue;
     const target = key.replace(/^ZCODE_/, "AIBUDDY7SE_");
     if (env[target] === undefined) env[target] = env[key];
     delete env[key];

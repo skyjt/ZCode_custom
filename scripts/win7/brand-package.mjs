@@ -1,9 +1,5 @@
-import { mkdtemp, mkdir, readdir, readFile, writeFile, rename, rm, access } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readdir, readFile, writeFile, rename, access } from "node:fs/promises";
 import { extname, join, relative, resolve } from "node:path";
-import { createRequire } from "node:module";
-import { runCommand } from "../spawn-command.mjs";
-import { replaceAppAsarFromStaging } from "../../packages/desktop/scripts/app-asar-repack.mjs";
 
 const textExtensions = new Set([
   ".js",
@@ -98,43 +94,24 @@ export async function auditBrandTree(root, report = { textFiles: 0, migrationFil
   return report;
 }
 
-export async function brandPackagedApplication(context) {
-  const resources = join(context.appOutDir, "resources");
-  const asar = join(resources, "app.asar");
-  const stage = await mkdtemp(join(tmpdir(), "aibuddy7se-asar-"));
-  const require = createRequire(import.meta.url);
-  const cli = resolve(require.resolve("@electron/asar/package.json"), "../bin/asar.js");
-  const runAsarCommand = (args) => runCommand(process.execPath, [cli, ...args]);
-  try {
-    runAsarCommand(["extract", asar, stage]);
-    await brandTree(stage);
-    const report = await auditBrandTree(stage);
-    await replaceAppAsarFromStaging({
-      sourceDir: stage,
-      appAsarPath: asar,
-      targetPlatformKey: "win32-x64",
-      runAsarCommand,
-    });
-    await brandTree(context.appOutDir);
-    await auditBrandTree(context.appOutDir, report);
-    const evidence = resolve(import.meta.dirname, "../../.cache/win7-acceptance");
-    await mkdir(evidence, { recursive: true });
-    await writeFile(join(evidence, "brand-audit.json"), JSON.stringify(report, null, 2));
-    const paths = [];
-    async function list(directory) {
-      for (const entry of await readdir(directory, { withFileTypes: true })) {
-        const path = join(directory, entry.name);
-        if (entry.isDirectory()) await list(path);
-        else if (entry.name !== ".aibuddy7se-install-manifest")
-          paths.push(relative(context.appOutDir, path).replaceAll("/", "\\"));
-      }
+export async function brandPackagedApplication(context, report) {
+  await brandTree(context.appOutDir);
+  await auditBrandTree(context.appOutDir, report);
+  const evidence = resolve(import.meta.dirname, "../../.cache/win7-acceptance");
+  await mkdir(evidence, { recursive: true });
+  await writeFile(join(evidence, "brand-audit.json"), JSON.stringify(report, null, 2));
+  const paths = [];
+  async function list(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await list(path);
+      else if (entry.name !== ".aibuddy7se-install-manifest")
+        paths.push(relative(context.appOutDir, path).replaceAll("/", "\\"));
     }
-    await list(context.appOutDir);
-    await writeFile(
-      join(context.appOutDir, ".aibuddy7se-install-manifest"),
-      paths.sort().join("\r\n") + "\r\n",
-    );
-  } finally {
-    await rm(stage, { recursive: true, force: true });
   }
+  await list(context.appOutDir);
+  await writeFile(
+    join(context.appOutDir, ".aibuddy7se-install-manifest"),
+    paths.sort().join("\r\n") + "\r\n",
+  );
 }
