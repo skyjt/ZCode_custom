@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { execFileSync, spawnSync } from "node:child_process";
 import { prepareBrand } from "../win7/prepare-brand.mjs";
 import { createPackage, extractAll, extractFile, uncache } from "@electron/asar";
 import { cleanupPackagedSourcemaps } from "../../packages/desktop/scripts/packaged-sourcemap-cleanup.mjs";
@@ -24,7 +25,7 @@ const helpers = createRequire(import.meta.url)(join(root, "packages/desktop/out/
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
 test("Windows shell migration removes only commands owned by this executable and is idempotent", async () => {
-  const exe = "C:\\Apps\\aibuddy7se.exe";
+  const exe = "C:\\办公助手\\aibuddy7se.exe";
   const directory = "HKCU\\Software\\Classes\\Directory\\shell\\ZCode.OpenInZCode";
   const drive = "HKCU\\Software\\Classes\\Drive\\shell\\ZCode.OpenInZCode";
   const protocol = "HKCU\\Software\\Classes\\zcode";
@@ -34,10 +35,17 @@ test("Windows shell migration removes only commands owned by this executable and
     [protocol + "\\shell\\open\\command", `"${exe}" "%1"`],
   ]);
   const deleted = [];
-  const runReg = async ([operation, key]) => {
+  const runReg = async ([operation, key, ...args]) => {
     if (operation === "query") {
       if (!values.has(key)) throw Object.assign(new Error("missing"), { code: 1 });
-      return { stdout: `${key}\r\n    (默认)    REG_SZ    ${values.get(key)}\r\n` };
+      assert.deepEqual(args.slice(0, 2), ["/ve", "/f"]);
+      assert.deepEqual(args.slice(3), ["/d", "/e", "/t", "REG_SZ"]);
+      return {
+        stdout:
+          values.get(key).toLowerCase() === args[2].toLowerCase()
+            ? `${key}\r\n    (默认)    REG_SZ    OEM-encoded-command\r\n`
+            : "0 matches",
+      };
     }
     deleted.push(key);
     for (const path of values.keys()) if (path.startsWith(key + "\\")) values.delete(path);
@@ -61,6 +69,35 @@ test("Windows shell migration removes only commands owned by this executable and
     /access denied/,
   );
 });
+
+test(
+  "native registry exact searches preserve Unicode paths and reject different commands",
+  { skip: process.platform !== "win32" },
+  () => {
+    const key = `HKCU\\Software\\aibuddy7se-test-${process.pid}-${Date.now()}`;
+    const command = '"C:\\办公助手\\aibuddy7se.exe" --open-workspace "%1"';
+    try {
+      execFileSync("reg.exe", ["add", key, "/ve", "/t", "REG_SZ", "/d", command, "/f"], {
+        stdio: "ignore",
+      });
+      for (const [query, matches] of [
+        [command, true],
+        [command.replace("办公助手", "other-app"), false],
+      ]) {
+        const result = spawnSync(
+          "reg.exe",
+          ["query", key, "/ve", "/f", query, "/d", "/e", "/t", "REG_SZ"],
+          { encoding: "utf8" },
+        );
+        assert.ifError(result.error);
+        assert.equal(/\bREG_SZ\b/.test(result.stdout), matches);
+        if (matches) assert.equal(result.status, 0);
+      }
+    } finally {
+      execFileSync("reg.exe", ["delete", key, "/f"], { stdio: "ignore" });
+    }
+  },
+);
 
 test("shared HOME root is migrated once when it is also the custom data directory", async () => {
   const directory = await mkdtemp(join(tmpdir(), "brand-shared-home-"));

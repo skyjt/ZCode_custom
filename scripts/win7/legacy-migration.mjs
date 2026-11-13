@@ -464,12 +464,22 @@ export async function migrateLegacyWindowsShell({
   for (const [key, child, expected] of entries) {
     let stdout;
     try {
-      ({ stdout } = await runReg(["query", `${key}\\${child}`, "/ve"]));
+      // 由 Windows 原生比较 Unicode 数据，避免按 UTF-8 解码系统代码页后误判中文安装路径。
+      ({ stdout } = await runReg([
+        "query",
+        `${key}\\${child}`,
+        "/ve",
+        "/f",
+        expected,
+        "/d",
+        "/e",
+        "/t",
+        "REG_SZ",
+      ]));
     } catch (error) {
       if (error.code === 1) continue;
       throw error;
     }
-    const command = /\bREG_SZ[ \t]+([^\r\n]*)/.exec(stdout)?.[1].trim();
-    if (command?.toLowerCase() === expected.toLowerCase()) await runReg(["delete", key, "/f"]);
+    if (/\bREG_SZ\b/.test(stdout)) await runReg(["delete", key, "/f"]);
   }
 }

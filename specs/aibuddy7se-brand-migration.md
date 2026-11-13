@@ -14,6 +14,8 @@ Bootstrap 是唯一迁移所有者，在导入 Main/Host 前执行。旧实例�
 
 Bootstrap 在数据迁移成功后、加载 Main 前，清理 HKCU 中指向当前可执行文件的旧 Directory/Drive 右键菜单及旧 URL 协议键；Main 沿用现有唯一注册路径创建新名称入口。只接受旧版本实际生成的完整 command（路径比较不区分大小写），其它安装位置、开发入口或用户自定义命令不删。不存在的键视为已完成，删除失败拒绝进入应用；重复启动无副作用。
 
+命令匹配由 `reg query /f /d /e /t REG_SZ` 原生完成，避免用 UTF-8 解析系统代码页输出时破坏中文路径；工程门禁使用隔离的注册表测试键验证精确匹配与不匹配。
+
 ```mermaid
 sequenceDiagram
   participant Bootstrap as Bootstrap（唯一迁移所有者）
