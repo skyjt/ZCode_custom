@@ -15,6 +15,10 @@ import {
 import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { DatabaseSync, backup } from "node:sqlite";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const marker = ".aibuddy7se-migration.json";
 const brand = (s) =>
@@ -433,5 +437,39 @@ export function migrateLegacyEnvironment(env) {
     const target = key.replace(/^ZCODE_/, "AIBUDDY7SE_");
     if (env[target] === undefined) env[target] = env[key];
     delete env[key];
+  }
+}
+
+export async function migrateLegacyWindowsShell({
+  platform = process.platform,
+  executablePath = process.execPath,
+  runReg = (args) => execFileAsync("reg.exe", args, { windowsHide: true }),
+} = {}) {
+  if (platform !== "win32") return;
+  // 旧菜单不属于 NSIS 清单；只清理仍指向本 EXE 的完整命令，保留并存安装和用户改写。
+  const root = "HKCU\\Software\\Classes\\";
+  const entries = [
+    [
+      root + "Directory\\shell\\ZCode.OpenInZCode",
+      "command",
+      `"${executablePath}" --open-workspace "%1"`,
+    ],
+    [
+      root + "Drive\\shell\\ZCode.OpenInZCode",
+      "command",
+      `"${executablePath}" --open-workspace "%1"`,
+    ],
+    [root + "zcode", "shell\\open\\command", `"${executablePath}" "%1"`],
+  ];
+  for (const [key, child, expected] of entries) {
+    let stdout;
+    try {
+      ({ stdout } = await runReg(["query", `${key}\\${child}`, "/ve"]));
+    } catch (error) {
+      if (error.code === 1) continue;
+      throw error;
+    }
+    const command = /\bREG_SZ[ \t]+([^\r\n]*)/.exec(stdout)?.[1].trim();
+    if (command?.toLowerCase() === expected.toLowerCase()) await runReg(["delete", key, "/f"]);
   }
 }

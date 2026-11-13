@@ -12,6 +12,8 @@ Bootstrap 是唯一迁移所有者，在导入 Main/Host 前执行。旧实例�
 
 凭据不能直接移动：OS 密钥项由服务名和凭据文件绝对路径的 SHA-256 共同定位。迁移验证旧密文可解密，将同一随机密钥写到新服务/新路径，读取复核；已有不一致目标密钥拒绝覆盖。v1 使用旧解码器认证后转成 v2，禁止把解密失败当作明文、禁止日志记录凭据。旧识别字符串仅留在独立 migration 模块。
 
+Bootstrap 在数据迁移成功后、加载 Main 前，清理 HKCU 中指向当前可执行文件的旧 Directory/Drive 右键菜单及旧 URL 协议键；Main 沿用现有唯一注册路径创建新名称入口。只接受旧版本实际生成的完整 command（路径比较不区分大小写），其它安装位置、开发入口或用户自定义命令不删。不存在的键视为已完成，删除失败拒绝进入应用；重复启动无副作用。
+
 ```mermaid
 sequenceDiagram
   participant Bootstrap as Bootstrap（唯一迁移所有者）
@@ -23,6 +25,7 @@ sequenceDiagram
   Stage-->>Bootstrap: 数据验证成功
   Bootstrap->>Stage: 完成标记 + 原子发布
   Bootstrap->>Old: 释放实例锁（保留源数据）
+  Bootstrap->>Old: 移除指向本 EXE 的旧 Windows 菜单/协议键
   Bootstrap->>Main: 新环境/目录，导入主程序
 ```
 

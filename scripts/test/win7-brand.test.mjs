@@ -15,12 +15,52 @@ import {
   migrateDatabase,
   withLegacyInstanceLock,
   migrateLegacyEnvironment,
+  migrateLegacyWindowsShell,
 } from "../win7/legacy-migration.mjs";
 
 const root = join(import.meta.dirname, "../..");
 await prepareBrand(root);
 const helpers = createRequire(import.meta.url)(join(root, "packages/desktop/out/legacy-data.cjs"));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+
+test("Windows shell migration removes only commands owned by this executable and is idempotent", async () => {
+  const exe = "C:\\Apps\\aibuddy7se.exe";
+  const directory = "HKCU\\Software\\Classes\\Directory\\shell\\ZCode.OpenInZCode";
+  const drive = "HKCU\\Software\\Classes\\Drive\\shell\\ZCode.OpenInZCode";
+  const protocol = "HKCU\\Software\\Classes\\zcode";
+  const values = new Map([
+    [directory + "\\command", `"${exe.toLowerCase()}" --open-workspace "%1"`],
+    [drive + "\\command", '"C:\\Other App\\ZCode.exe" --open-workspace "%1"'],
+    [protocol + "\\shell\\open\\command", `"${exe}" "%1"`],
+  ]);
+  const deleted = [];
+  const runReg = async ([operation, key]) => {
+    if (operation === "query") {
+      if (!values.has(key)) throw Object.assign(new Error("missing"), { code: 1 });
+      return { stdout: `${key}\r\n    (默认)    REG_SZ    ${values.get(key)}\r\n` };
+    }
+    deleted.push(key);
+    for (const path of values.keys()) if (path.startsWith(key + "\\")) values.delete(path);
+    return { stdout: "" };
+  };
+  await migrateLegacyWindowsShell({ platform: "darwin", executablePath: exe, runReg });
+  assert.deepEqual(deleted, []);
+  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg });
+  assert.deepEqual(deleted, [directory, protocol]);
+  await migrateLegacyWindowsShell({ platform: "win32", executablePath: exe, runReg });
+  assert.deepEqual(deleted, [directory, protocol]);
+  await assert.rejects(
+    migrateLegacyWindowsShell({
+      platform: "win32",
+      executablePath: exe,
+      runReg: async ([operation]) => {
+        if (operation === "query") return { stdout: `REG_SZ    "${exe}" --open-workspace "%1"` };
+        throw new Error("access denied");
+      },
+    }),
+    /access denied/,
+  );
+});
 
 test("shared HOME root is migrated once when it is also the custom data directory", async () => {
   const directory = await mkdtemp(join(tmpdir(), "brand-shared-home-"));

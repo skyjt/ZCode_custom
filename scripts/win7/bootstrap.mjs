@@ -6,6 +6,7 @@ import {
   migrateWin7Data,
   withLegacyInstanceLock,
   migrateLegacyEnvironment,
+  migrateLegacyWindowsShell,
 } from "./legacy-migration.mjs";
 import helpers from "./legacy-data.cjs";
 
@@ -27,6 +28,7 @@ try {
     }),
   );
   console.info("[win7-bootstrap] migration complete");
+  await migrateLegacyWindowsShell();
   migrateLegacyEnvironment(process.env);
   const home = configureWin7Environment(process.env, undefined, appData);
   configureOfflineTools(process.resourcesPath);

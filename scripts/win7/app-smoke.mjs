@@ -24,6 +24,21 @@ env.HOME = fixtureHome;
 env.APPDATA = join(fixtureHome, "AppData", "Roaming");
 env.LOCALAPPDATA = join(fixtureHome, "AppData", "Local");
 await Promise.all([env.APPDATA, env.LOCALAPPDATA].map((path) => mkdir(path, { recursive: true })));
+const legacyShellKey = "HKCU\\Software\\Classes\\Directory\\shell\\ZCode.OpenInZCode";
+const newShellKey = "HKCU\\Software\\Classes\\Directory\\shell\\Aibuddy7se.OpenInAibuddy7se";
+// 一次性 CI 用户下模拟同一安装路径的旧菜单，验证实际注册表迁移而不是只检查源码。
+execFileSync(
+  "reg.exe",
+  [
+    "add",
+    `${legacyShellKey}\\command`,
+    "/ve",
+    "/d",
+    `"${join(appDir, "aibuddy7se.exe")}" --open-workspace "%1"`,
+    "/f",
+  ],
+  { stdio: "ignore" },
+);
 const child = spawn(
   join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],
@@ -61,6 +76,14 @@ try {
   await page.emulateMedia({ reducedMotion: null, colorScheme: null });
   // 内网版必须直接进入真实工作区；不能再靠跳过登录或关闭引导通过验收。
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 90000 });
+  assert.throws(
+    () => execFileSync("reg.exe", ["query", legacyShellKey], { stdio: "ignore" }),
+    (error) => error.status === 1,
+  );
+  const shellCommand = execFileSync("reg.exe", ["query", `${newShellKey}\\command`, "/ve"], {
+    encoding: "utf8",
+  });
+  assert.ok(shellCommand.includes(join(appDir, "aibuddy7se.exe")));
   assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
   assert.equal(await page.getByTestId("onboarding-page").count(), 0);
   assert.equal(await page.title(), "aibuddy7se · Win7 特别版");
