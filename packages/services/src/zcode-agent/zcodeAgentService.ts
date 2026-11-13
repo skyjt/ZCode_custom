@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   v4SessionDeletionPreviewSchema,
   v4SessionDeletionResultSchema,
@@ -1429,6 +1430,8 @@ export function createZCodeAgentService(
     requestTimeoutMs: options?.requestTimeoutMs,
     resolveSpawnEnv: options?.resolveSpawnEnv,
     waitForSpawnAdmission: options?.waitForSpawnAdmission,
+    // 管理面无聊天会话；Win7 回收已完成元数据/插件操作的空闲进程，下一请求按原路径重建。
+    ...(ZCODE_WIN7_EDITION ? { lane: "plugin", idleTimeoutMs: 30_000 } : {}),
   });
   // 合并时误删了独立进程：mcp/list 的慢握手会堵住串行 stdio 队列，连带卡住插件卸载。
   // 恢复专用控制面进程及空闲回收；共享 workspace 路径，不共享请求队列或 watchdog。

@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { normalizeRemoteConnectionError, sanitizeRemoteConnectionLog } from "@zcode/shared";
 import { createCredentialCipherBridge } from "@zcode/shared/credential-security";
 import { join } from "node:path";
@@ -1703,6 +1704,9 @@ function warmUpZCodeAgent(
   context: { workspacePath?: string; workspaceIdentity?: string },
   reason: string,
 ): void {
+  // Win7 内存对照确认：仅配置模型/打开空白草稿就预建 Agent 及其子进程树。
+  // 首次真实请求仍由原服务 admission 创建；不影响已运行任务或历史恢复。
+  if (ZCODE_WIN7_EDITION) return;
   if (!context.workspacePath) {
     return;
   }

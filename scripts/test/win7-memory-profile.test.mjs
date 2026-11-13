@@ -1,6 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { selectProcessTree } from "../win7/memory-profile.mjs";
+import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "../win7/memory-model-fixture.mjs";
+
+test("local memory model fixture completes stream and refuses unexpected routes", async () => {
+  const fixture = await startMemoryModelFixture();
+  try {
+    const response = await fetch(`${fixture.baseUrl}/chat/completions`, {
+      method: "POST",
+      body: JSON.stringify({ model: "fictional", stream: true }),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.text();
+    assert.ok(body.includes(MEMORY_MODEL_REPLY));
+    assert.ok(body.endsWith("data: [DONE]\n\n"));
+    assert.equal((await fetch(`${fixture.baseUrl}/unknown`)).status, 404);
+  } finally {
+    await fixture.close();
+  }
+});
 
 test("memory acceptance counts nested app children without same-name unrelated processes", () => {
   const row = (pid, parentPid, bytes) => ({

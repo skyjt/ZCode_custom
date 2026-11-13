@@ -166,6 +166,7 @@ export interface DraftPrewarmBinding {
 }
 
 interface DraftPrewarmSubscriber {
+  eager: boolean;
   generation: object;
   invalidationVersion: number;
   onBinding: (binding: DraftPrewarmBinding | null) => void;
@@ -255,6 +256,11 @@ class DraftSessionPrewarmCoordinator {
       this.current = null;
       this.startCurrent(invalidationVersion);
     }
+    // 低内存模式只登记 owner；首次真实发送仍在这里创建，不能绕过 single-flight 另开会话。
+    if (!this.current) {
+      this.blockedInvalidationVersion = null;
+      this.startCurrent(invalidationVersion);
+    }
     const current = this.current;
     if (!current) throw new Error("草稿会话尚未开始创建");
     // Bug 根因：binding=null 同时表示创建在途和失败，首发据此另建会话会与预热并发。
@@ -273,6 +279,7 @@ class DraftSessionPrewarmCoordinator {
   }
 
   acquire(params: {
+    eager: boolean;
     generation: object;
     invalidationVersion: number;
     onBinding: (binding: DraftPrewarmBinding | null) => void;
@@ -340,7 +347,9 @@ class DraftSessionPrewarmCoordinator {
     if (this.blockedInvalidationVersion === requestedVersion) {
       return;
     }
-    this.startCurrent(requestedVersion);
+    if ([...this.subscribers.values()].some((subscriber) => subscriber.eager)) {
+      this.startCurrent(requestedVersion);
+    }
   }
 
   private clearRetryTimer(): void {
@@ -576,6 +585,8 @@ function createWaitForDraftSession(
 export function useDraftSessionPrewarm(params: {
   /** pane 未绑定会话（sessionId===null）时启用。 */
   enabled: boolean;
+  /** false 时仅登记同一 owner，首次 waitForSession 再创建；不禁用首发能力。 */
+  eager?: boolean;
   workspaceKey: string;
   /** 同一 workspace 内的逻辑 pane 身份；同步重挂必须保持稳定。 */
   paneId: string;
@@ -589,6 +600,7 @@ export function useDraftSessionPrewarm(params: {
 }): DraftSessionPrewarm {
   const {
     enabled,
+    eager = true,
     workspaceKey,
     paneId,
     transportIdentity,
@@ -602,9 +614,15 @@ export function useDraftSessionPrewarm(params: {
     () => ({ workspaceKey, paneId, transportIdentity }),
     [paneId, transportIdentity, workspaceKey],
   );
-  const generation = useMemo(() => ({ owner }), [enabled, invalidationVersion, owner]);
+  const generation = useMemo(
+    () => ({ owner, eager, enabled, invalidationVersion }),
+    [eager, enabled, invalidationVersion, owner],
+  );
   const acquired = useRef<AcquiredDraftPrewarm | null>(null);
+  const committedInputs = useRef({ dispatchCommand, resolveInitialConfig });
   useLayoutEffect(() => {
+    // 延迟创建必须消费本次已提交的配置函数；函数包装变化只更新 owner，不重建其订阅/代次。
+    committedInputs.current = { dispatchCommand, resolveInitialConfig };
     if (acquired.current?.generation === generation) {
       acquired.current.coordinator.update(dispatchCommand, resolveInitialConfig);
     }
@@ -616,6 +634,7 @@ export function useDraftSessionPrewarm(params: {
 
   useEffect(() => {
     if (!enabled) return;
+    const { dispatchCommand, resolveInitialConfig } = committedInputs.current;
     // 原先在 render 登记，未启用预热的历史页没有 acquire/release，Map 会永久保留闭包中的
     // 已关闭 store 和历史。登记与订阅必须同属已提交的 effect，中止 render 也不能留下 owner。
     const coordinator = getDraftSessionPrewarmCoordinator({
@@ -626,6 +645,7 @@ export function useDraftSessionPrewarm(params: {
     coordinator.update(dispatchCommand, resolveInitialConfig);
     acquired.current = { generation, coordinator };
     const release = coordinator.acquire({
+      eager,
       generation,
       invalidationVersion,
       onBinding: (binding) => {
@@ -641,7 +661,7 @@ export function useDraftSessionPrewarm(params: {
       acquired.current = null;
       release();
     };
-  }, [enabled, generation, invalidationVersion, owner]);
+  }, [eager, enabled, generation, invalidationVersion, owner]);
 
   const waitForSession = useMemo(
     () => createWaitForDraftSession(acquired, enabled, generation, invalidationVersion),

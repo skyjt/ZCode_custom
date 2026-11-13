@@ -1,3 +1,4 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
 import { completeNewModelSelection } from "@zcode/provider";
 import { useSubagents } from "@/hooks/useSubagents.js";
 import { ToolPresentationCapabilitiesProvider } from "@/ToolCallBlocks/presentationCapabilities.js";
@@ -3371,6 +3372,7 @@ export function SessionPane({
   // pane 未绑定会话时后台建 phase=draft 会话作预热载体：配置写 CAS 直达、首发复用。
   // 对外绑定语义不变（shell activeTaskId 仍 null），预热会话只是 pane 内部 effective 订阅目标。
   const { binding: prewarmBinding, waitForSession: waitForDraftSession } = useDraftSessionPrewarm({
+    eager: !ZCODE_WIN7_EDITION,
     // worktree 草稿不预热：会话要等 worktree 建好后由 Host 创建，cwd 一次确定（§3.2）。
     enabled:
       sessionId === null && draftAgentStartupAllowed && !recoveringDraft && !draftWorktreeEnabled,

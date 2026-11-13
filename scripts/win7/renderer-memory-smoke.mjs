@@ -13,6 +13,7 @@ import { ServiceProvider } from './packages/ui/src/hooks/useServices.js';
 import { useZCodeTaskService } from './packages/ui/src/hooks/useZCodeTaskService.js';
 import { highlightCode } from './packages/ui/src/lib/shikiHighlighter.js';
 import { uiMemoryDiagnosticsRegistry as registry } from './packages/ui/src/lib/memoryDiagnostics.js';
+import { useDraftSessionPrewarm } from './packages/ui/src/v4/composer/useDraftSessionPrewarm.js';
 const check = (value, message) => { if (!value) throw new Error(message); };
 const calls = [];
 let releaseHeld;
@@ -30,6 +31,55 @@ const raw = {
 };
 const params = taskId => ({ workspacePath: '/fictional', taskId, clientMode: 'desktop-continuous' });
 const tokenize = code => new Promise(resolve => highlightCode(code, 'javascript', 'github-dark', resolve));
+async function verifyDraftLifecycle() {
+  const node = document.createElement('div'); document.body.append(node);
+  let root = createRoot(node);
+  const commands = [];
+  let holdCreate = false, releaseCreate;
+  const dispatch = async (type, payload, sessionId) => {
+    commands.push({ type, sessionId });
+    if (type === 'createSession') {
+      const id = 'fixture-' + commands.length;
+      if (holdCreate) await new Promise(resolve => { releaseCreate = resolve; });
+      return { status: 'accepted', result: { type: 'createSession', sessionId: id } };
+    }
+    return { status: 'accepted' };
+  };
+  function DraftProbe({ options, ready }) {
+    const api = useDraftSessionPrewarm({ enabled: true, paneId: 'main', workspaceKey: 'fixture', transportIdentity: dispatch, dispatchCommand: dispatch, ...options });
+    useEffect(() => { ready(api); }, [api.waitForSession, ready]);
+    return <div>Draft fixture</div>;
+  }
+  const mount = options => new Promise(resolve => root.render(<DraftProbe options={options} ready={resolve} />));
+  const settle = () => new Promise(resolve => setTimeout(resolve, 10));
+  const lazy = await mount({ eager: false });
+  await settle();
+  check(commands.length === 0, 'lazy draft spawned before demand');
+  const [one, two] = await Promise.all([lazy.waitForSession(), lazy.waitForSession()]);
+  check(one === two && commands.length === 1, 'first demand did not share owner');
+  root.unmount(); await settle();
+  check(commands.filter(c => c.type === 'deleteSession').length === 1, 'unpromoted draft not cleaned');
+  root = createRoot(node);
+  holdCreate = true;
+  const staleApi = await mount({ eager: false, workspaceKey: 'old' });
+  const stale = staleApi.waitForSession().then(() => false, () => true);
+  const nextApi = await mount({ eager: false, workspaceKey: 'new' });
+  await settle(); holdCreate = false; releaseCreate();
+  check(await stale, 'stale demand continued into another workspace');
+  await settle();
+  check(commands.filter(c => c.type === 'createSession').length === 2, 'new lazy owner started automatically');
+  const next = await nextApi.waitForSession();
+  check(next.beginPromotion(), 'live binding could not be promoted'); next.promote();
+  const deletes = commands.filter(c => c.type === 'deleteSession').length;
+  root.unmount(); await settle();
+  check(commands.filter(c => c.type === 'deleteSession').length === deletes, 'promoted task was deleted');
+  root = createRoot(node);
+  const before = commands.length;
+  const eager = await mount({ workspaceKey: 'modern' });
+  await settle();
+  check(commands.length === before + 1, 'default eager behavior changed');
+  await eager.waitForSession(); root.unmount(); await settle(); node.remove();
+}
 async function verify(service) {
   window.progress = 'snapshot'; console.log('Memory acceptance: snapshot');
   const first = service.getTaskSnapshot(params('concurrent'));
@@ -74,6 +124,7 @@ async function verify(service) {
   // 淘汰后仍能完整重算并回调，不能因限额让高亮一直停留在 loading。
   const again = await tokenize(prefix + 'alpha' + suffix);
   check(again.tokens.flat().map(token => token.content).join('').includes('alpha'), 'evicted code could not be highlighted again');
+  await verifyDraftLifecycle();
   window.acceptance = { status: 'PASS', counts: registry.collect(), rpcCalls: calls.length };
 }
 function Probe() {

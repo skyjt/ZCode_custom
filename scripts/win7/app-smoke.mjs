@@ -6,8 +6,9 @@ import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright-core";
 import { profileStartupMemory, sampleMemory } from "./memory-profile.mjs";
+import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "./memory-model-fixture.mjs";
 
-// 在一次性 Windows CI 用户下启动最终产物；不向模型发请求，不访问开发者的数据。
+// 在一次性 Windows CI 用户下启动最终产物；仅向本机虚构模型发验收请求，不访问开发者的数据。
 const appDir = resolve(process.argv[2]);
 const output = resolve(process.argv[3]);
 await mkdir(output, { recursive: true });
@@ -41,6 +42,7 @@ execFileSync(
   ],
   { stdio: "ignore" },
 );
+const modelFixture = await startMemoryModelFixture();
 const child = spawn(
   join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],
@@ -83,6 +85,11 @@ try {
     const samples = await profileStartupMemory(page, child.pid, output);
     if (!process.argv.includes("--baseline")) {
       assert.equal(samples.at(-1).diffWorkers, 1, "Win7 must use one functioning diff worker");
+      assert.match(
+        log,
+        /agent process idle timeout; reclaiming.*plugin-workspace/,
+        "Plugin management lane must reclaim after idle",
+      );
       assert.equal(
         await page.evaluate(() =>
           performance
@@ -228,7 +235,9 @@ try {
     .filter({ hasText: "Intranet smoke" });
   await provider.waitFor();
   const providerTestId = await provider.getAttribute("data-testid");
-  const baseUrl = "http://127.0.0.1:17439/v1";
+  const baseUrl = modelFixture.baseUrl;
+  await page.getByTestId("model-provider-api-format-trigger").click();
+  await page.getByTestId("model-provider-api-format-item-openai-chat-completions").click();
   await page.getByTestId("model-provider-base-url-input").fill(baseUrl);
   await page.getByTestId("model-provider-api-key-input").fill("fictional-intranet-smoke-key");
   await page.getByTestId("model-provider-api-key-input").blur();
@@ -254,7 +263,7 @@ try {
   );
   await page.getByText("intranet-smoke-model", { exact: true }).first().waitFor();
   await page.screenshot({ path: join(output, "intranet-provider.png") });
-  // 不向此虚构 API 发模型请求；这里只验证自定义配置编辑与重新加载。
+  // 先验证配置与 reload；本机虚构模型的首次发送留到空闲内存采样之后。
   await page.getByTestId("settings-section-nav-general").click();
   await page.getByTestId("settings-locale-select-trigger").click();
   await page.getByTestId("settings-locale-select-item-zh-CN").click();
@@ -270,7 +279,7 @@ try {
         title: await page.title(),
         text: (await page.locator("body").innerText()).slice(0, 3000),
         scope:
-          "Windows Server 2022: offline direct workspace without login/onboarding, intranet preferences, custom API/key/model edit and renderer reload, self-test, English/Chinese and light/dark UI; full app upgrade/restart, Win7 hardware, native export dialog and model response remain untested",
+          "Windows Server 2022: offline direct workspace without login/onboarding, intranet preferences, custom API/key/model edit and renderer reload, self-test, English/Chinese and light/dark UI; full app upgrade/restart, Win7 hardware, native export dialog and real model response remain untested",
       },
       null,
       2,
@@ -287,6 +296,53 @@ try {
       join(output, "memory-interaction.json"),
       JSON.stringify({ samples: interactionMemory }, null, 2),
     );
+  }
+  if (!process.argv.includes("--baseline")) {
+    if (await page.getByTestId("settings-page").isVisible()) {
+      await page.getByTestId("settings-back-button").click();
+    }
+    assert.doesNotMatch(
+      log,
+      /agent process started.*shared-local-tasks/,
+      "Empty draft and model configuration must not prestart the chat Agent",
+    );
+    // 90 秒启动采样后插件管理 lane 已退出，设置页必须能按需重建并读取真实安装清单。
+    await page.getByTestId("task-settings-button").click();
+    await page.getByTestId("settings-section-nav-plugin").click();
+    await page.getByTestId("plugin-settings-plugin-row").first().waitFor({ timeout: 60000 });
+    await page.getByTestId("settings-back-button").click();
+    assert.equal(
+      modelFixture.requests.filter((request) => request.path === "/v1/chat/completions").length,
+      0,
+      "Settings must not send a model completion request",
+    );
+    const input = page
+      .locator(
+        '[data-testid="v4-composer-input"][contenteditable="true"], [data-testid="v4-composer-input"] [contenteditable="true"]',
+      )
+      .first();
+    await input.fill("Reply exactly AIBUDDY7SE_MEMORY_FIRST_SEND_OK, without tools.");
+    await page.getByTestId("v4-composer-send").click({ timeout: 60000 });
+    await page.getByText(MEMORY_MODEL_REPLY, { exact: true }).last().waitFor({ timeout: 120000 });
+    const starts = log
+      .split("\n")
+      .filter((line) => /agent process started.*shared-local-tasks/.test(line));
+    assert.equal(starts.length, 1, "First send must start exactly one shared chat runtime");
+    assert.ok(modelFixture.requests.some((request) => request.path === "/v1/chat/completions"));
+    await writeFile(
+      join(output, "first-send.json"),
+      JSON.stringify(
+        {
+          result: "PASS",
+          runtimeStarts: starts.length,
+          requests: modelFixture.requests,
+          scope: "Loopback fictional OpenAI model only; real model not tested",
+        },
+        null,
+        2,
+      ),
+    );
+    await page.screenshot({ path: join(output, "first-send.png") });
   }
 } catch (error) {
   // DevTools 未就绪时保留原生错误窗口，必须在 finally 终止测试进程之前截图。
@@ -341,6 +397,7 @@ try {
       /* 应用已正常退出时 taskkill 会返回非零。 */
     }
   }
+  await modelFixture.close();
   await writeFile(join(output, "startup.log"), log);
   execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome, "cleanup"], {
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },

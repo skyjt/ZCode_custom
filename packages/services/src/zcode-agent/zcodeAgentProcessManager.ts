@@ -91,7 +91,7 @@ export interface ZCodeAgentProcessManagerOptions {
   /**
    * 空闲回收阈值：连接上没有请求在飞持续超过该时长，就主动回收整棵进程树，
    * 下次 getClient 透明重新拉起。只给 mcp-status 这类“按需探测、进程内挂着 MCP 子进程”
-   * 的控制面 lane 使用；chat / plugin 缺省不回收。
+   * 的控制面 lane 使用；chat 缺省不回收，Win7 plugin 管理面显式启用。
    */
   idleTimeoutMs?: number;
   /**
@@ -1065,6 +1065,9 @@ export class ZCodeAgentProcessManager {
     if (this.bindings.get(resolveWorkspaceKey(params)) !== binding) return this.getClient(params);
     const existing = this.processesByWorkspaceKey.get(workspaceKey);
     if (existing && !existing.child.killed && !existing.client.isDisposed) {
+      // getClient 到实际 request 之间可能还有异步能力协商，旧计时器不能在交付后立刻回收。
+      // 只刷新已启用 idle 策略的管理面；在途操作与数据库准备仍由回收条件保护。
+      this.scheduleIdleReclaim(workspaceKey, existing);
       this.publishAvailable(existing, binding);
       return existing.client;
     }
