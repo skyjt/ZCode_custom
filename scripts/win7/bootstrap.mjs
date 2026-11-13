@@ -18,7 +18,12 @@ app.commandLine.appendSwitch("disable-component-update");
 // Electron 会等待 ESM 入口的顶层 await；CJS 中动态导入可能晚于 ready，导致协议注册失败。
 try {
   await withLegacyInstanceLock(app, appData, () =>
-    migrateWin7Data({ userHome: homedir(), appData, helpers }),
+    migrateWin7Data({
+      userHome: homedir(),
+      agentHome: process.env.HOME?.trim() || process.env.USERPROFILE?.trim() || homedir(),
+      appData,
+      helpers,
+    }),
   );
   migrateLegacyEnvironment(process.env);
   const home = configureWin7Environment(process.env, undefined, appData);

@@ -310,7 +310,13 @@ async function copyMigrated(source, stage, destination, options, chromium = fals
   }
 }
 
-export async function migrateWin7Data({ userHome, appData, helpers, env = process.env }) {
+export async function migrateWin7Data({
+  userHome,
+  agentHome = userHome,
+  appData,
+  helpers,
+  env = process.env,
+}) {
   env = {
     ...env,
     ZCODE_CREDENTIAL_SECRET: env.AIBUDDY7SE_CREDENTIAL_SECRET ?? env.ZCODE_CREDENTIAL_SECRET,
@@ -321,7 +327,7 @@ export async function migrateWin7Data({ userHome, appData, helpers, env = proces
     newHome = join(userHome, ".aibuddy7se-home");
   const plan = [
     [oldHome, newHome],
-    [join(userHome, ".zcode"), join(userHome, ".aibuddy7se")],
+    [join(agentHome, ".zcode"), join(agentHome, ".aibuddy7se")],
   ];
   const settings = join(oldHome, ".zcode/v2/setting.json");
   if (await exists(settings)) {
@@ -339,6 +345,16 @@ export async function migrateWin7Data({ userHome, appData, helpers, env = proces
     [join(from, ".zcode"), join(to, ".aibuddy7se")],
     [from, to],
   ]);
+  // 自定义数据根可能就是 HOME；同一物理目标只发布一次，保留显式配置的路径写法。
+  const pathKey = (path) =>
+    process.platform === "win32" ? resolve(path).toLowerCase() : resolve(path);
+  const uniqueRoots = new Map();
+  for (const item of plan) {
+    const previous = uniqueRoots.get(pathKey(item[1]));
+    if (previous && pathKey(previous[0]) !== pathKey(item[0]))
+      throw new Error("Conflicting migration roots");
+    uniqueRoots.set(pathKey(item[1]), item);
+  }
   const workspaceHashes = new Map(
     moves
       .filter(([from]) => basename(from) === ".zcode")
@@ -349,7 +365,7 @@ export async function migrateWin7Data({ userHome, appData, helpers, env = proces
   );
   await helpers.withFileLock(join(userHome, ".aibuddy7se-migration"), async () => {
     const pending = [];
-    for (const [source, destination, chromium] of plan) {
+    for (const [source, destination, chromium] of uniqueRoots.values()) {
       if (!(await exists(source))) continue;
       if (await exists(destination)) {
         const completed = join(destination, marker);

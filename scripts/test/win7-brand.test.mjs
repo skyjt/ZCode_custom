@@ -22,6 +22,43 @@ await prepareBrand(root);
 const helpers = createRequire(import.meta.url)(join(root, "packages/desktop/out/legacy-data.cjs"));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
+test("shared HOME root is migrated once when it is also the custom data directory", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brand-shared-home-"));
+  try {
+    await mkdir(join(directory, ".zcode-win7-home/.zcode/v2"), { recursive: true });
+    await mkdir(join(directory, ".zcode"));
+    await writeFile(
+      join(directory, ".zcode-win7-home/.zcode/v2/setting.json"),
+      JSON.stringify({ dataBaseDir: directory }),
+    );
+    await writeFile(join(directory, ".zcode/AGENTS.md"), "ZCode user instructions");
+    await migrateWin7Data({ userHome: directory, helpers, env: {} });
+    assert.equal(
+      await readFile(join(directory, ".aibuddy7se/AGENTS.md"), "utf8"),
+      "ZCode user instructions",
+    );
+    await migrateWin7Data({ userHome: directory, helpers, env: {} });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("explicit Agent HOME keeps its instructions independently of the Windows profile", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brand-agent-home-"));
+  try {
+    const agentHome = join(directory, "agent-home");
+    await mkdir(join(agentHome, ".zcode"), { recursive: true });
+    await writeFile(join(agentHome, ".zcode/AGENTS.md"), "user instructions");
+    await migrateWin7Data({ userHome: join(directory, "profile"), agentHome, helpers, env: {} });
+    assert.equal(
+      await readFile(join(agentHome, ".aibuddy7se/AGENTS.md"), "utf8"),
+      "user instructions",
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("Chromium website databases retain their own schemas and values during userData migration", async () => {
   const directory = await mkdtemp(join(tmpdir(), "brand-browser-"));
   try {
