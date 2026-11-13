@@ -12,6 +12,52 @@ import { configureWin7Environment, configureOfflineTools } from "../win7/win7-en
 import { patchPnpmInstallSource } from "../win7/patch-pnpm.mjs";
 import { compute7zCompressArgs } from "app-builder-lib/out/targets/archive.js";
 import { parse as parseYaml } from "yaml";
+import { extractPrebuiltArchive } from "../prebuilt-binary-extract.mjs";
+
+test(
+  "Windows archive extraction ignores foreign PowerShell modules and rejects damaged ZIPs",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "预编译 解压'-"));
+    const previousModulePath = process.env.PSModulePath;
+    try {
+      const modules = join(root, "foreign-modules");
+      const foreign = join(modules, "Microsoft.PowerShell.Archive");
+      await mkdir(foreign, { recursive: true });
+      await writeFile(
+        join(foreign, "Microsoft.PowerShell.Archive.psd1"),
+        "@{ RootModule='Microsoft.PowerShell.Archive.psm1'; ModuleVersion='99.0.0'; FunctionsToExport=@('Expand-Archive') }",
+      );
+      await writeFile(
+        join(foreign, "Microsoft.PowerShell.Archive.psm1"),
+        "function Expand-Archive { throw 'Incompatible inherited archive module was loaded' }",
+      );
+      process.env.PSModulePath = `${modules};${previousModulePath ?? ""}`;
+      const archivePath = join(root, "probe.zip");
+      // 标准 ZIP fixture，包含 nested/probe.txt，正文为 archive fixture + 换行。
+      await writeFile(
+        archivePath,
+        Buffer.from(
+          "UEsDBBQAAAAAABGSbV3E7xV3EAAAABAAAAAQAAAAbmVzdGVkL3Byb2JlLnR4dGFyY2hpdmUgZml4dHVyZQpQSwECFAMUAAAAAAARkm1dxO8VdxAAAAAQAAAAEAAAAAAAAAAAAAAAgAEAAAAAbmVzdGVkL3Byb2JlLnR4dFBLBQYAAAAAAQABAD4AAAA+AAAAAAA=",
+          "base64",
+        ),
+      );
+      const options = { archivePath, archiveExt: "zip", extractDir: join(root, "out"), cwd: root };
+      extractPrebuiltArchive(options);
+      const extracted = join(options.extractDir, "nested/probe.txt");
+      assert.equal(await readFile(extracted, "utf8"), "archive fixture\n");
+      await writeFile(extracted, "replaced fixture");
+      extractPrebuiltArchive(options);
+      assert.equal(await readFile(extracted, "utf8"), "archive fixture\n");
+      await writeFile(archivePath, "damaged archive");
+      assert.throws(() => extractPrebuiltArchive(options), /failed with code/);
+    } finally {
+      if (previousModulePath === undefined) delete process.env.PSModulePath;
+      else process.env.PSModulePath = previousModulePath;
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 test("Win7 ships only an EXE while retaining offline resources and package acceptance", async () => {
   const result = spawnSync(

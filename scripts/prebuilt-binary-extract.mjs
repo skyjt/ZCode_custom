@@ -39,13 +39,20 @@ export function extractPrebuiltArchive({ archivePath, archiveExt, extractDir, cw
   mkdirSync(extractDir, { recursive: true });
   if (archiveExt === "zip") {
     if (process.platform === "win32") {
+      // Actions 的 pwsh 会把 PS7 模块路径传给 Windows PowerShell，自动加载的 Archive
+      // 可能调用旧 .NET 没有的重载。显式使用当前 shell 自带模块，并让解压错误立即失败。
+      const command = [
+        "$ErrorActionPreference = 'Stop'",
+        "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Archive/Microsoft.PowerShell.Archive.psd1') -Force -ErrorAction Stop",
+        `Expand-Archive -LiteralPath '${archivePath.replaceAll("'", "''")}' -DestinationPath '${extractDir.replaceAll("'", "''")}' -Force -ErrorAction Stop`,
+      ].join("; ");
       runCommand("powershell.exe", [
         "-NoProfile",
         "-NonInteractive",
         "-ExecutionPolicy",
         "Bypass",
-        "-Command",
-        `Expand-Archive -LiteralPath '${archivePath.replaceAll("'", "''")}' -DestinationPath '${extractDir.replaceAll("'", "''")}' -Force`,
+        "-EncodedCommand",
+        Buffer.from(command, "utf16le").toString("base64"),
       ]);
       return;
     }
