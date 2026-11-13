@@ -82,7 +82,9 @@ export async function migrateDatabase(
 ) {
   const original = new DatabaseSync(source, { readOnly: true });
   try {
+    console.info("[brand-migration] database backup starting");
     await backup(original, destination);
+    console.info("[brand-migration] database backup complete");
   } finally {
     original.close();
   }
@@ -160,6 +162,7 @@ export async function migrateDatabase(
 }
 
 async function migrateCredentials(source, staged, destination, helpers, env) {
+  console.info("[brand-migration] credential migration starting");
   const record = JSON.parse(await readFile(source, "utf8"));
   if (!record || typeof record !== "object" || Array.isArray(record))
     throw new Error("Invalid credential record");
@@ -209,6 +212,7 @@ async function migrateCredentials(source, staged, destination, helpers, env) {
   await writeFile(staged, JSON.stringify(result, null, 2) + "\n", {
     mode: 0o600,
   });
+  console.info("[brand-migration] credential migration complete");
 }
 
 async function copyMigrated(source, stage, destination, options, chromium = false) {

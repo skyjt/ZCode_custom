@@ -199,6 +199,37 @@ try {
     "PASS intranet workspace without login, reduced motion, offline self-test, concurrent admission and translated/theme UI",
   );
 } catch (error) {
+  // DevTools 未就绪时保留原生错误窗口，必须在 finally 终止测试进程之前截图。
+  try {
+    execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `
+      Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+      $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+      $bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+      $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+      try {
+        $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+        $bitmap.Save($env:AIBUDDY7SE_SMOKE_SCREENSHOT)
+      } finally { $graphics.Dispose(); $bitmap.Dispose() }
+    `,
+      ],
+      {
+        env: {
+          ...process.env,
+          AIBUDDY7SE_SMOKE_SCREENSHOT: join(output, "windows-startup-failure.png"),
+        },
+        timeout: 10000,
+        stdio: "inherit",
+      },
+    );
+  } catch {
+    console.error("Unable to capture native startup failure");
+  }
   if (page && !page.isClosed()) {
     await page.screenshot({ path: join(output, "startup-failure.png") });
     await writeFile(
