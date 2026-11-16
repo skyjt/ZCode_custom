@@ -49,10 +49,22 @@ interface Style {
   basedOn?: string;
 }
 
+// 样式表常远大于正文；文本提取只读名称、继承与 outlineLvl。把无关格式作为原文跳过，
+// 避免每次解析构造数千个临时 XML 节点。正文和面板仍解析原文件，格式不会丢失。
+const STYLE_FORMATTING_NODES = [
+  "*.w:docDefaults",
+  "*.w:latentStyles",
+  "*.w:rPr",
+  "*.w:tblStylePr",
+  "*.w:tblPr",
+  "*.w:trPr",
+  "*.w:tcPr",
+];
+
 async function readStyles(xml: string | null): Promise<Map<string, Style>> {
   const styles = new Map<string, Style>();
   if (!xml) return styles;
-  for (const style of findAll(parseXml(xml), "w:style")) {
+  for (const style of findAll(parseXml(xml, STYLE_FORMATTING_NODES), "w:style")) {
     const id = attr(style, "w:styleId");
     if (!id) continue;
     const name = attr(child(style, "w:name") ?? {}, "w:val") ?? id;

@@ -107,9 +107,15 @@ for (const { plugin, file, marker } of formats) {
       assert.deepEqual(result.content, read.content);
     }
     // 超过原 6 项文档缓存，检查轮换使用与原文保留；不靠无限复用同一个缓存项得出增长结论。
-    for (let i = 0; i < 20; i++)
+    const rotationReads = plugin === "documents" ? 60 : 20;
+    const rotationReadMs = [];
+    for (let i = 0; i < rotationReads; i++) {
+      started = performance.now();
       await ok("read_document", { anchor: `repeat-${i % 8}${extension}` });
-    samples.push(await sample(transport.pid, `${plugin}-rotated-20`));
+      rotationReadMs.push(performance.now() - started);
+      if (i === 19 || i === rotationReads - 1)
+        samples.push(await sample(transport.pid, `${plugin}-rotated-${i + 1}`));
+    }
     const corrupt = await call("open_document", { path: `损坏${extension}` });
     assert.equal(corrupt.isError, true);
     assert.equal(corrupt.structuredContent.error.code, "corrupt_file");
@@ -128,7 +134,8 @@ for (const { plugin, file, marker } of formats) {
       firstOpenMs,
       firstReadMs,
       repeatReadMs,
-      rotationReads: 20,
+      rotationReads,
+      rotationReadMs,
       sourceHash,
       originalsUnchanged: true,
       corruptRejected: true,

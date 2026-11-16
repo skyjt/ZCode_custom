@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
 import { parseLocator } from "#office/domain/anchor.ts";
 import { parseDocx } from "#office/adapters/parse/docx.ts";
 import { parsePptx } from "#office/adapters/parse/pptx.ts";
@@ -17,6 +18,58 @@ const pdfjs = `${dirname(createRequire(import.meta.url).resolve("pdfjs-dist/pack
 const assets = { cMapUrl: `${pdfjs}cmaps/`, standardFontDataUrl: `${pdfjs}standard_fonts/` };
 
 describe("parsers", () => {
+  it("preserves inherited Word headings, overrides and anchors with rich style formatting", async () => {
+    const make = async (rich: boolean, inheritedLevel = 1) => {
+      const zip = new JSZip();
+      const formatting = rich
+        ? `<w:rPr><w:rFonts w:ascii="Calibri"/><w:color w:val="234567"/></w:rPr>
+           <w:tblPr><w:tblBorders><w:top w:val="single"/></w:tblBorders></w:tblPr>
+           <w:trPr><w:trHeight w:val="240"/></w:trPr><w:tcPr><w:tcW w:w="120"/></w:tcPr>
+           ${'<w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:fill="EFEFEF"/></w:tcPr><w:pPr><w:outlineLvl w:val="8"/></w:pPr></w:tblStylePr>'.repeat(100)}`
+        : "";
+      zip.file(
+        "word/styles.xml",
+        `<?xml version="1.0"?><!DOCTYPE w:styles [<!ENTITY custom "Heading 9">]>
+         <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+           ${rich ? '<w:docDefaults><w:rPrDefault><w:rPr><w:b/></w:rPr></w:rPrDefault></w:docDefaults><w:latentStyles><w:lsdException w:name="Heading 9"/></w:latentStyles>' : ""}
+           <w:style w:styleId="Base中"><w:name w:val="正文"/><w:pPr><w:outlineLvl w:val="${inheritedLevel}"/></w:pPr>${formatting}</w:style>
+           <w:style w:styleId="Derived"><w:name w:val="&custom;"/><w:basedOn w:val="Base&#x4E2D;"/>${formatting}</w:style>
+           <w:style w:styleId="List"><w:name w:val="List &amp; 中文"/>${formatting}</w:style>
+           <w:style w:styleId="A"><w:basedOn w:val="B"/>${formatting}</w:style>
+           <w:style w:styleId="B"><w:basedOn w:val="A"/>${formatting}</w:style>
+         </w:styles>`,
+      );
+      zip.file(
+        "word/document.xml",
+        `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+          <w:p><w:pPr><w:pStyle w:val="Derived"/></w:pPr><w:r><w:t>继承标题 &amp; 中文</w:t></w:r></w:p>
+          <w:p><w:pPr><w:pStyle w:val="Derived"/><w:outlineLvl w:val="2"/></w:pPr><w:r><w:t>直接覆盖</w:t></w:r></w:p>
+          <w:p><w:pPr><w:pStyle w:val="List"/></w:pPr><w:r><w:t>列表正文</w:t></w:r></w:p>
+          <w:p><w:pPr><w:pStyle w:val="A"/></w:pPr><w:r><w:t>循环继承正文</w:t></w:r></w:p>
+          <w:tbl><w:tr><w:tc><w:p><w:r><w:t>表格正文</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+        </w:body></w:document>`,
+      );
+      return parseDocx(await zip.generateAsync({ type: "uint8array" }), "中文.docx");
+    };
+    const rich = await make(true);
+    const plain = await make(false);
+    expect(rich.outline).toEqual([
+      { at: "p:1", label: "继承标题 & 中文", level: 2 },
+      { at: "p:2", label: "直接覆盖", level: 3 },
+    ]);
+    expect(rich.title).toBe("继承标题 & 中文");
+    expect(rich.read(null, 0)).toEqual(plain.read(null, 0));
+    expect(rich.outline).toEqual(plain.outline);
+    expect(rich.blocks).toEqual(plain.blocks);
+    expect(rich.read(null, 0).text).toContain("- 列表正文");
+    expect(rich.read(parseLocator("docx", "t:1/r1c1"), 0).text).toContain("表格正文");
+    expect(rich.search("正文", 10)).toEqual(plain.search("正文", 10));
+    expect(rich.read(null, 0).text).not.toContain("Heading 9");
+    // 不共享不同文档的样式事实：相同 id 的新文档必须读到自己的 outlineLvl。
+    expect((await make(true, 0)).outline[0].level).toBe(1);
+    expect(rich.outline[0].level).toBe(2);
+  });
+
   it("reads docx blocks, headings and tables", async () => {
     const doc = await parseDocx(await fixture("report.docx"), "report.docx");
     expect(doc.title).toBe("Quarterly Report");

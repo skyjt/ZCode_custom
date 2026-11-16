@@ -1,5 +1,10 @@
 # Tool Change Chain Spec
 
+2026-11-16 Word 分配优化：原 DocumentOwner → parseDocx → 同一 XML 解析器；仅 styles.xml
+不展开未参与标题/继承判断的格式子树，保留名称、basedOn、outlineLvl、实体禁展开及原字节。
+工具 schema/输出、权限、MCP/面板协议、原文渲染、会话/缓存所有者不变；验收覆盖复杂样式
+语义一致、中文与实体、文件安全及同机首次/重复读取延迟和内存，不以包体积推算 RAM。
+
 2026-11-16 后续内存优化：Office MCP 的目录/握手不求值格式解析器；DocumentOwner 在原文件
 审核之后首次解析时导入随包 parsers.mjs。Node loader 与原 owner 分别拥有模块/文档缓存，
 工具 schema、权限、错误码、输出和 UI/V4 投影不变。冷解析计入首次工具延迟；成包验证四种

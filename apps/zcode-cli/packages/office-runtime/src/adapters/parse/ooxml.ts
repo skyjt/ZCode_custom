@@ -5,7 +5,7 @@ import { MAX_UNZIPPED_BYTES, OfficeError } from "#office/contract.ts";
 /** Order-preserving XML node from fast-xml-parser: `{ [tag]: children, ":@"?: attributes }`. */
 export type XNode = Record<string, unknown>;
 
-const parser = new XMLParser({
+const parserOptions = {
   preserveOrder: true,
   ignoreAttributes: false,
   attributeNamePrefix: "",
@@ -15,7 +15,8 @@ const parser = new XMLParser({
   trimValues: false,
   parseTagValue: false,
   parseAttributeValue: false,
-});
+};
+const parser = new XMLParser(parserOptions);
 
 const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 /** Decode the five XML entities and numeric references only. */
@@ -30,8 +31,10 @@ export function decodeXml(text: string): string {
   });
 }
 
-export function parseXml(text: string): XNode[] {
-  return parser.parse(text) as XNode[];
+export function parseXml(text: string, stopNodes?: string[]): XNode[] {
+  // stopNodes 仅省去指定子树的对象展开；实体、属性与文本的安全选项仍由同一处固定。
+  const selected = stopNodes ? new XMLParser({ ...parserOptions, stopNodes }) : parser;
+  return selected.parse(text) as XNode[];
 }
 
 export function tagOf(node: XNode): string {
