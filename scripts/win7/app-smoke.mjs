@@ -284,6 +284,17 @@ try {
   await page.getByTestId("settings-locale-select-item-zh-CN").click();
   await page.getByText("系统能力自测 · Win7 特别版", { exact: true }).waitFor();
   await page.screenshot({ path: join(output, "startup.png") });
+  if (!process.argv.includes("--baseline")) {
+    // reload 后重新执行实际自测，验证新增三行的中文界面，而不只检查语言选择器。
+    await page.getByTestId("system-self-test-run").click();
+    await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
+    for (const label of ["内置 Git", "Java 8 开发环境", "Maven 构建环境"]) {
+      await page.getByText(label, { exact: true }).waitFor();
+    }
+    assert.equal(await page.locator('[data-self-test-status="fail"]').count(), 0);
+    await page.getByText("Java 8 开发环境", { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: join(output, "developer-tools-zh.png") });
+  }
   assert.equal(reducedMotion, true, "Win7 must enable the actual reduced-motion preference");
   await writeFile(
     join(output, "startup.json"),
