@@ -55,3 +55,5 @@ sequenceDiagram
 43799134307 补充诊断确认，runner JDK 8 通过中文目录 junction 启动时，两条原生命令均直接退出 2（`could not find java.dll` / `Could not find Java SE Runtime Environment`）。自测报告注意符合实际，不能强行宣称该 launcher 路径可用。正例改用本机真实 JDK 安装，源码和 cwd 继续包含中文、空格、百分号及其他 shell 字符；固定编译文件名/类路径相对于 cwd 传递，避免旧 JDK 参数编码限制。另用真实本机失败进程验证两条版本命令均退出后能立即清理，无 mock 或增加等待。
 
 来源：[Git Windows 版本边界](https://gitforwindows.org/requirements.html)、[2.46.2 发行资产与摘要](https://github.com/git-for-windows/git/releases/tag/v2.46.2.windows.1)、[Maven 仓库与离线依赖](https://maven.apache.org/guides/introduction/introduction-to-repositories)。
+
+43799659769 的回归为 32/33：失败进程退出清理正例通过，真实 javac 版本命令约 15 秒后被终止。下一轮记录超时/信号与有限的 CI 固定版本命令诊断，对照 ASCII/中文工作目录和完整/精简 PATH；不延长超时或降低 JDK 成功条件。产品报告只显示失败阶段和退出原因，不回显工具原始错误输出。

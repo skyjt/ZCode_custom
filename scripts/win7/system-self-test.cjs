@@ -120,9 +120,13 @@ async function probeJavaEnvironment(folder, env = process.env) {
     };
   } catch (error) {
     // 不回传工具原始错误输出，其中可能包含本机脚本回显的配置或秘密。
+    // execFile 超时的 code 可能为 null，必须保留终止原因，避免误报成输出格式错误。
+    const reason = error.killed
+      ? "process terminated (timeout or output limit)"
+      : error.code || error.signal || "invalid output";
     return {
       status: "warn",
-      detail: `${location}; JDK ${stage} probe failed (${error.code || "invalid output"}); no project built`,
+      detail: `${location}; JDK ${stage} probe failed (${reason}); no project built`,
     };
   }
 }

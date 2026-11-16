@@ -4,6 +4,8 @@ import { runChecks } from "../win7/system-self-test.cjs";
 import { mkdtemp, mkdir, writeFile, rm, copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import probes from "../win7/system-self-test.cjs";
 
 test("self-test continues after failure and reports optional and untested capabilities honestly", async () => {
@@ -87,7 +89,7 @@ test(
 test(
   "native JDK 8 probe compiles UTF-8 source and flags a different PATH Java",
   { skip: process.platform !== "win32" },
-  async () => {
+  async (context) => {
     const folder = await mkdtemp(join(tmpdir(), "Java 中文 & (x) %PATH% ! "));
     try {
       assert.ok(process.env.JAVA_HOME_8_X64 || process.env.JAVA_HOME, "CI must provide JDK 8");
@@ -102,6 +104,57 @@ test(
         JAVA_TOOL_OPTIONS: "-javaagent:must-not-run",
       };
       const report = await probes.probeJavaEnvironment(folder, env);
+      if (report.status !== "pass") {
+        // CI 的固定版本命令诊断，不读取项目或输出继承的注入参数；保留原断言。
+        const diagnosticEnv = { ...env };
+        for (const key of Object.keys(diagnosticEnv)) {
+          if (
+            /^(JAVA_TOOL_OPTIONS|_JAVA_OPTIONS|JDK_JAVA_OPTIONS|JDK_JAVAC_OPTIONS|CLASSPATH)$/i.test(
+              key,
+            )
+          )
+            delete diagnosticEnv[key];
+        }
+        const ascii = await mkdtemp(join(tmpdir(), "java-diagnostic-"));
+        try {
+          for (const [name, cwd, path] of [
+            ["ascii/full-path", ascii, process.env.PATH],
+            ["unicode/full-path", folder, process.env.PATH],
+            ["unicode/jdk-only-path", folder, env.PATH],
+          ]) {
+            const results = await Promise.allSettled(
+              ["java.exe", "javac.exe"].map((file) =>
+                promisify(execFile)(join(home, "bin", file), ["-version"], {
+                  cwd,
+                  env: { ...diagnosticEnv, PATH: path },
+                  encoding: "utf8",
+                  windowsHide: true,
+                  timeout: 15000,
+                  maxBuffer: 64 * 1024,
+                }),
+              ),
+            );
+            context.diagnostic(
+              JSON.stringify({
+                name,
+                results: results.map((result) => {
+                  const value = result.status === "fulfilled" ? result.value : result.reason;
+                  return {
+                    status: result.status,
+                    code: value.code,
+                    killed: value.killed,
+                    signal: value.signal,
+                    stdout: value.stdout?.slice(0, 2000),
+                    stderr: value.stderr?.slice(0, 2000),
+                  };
+                }),
+              }),
+            );
+          }
+        } finally {
+          await rm(ascii, { recursive: true, force: true });
+        }
+      }
       assert.equal(report.status, "pass", report.detail);
       assert.match(report.detail, /compiled and ran/);
       assert.doesNotMatch(report.detail, /must-not-run/);
