@@ -72,7 +72,7 @@ sequenceDiagram
 
 1. 保存并关闭 Office，退出 aibuddy7se。在原安装/便携目录找到 `resources/offline-tools`，先把其中的 `office.md` 备份到其他位置。
 2. 将 ZIP 中的 `office_native.py`、`office_native.ps1`、`office.md` 复制到该目录；已有业务数据、模型配置、Python 和应用文件都不替换。
-3. 重启 aibuddy7se 并开一个新对话。也可在应用终端执行 `python -B -X utf8 -c "import os; print(os.environ['ZCODE_OFFLINE_TOOLS'])"` 得到工具绝对路径，再运行 `python -B -X utf8 "<工具目录>\office_native.py" probe`。
+3. 重启 aibuddy7se 并开一个新对话。也可在应用终端执行 `python -B -X utf8 -c "import os; print(os.environ['AIBUDDY7SE_OFFLINE_TOOLS'])"` 得到工具绝对路径，再运行 `python -B -X utf8 "<工具目录>\office_native.py" probe`。
 4. 按 `office.md` 的三类文档验收清单操作。可在聊天中要求：“读取离线 Office 指南，用本机 Office 2013 把这份测试 DOC 转成 DOCX 并导出 PDF，保留原件。”注册检查成功不能代替真实转换。
 
 撤销时删除本次增加的两个脚本，恢复备份的 office.md；不删除原有工具、项目或设置。

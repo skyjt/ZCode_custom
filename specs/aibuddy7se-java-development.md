@@ -43,7 +43,7 @@ sequenceDiagram
 ## 验收
 
 1. 工程回归先验证 PATH 幂等和原 Java/Maven/HOME 不变、坏资产拒绝；版本/缺失诊断不暴露环境参数或 settings.xml 秘密。
-2. Windows 成包使用固定随包 Git：中文/空格目录初始化、提交、分支、差异、bare clone/push、worktree、bundle 回环和 sh hook；真实回环 SSH/HTTPS 及错误信任拒绝按实际完成情况记录。原生 wincred 用唯一虚构 target 写入/读取/删除。
+2. Windows 成包使用固定随包 Git：中文/空格目录初始化、提交、分支、差异、bare clone/push、worktree、bundle 回环和 sh hook；真实回环 SSH/HTTPS 新提交推送后核对远端 ref，错误信任必须拒绝。原生 wincred 用唯一虚构 target 写入、读取并核对原值、删除后确认不存在。
 3. Windows CI 使用 JDK 8 和 Maven 的现有/测试安装：编译运行固定样本、mvn --version，覆盖有/无环境、版本冲突和特殊路径；保留所有原门禁和 PE 导入检查，新增 Git 二进制检查。
 4. 成包 GUI 自测出现 Git、JDK 8、Maven 三行，中英文及深浅主题显示正常；依旧从旧 SQLite/OS 密文迁移进入工作区。检查没有启动常驻 JVM，保留既有内存采样与首次发送验证。
 5. 类型检查、Lint、架构与正常 pre-push，通过完整最新 Windows Actions 后核对品牌扫描、截图和唯一 EXE SHA-256。
@@ -57,3 +57,7 @@ sequenceDiagram
 来源：[Git Windows 版本边界](https://gitforwindows.org/requirements.html)、[2.46.2 发行资产与摘要](https://github.com/git-for-windows/git/releases/tag/v2.46.2.windows.1)、[Maven 仓库与离线依赖](https://maven.apache.org/guides/introduction/introduction-to-repositories)。
 
 43799659769 的回归为 32/33：失败进程退出清理正例通过，真实 javac 版本命令约 15 秒后被终止。下一轮记录超时/信号与有限的 CI 固定版本命令诊断，对照 ASCII/中文工作目录和完整/精简 PATH；不延长超时或降低 JDK 成功条件。产品报告只显示失败阶段和退出原因，不回显工具原始错误输出。
+
+回环 SSH fixture 的本机 OpenSSH 实测：仅在 shell 层引用含空格的 UserKnownHostsFile 仍会被 SSH 配置解析器拆成多个文件，正确密钥也得到 `Host key verification failed`；在选项值内部再引用路径后成功。fixture 同时改用 ssh2 服务端连接实际提供的 `end()`，避免清理时的 TypeError 遮蔽原验收结果。严格主机验证和错误密钥负例保持。
+
+Actions 43800362165 已通过 33/33 工程回归、原成包门禁与完整 GUI，Java 超时未再复现，原因仍未确认；唯一失败为上述 Git SSH 正例的 `Host key verification failed`，故不交付该包。补充 Linux 的真实回环协议验证通过 SSH/HTTPS clone、新提交 push 与远端 ref 核对、未知主机/不受信任 TLS 拒绝；其中使用 Linux Git/临时 credential-store，仅用于验证 fixture，不能代替 Windows MinGit、wincred 或 JDK/Maven 成包验收。

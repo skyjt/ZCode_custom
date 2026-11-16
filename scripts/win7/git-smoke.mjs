@@ -164,11 +164,28 @@ try {
   const sshEnv = {
     ...env,
     GIT_SSH_VARIANT: "ssh",
-    GIT_SSH_COMMAND: `${quote(join(resources, "offline-tools/git/usr/bin/ssh.exe"))} -F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=yes -o ${quote(`UserKnownHostsFile=${knownHosts}`)}`,
+    // SSH 配置解析还有一层空白分词；shell 外层引用不能代替选项值内的路径引号。
+    GIT_SSH_COMMAND: `${quote(join(resources, "offline-tools/git/usr/bin/ssh.exe"))} -F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=yes -o ${quote(`UserKnownHostsFile="${knownHosts.replaceAll("\\", "/")}"`)}`,
   };
   const sshUrl = `ssh://fixture@127.0.0.1:${port}/fixture.git`;
   await g(["clone", sshUrl, join(root, "ssh-clone")], { env: sshEnv });
+  await g([
+    "-C",
+    join(root, "ssh-clone"),
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--allow-empty",
+    "-m",
+    "SSH fixture push",
+  ]);
   await g(["-C", join(root, "ssh-clone"), "push", "origin", "main"], { env: sshEnv });
+  assert.equal(
+    await g(["--git-dir", remote, "rev-parse", "main"]),
+    await g(["-C", join(root, "ssh-clone"), "rev-parse", "HEAD"]),
+  );
   await writeFile(knownHosts, "");
   await assert.rejects(g(["ls-remote", sshUrl], { env: sshEnv }), /Host key verification failed/);
   checks.push(
@@ -287,13 +304,30 @@ try {
   assert.equal(authenticated, 0);
   credential = `protocol=https\nhost=${host}:${tlsPort}\nusername=${username}\npassword=${password}\n\n`;
   await run(wincred, ["store"], { input: credential });
-  assert.match(
-    await run(wincred, ["get"], { input: `protocol=https\nhost=${host}:${tlsPort}\n\n` }),
-    /password=/,
-  );
+  const stored = await run(wincred, ["get"], {
+    input: `protocol=https\nhost=${host}:${tlsPort}\n\n`,
+  });
+  assert.ok(stored.split(/\r?\n/).includes(`username=${username}`));
+  assert.ok(stored.split(/\r?\n/).includes(`password=${password}`));
   const trustedOptions = [...httpOptions, "-c", `http.sslCAInfo=${certificate}`];
   await g([...trustedOptions, "clone", url, join(root, "https-clone")]);
+  await g([
+    "-C",
+    join(root, "https-clone"),
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--allow-empty",
+    "-m",
+    "HTTPS fixture push",
+  ]);
   await g(["-C", join(root, "https-clone"), ...trustedOptions, "push", "origin", "main"]);
+  assert.equal(
+    await g(["--git-dir", remote, "rev-parse", "main"]),
+    await g(["-C", join(root, "https-clone"), "rev-parse", "HEAD"]),
+  );
   assert.ok(authenticated > 0);
   checks.push("native wincred; HTTPS clone/push with explicit CA; untrusted TLS rejected");
 
@@ -320,9 +354,22 @@ try {
   );
   console.log(`PASS ${checks.join("; ")}`);
 } finally {
-  if (credential) await run(wincred, ["erase"], { input: credential });
-  for (const client of sshClients) client.destroy();
-  for (const child of backendChildren) child.kill();
+  if (credential) {
+    await run(wincred, ["erase"], { input: credential });
+    assert.equal(await run(wincred, ["get"], { input: credential }), "");
+  }
+  // ssh2 的服务端连接提供 end()，没有客户端 Socket 的 destroy() 方法。
+  for (const client of sshClients) client.end();
+  // 等后端真正关闭文件句柄后再删除临时仓库，避免 Windows 清理掩盖原始错误。
+  await Promise.all(
+    [...backendChildren].map(
+      (child) =>
+        new Promise((done) => {
+          child.once("close", done);
+          child.kill();
+        }),
+    ),
+  );
   if (ssh) await new Promise((done) => ssh.close(done));
   if (https) {
     https.closeAllConnections();

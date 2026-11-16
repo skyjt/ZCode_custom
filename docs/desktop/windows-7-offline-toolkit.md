@@ -16,7 +16,7 @@
 2. 运行 EXE 完成安装，安装器不会自动启动应用。在安装目录的 `resources/offline-tools/prerequisites` 找到系统前置包，按系统已有补丁情况安装。已检查随包 VS2019 安装器的 Burn 清单：46 个 payload 均为 embedded，其中包含 `Windows6.1-KB2999226-x64.msu`（UCRT），无需安装时在线下载；补丁适用性仍以目标 Win7 安装器结果为准。
 3. 从开始菜单启动 `aibuddy7se`。首次启动直接进入工作区；在设置 → 模型供应商添加自定义内网 API。
 4. 在设置的模型供应商中新增内网服务，填写实际 Base URL、认证配置与模型名称，协议须与服务器匹配。安装包不含模型权重，接通模型前可使用终端及下述独立工具诊断。
-5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
+5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['AIBUDDY7SE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
 6. 用测试文档和测试 Linux 账号验收聊天中的 `docx` / `xlsx` / `pptx` / `pdf`、`ssh-sftp`、`offline-toolkit`。SSH 首连先向服务器管理员核实主机指纹；私钥和密码留在本机，不粘贴到模型消息中。
 
 Office 内容编辑由 Agent 调用本机库完成，原生转换/重算/PDF 使用已安装 Office 2013；预览面板仍为只读，不提供类似 Word 的所见即所得编辑界面。开发环境增量加入随包 MinGit 2.46.2，JDK 8/Maven 复用本机安装；当前实现和验收状态见[Java 开发规格](../../specs/aibuddy7se-java-development.md)。启动失败的独立诊断和日志位置见 [Win7 真机验收清单](windows-7-local-compatibility.md#win7-真机验收清单由用户执行)。
@@ -26,10 +26,10 @@ Office 内容编辑由 Agent 调用本机库完成，原生转换/重算/PDF 使
 - `scripts/win7/offline-runtime.json` 是工具版本、来源及 SHA-256 的唯一清单，也锁定 Python wheels 的完整传递依赖；构建下载校验，安装端不下载。
 - Python 采用 PythonVista 的 3.11 x64 嵌入发行版；Office 使用 python-docx、openpyxl、python-pptx、lxml、Pillow，PDF 使用 pypdf/ReportLab；CSV/JSON/SQLite/ZIP/哈希由标准库处理，附 requests/PyYAML。
 - SSH/SFTP 使用官方 PuTTY 便携发行版（Plink/PSFTP/PSCP/PuTTY/Pageant/PuTTYgen），不要求远端安装 ZCode。既有“远程工作区”仍有自己的 Server 资产部署前提，不能以 SSH 客户端通过代替它的验收。
-- 资产放在 `resources/offline-tools`。Win7 bootstrap 在导入 Main 前将 Python 和 PuTTY 目录加入**当前应用进程** PATH，提供 `ZCODE_OFFLINE_TOOLS` 指向只读资源目录；Agent/终端通过现有进程环境继承。Windows PATH 大小写键归一到既有键，保留原路径；系统 PATH/HOME/USERPROFILE 不写入。
+- 资产放在 `resources/offline-tools`。Win7 bootstrap 在导入 Main 前将 Python、PuTTY 和 Git cmd 目录加入**当前应用进程** PATH，提供 `AIBUDDY7SE_OFFLINE_TOOLS` 指向只读资源目录；Agent/终端通过现有进程环境继承。Windows PATH 大小写键归一到既有键，保留原路径；系统 PATH/HOME/USERPROFILE 不写入。
 - Python 的 `._pth` 固定 stdlib、解释器目录、随包 `Lib/site-packages`，不读取用户 site-packages；技能命令使用 `-B -X utf8`，禁止 pip 联网。普通用户不需要向安装目录写缓存。
 - 原版 Win7 SP1 可能缺少 Python 需要的 KB2533623/KB3063858 和 UCRT。离线包携带微软 KB3063858 x64 与 VS2019 VC++ x64 原安装器；管理员按说明手动安装并重启，不自动提权/自动改系统。
-- Office 插件技能先检查 `ZCODE_OFFLINE_TOOLS`，存在时按随包 Office 指南执行，不运行原来的在线依赖安装脚本；不存在时保持原有指南。插件升级遵守 package/manifest/bootstrap/SEA 同版本契约。
+- Office 插件技能先检查 `AIBUDDY7SE_OFFLINE_TOOLS`，存在时按随包 Office 指南执行，不运行原来的在线依赖安装脚本；不存在时保持原有指南。插件升级遵守 package/manifest/bootstrap/SEA 同版本契约。
 - Win7 专用常用技能随既有 bundled-skills 目录 staging，由原发现器读取；不新增技能缓存、配置 owner 或工具权限通道。
 - 修改文档默认另存副本，重读验证；不静默丢失原格式、公式、宏或覆盖源文件。SSH 首连指纹必须从管理员可信来源确认；自动化用 `-batch -hostkey`，错误指纹必须拒绝。密码不写命令行/日志，交互输入或使用用户密钥/Pageant。
 
@@ -41,7 +41,7 @@ sequenceDiagram
     participant Tool as 随包 Python/PuTTY
     CI->>CI: 校验固定摘要、装配依赖、功能探针
     CI->>Boot: 安装包只读 resources/offline-tools
-    Boot->>Host: 应用内 PATH + ZCODE_OFFLINE_TOOLS
+    Boot->>Host: 应用内 PATH + AIBUDDY7SE_OFFLINE_TOOLS
     Host->>Host: 现有 Skill 发现及 Bash 权限准入
     Host->>Tool: 命令、cwd、既有进程生命周期
     Tool-->>Host: 实际退出码和输出
@@ -149,7 +149,7 @@ Win7 的模型环境增加简短 Python 指引，详细配方按需加载 offlin
 
 新版复用 AIbuddy 图标，显示名为 `aibuddy7se`，安装包为 `aibuddy7se-3.18.0-win7-intranet-x64.exe`。原试验版的数据目录与安装标识保留，升级不会主动迁移或删除会话和设置。
 
-进入 **设置 → 常规 → 系统能力自测**，点击「开始自测」，完成后可「导出报告」。本地检查不联网、不调用模型；单项失败后继续。Git 是可选项；模型 API、真实 SSH/SFTP 与显卡交互仍需实际操作验证。Win7 默认减少动效，关闭引导 WebGL、装饰粒子和启动图标动画。新增功能及 2026-11-12 成包交付验证见 [aibuddy7se 规格](../../specs/aibuddy7se.md)。
+进入 **设置 → 常规 → 系统能力自测**，点击「开始自测」，完成后可「导出报告」。本地检查不联网、不调用模型；单项失败后继续。开发环境增量将 Git 纳入随包检查，JDK 8/Maven 复用本机安装，缺失或不匹配仅提示注意；实际成包验收状态见 [Java 开发规格](../../specs/aibuddy7se-java-development.md)。模型 API、真实 SSH/SFTP 与显卡交互仍需实际操作验证。Win7 默认减少动效，关闭引导 WebGL、装饰粒子和启动图标动画。原自测功能及 2026-11-12 成包交付验证见 [aibuddy7se 规格](../../specs/aibuddy7se.md)。
 
 ## 内网精简版
 
