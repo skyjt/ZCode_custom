@@ -10,7 +10,12 @@ export function configureOfflineTools(resourcesPath, env = process.env) {
     if (key !== pathKey && key.toLowerCase() === "path") delete env[key];
   }
   env[pathKey] = [
-    ...new Set([join(tools, "python"), join(tools, "putty"), ...original.split(delimiter)]),
+    ...new Set([
+      join(tools, "python"),
+      join(tools, "putty"),
+      join(tools, "git/cmd"),
+      ...original.split(delimiter),
+    ]),
   ].join(delimiter);
   env.AIBUDDY7SE_OFFLINE_TOOLS = tools;
   delete env.PYTHONPATH;

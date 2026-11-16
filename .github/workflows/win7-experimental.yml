@@ -48,6 +48,12 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           pnpm install --frozen-lockfile --ignore-scripts
           exit $LASTEXITCODE
+      - name: Select existing CI JDK 8 for developer probes
+        shell: pwsh
+        run: |
+          if (!(Test-Path "$env:JAVA_HOME_8_X64/bin/javac.exe")) { throw 'Runner JDK 8 is required for native developer probes' }
+          "JAVA_HOME=$env:JAVA_HOME_8_X64" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$env:JAVA_HOME_8_X64/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Engineering regression
         run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs scripts/test/win7-memory-profile.test.mjs
       - name: Renderer memory cache browser acceptance
@@ -117,7 +123,7 @@ jobs:
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty.dll",
             "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty-agent.exe"
           )
-          $binaries += Get-ChildItem "$app/resources/offline-tools/python","$app/resources/offline-tools/putty" -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll','.pyd' } | ForEach-Object { $_.FullName }
+          $binaries += Get-ChildItem "$app/resources/offline-tools/python","$app/resources/offline-tools/putty","$app/resources/offline-tools/git" -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll','.pyd' } | ForEach-Object { $_.FullName }
           New-Item .cache/win7-acceptance -ItemType Directory -Force | Out-Null
           foreach ($binary in $binaries) {
             $imports = & $dumpbin.FullName /imports $binary | Out-String
@@ -138,6 +144,15 @@ jobs:
           node scripts/win7/ssh-smoke.mjs "$tools"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node scripts/win7/skills-smoke.mjs packages/desktop/dist/win7/win-unpacked
+          exit $LASTEXITCODE
+      - name: Packaged Git and inherited Java development environment
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          pnpm exec esbuild packages/services/src/git/providers/gitCommandProvider.ts --bundle --platform=node --format=cjs --outfile=.cache/win7-acceptance/git-provider.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/git-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance/git-provider.cjs
           exit $LASTEXITCODE
       - name: Record checksums and test instructions
         shell: pwsh

@@ -146,7 +146,17 @@ test("offline staging rejects a tampered cached runtime before extracting or exe
 });
 
 test("offline tools use application PATH without duplicate Windows path keys or user Python", () => {
-  const env = { Path: "C:\\Windows", PATH: "wrong", HOME: "/home", PYTHONPATH: "user-python" };
+  const env = {
+    Path: "C:\\Windows",
+    PATH: "wrong",
+    HOME: "/home",
+    PYTHONPATH: "user-python",
+    JAVA_HOME: "C:\\existing-jdk8",
+    MAVEN_HOME: "C:\\existing-maven",
+    M2_HOME: "C:\\legacy-maven",
+    MAVEN_OPTS: "-Xmx768m",
+    ZCODE_GIT_BINARY: "C:\\custom-git\\git.exe",
+  };
   configureOfflineTools("/resources", env);
   assert.equal(env.PATH, undefined);
   assert.ok(env.Path.startsWith(join("/resources", "offline-tools/python")));
@@ -155,6 +165,13 @@ test("offline tools use application PATH without duplicate Windows path keys or 
   assert.equal(env.PYTHONPATH, undefined);
   assert.equal(env.PIP_NO_INDEX, "1");
   assert.equal(env.AIBUDDY7SE_OFFLINE_TOOLS, join("/resources", "offline-tools"));
+  assert.ok(env.Path.includes(join("/resources", "offline-tools/git/cmd")));
+  assert.ok(!env.Path.includes(join("/resources", "offline-tools/git/usr/bin")));
+  assert.equal(env.JAVA_HOME, "C:\\existing-jdk8");
+  assert.equal(env.MAVEN_HOME, "C:\\existing-maven");
+  assert.equal(env.M2_HOME, "C:\\legacy-maven");
+  assert.equal(env.MAVEN_OPTS, "-Xmx768m");
+  assert.equal(env.ZCODE_GIT_BINARY, "C:\\custom-git\\git.exe");
   const path = env.Path;
   configureOfflineTools("/resources", env);
   assert.equal(env.Path, path);

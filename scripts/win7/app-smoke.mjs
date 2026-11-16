@@ -171,6 +171,21 @@ try {
   );
   await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
   assert.deepEqual(reports[0], reports[1], "Main must share the in-flight report");
+  if (!process.argv.includes("--baseline")) {
+    for (const id of ["git", "java", "maven"]) {
+      const check = reports[0].checks.find((item) => item.id === id);
+      assert.ok(check, `Missing developer tool check: ${id}`);
+      assert.equal(check.status, "pass", `${id}: ${check.detail}`);
+    }
+    assert.match(
+      reports[0].checks.find((item) => item.id === "git").detail,
+      /2\.46\.2\.windows\.1/,
+    );
+    await page
+      .getByText("Java 8 development environment", { exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: join(output, "developer-tools.png") });
+  }
   await writeFile(join(output, "system-self-test.json"), JSON.stringify(reports[0], null, 2));
   const checks = page.locator("[data-self-test-status]");
   assert.ok((await checks.count()) >= 10);

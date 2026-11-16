@@ -19,7 +19,7 @@
 5. 在应用终端执行 `python -B -X utf8 -c "import os,runpy; runpy.run_path(os.path.join(os.environ['ZCODE_OFFLINE_TOOLS'],'smoke.py'),run_name='__main__')"`（兼容 CMD/PowerShell/Git Bash）。应显示 PASS，覆盖 Word/Excel/PPTX 内容编辑及原件不变、PDF、图片与常用数据格式。再执行 `plink.exe -V`、`psftp.exe -V` 确认工具可运行。
 6. 用测试文档和测试 Linux 账号验收聊天中的 `docx` / `xlsx` / `pptx` / `pdf`、`ssh-sftp`、`offline-toolkit`。SSH 首连先向服务器管理员核实主机指纹；私钥和密码留在本机，不粘贴到模型消息中。
 
-Office 内容编辑由 Agent 调用本机库完成，原生转换/重算/PDF 使用已安装 Office 2013；预览面板仍为只读，不提供类似 Word 的所见即所得编辑界面。Git 未随包提供，需要时另行准备 Win7 兼容版本。启动失败的独立诊断和日志位置见 [Win7 真机验收清单](windows-7-local-compatibility.md#win7-真机验收清单由用户执行)。
+Office 内容编辑由 Agent 调用本机库完成，原生转换/重算/PDF 使用已安装 Office 2013；预览面板仍为只读，不提供类似 Word 的所见即所得编辑界面。开发环境增量加入随包 MinGit 2.46.2，JDK 8/Maven 复用本机安装；当前实现和验收状态见[Java 开发规格](../../specs/aibuddy7se-java-development.md)。启动失败的独立诊断和日志位置见 [Win7 真机验收清单](windows-7-local-compatibility.md#win7-真机验收清单由用户执行)。
 
 ## 构建与执行契约
 

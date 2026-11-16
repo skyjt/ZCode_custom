@@ -2,7 +2,15 @@
   "version": 1,
   "python": "3.11.18",
   "putty": "0.85",
+  "git": "2.46.2.windows.1",
   "assets": [
+    {
+      "name": "MinGit-2.46.2-64-bit.zip",
+      "url": "https://github.com/git-for-windows/git/releases/download/v2.46.2.windows.1/MinGit-2.46.2-64-bit.zip",
+      "sha256": "0dca60869825ceb8b6108be69f0c536174fbca45e11300f2c14c34632d8238ed",
+      "destination": "git",
+      "extract": true
+    },
     {
       "name": "python-3.11.18-embed-amd64.zip",
       "url": "https://github.com/adang1345/PythonVista/releases/download/v3.11.18/python-3.11.18-embed-amd64.zip",
