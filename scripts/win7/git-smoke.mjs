@@ -60,6 +60,7 @@ let ssh;
 const sshClients = new Set();
 const backendChildren = new Set();
 const checks = [];
+const errors = [];
 let report;
 
 try {
@@ -379,11 +380,9 @@ try {
       "Windows Server 2022; fictional repositories/servers/credentials only; real Win7, internal Git/Maven, LFS and production Java builds untested",
   };
 } catch (error) {
-  // 清理也可能失败；先保留原始错误，避免再次只看到 erase 的退出码。
-  console.error("Git acceptance failed before cleanup:", error);
-  throw error;
+  // 汇总验收与清理错误，避免 finally 覆盖最先失败的命令。
+  errors.push(error);
 } finally {
-  const errors = [];
   const cleanup = async (action) => {
     try {
       await action();
@@ -422,8 +421,8 @@ try {
   });
   await cleanup(() => rm(root, { recursive: true, force: true }));
   await cleanup(() => rm(tlsRoot, { recursive: true, force: true }));
-  if (errors.length) throw new AggregateError(errors, "Git fixture cleanup failed");
 }
+if (errors.length) throw new AggregateError(errors, "Git acceptance or fixture cleanup failed");
 // 凭据删除与临时资源清理也属于门禁，全部成功以后才能记录 PASS。
 await writeFile(
   resolve(
