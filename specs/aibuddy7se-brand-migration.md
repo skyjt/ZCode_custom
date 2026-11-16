@@ -67,13 +67,26 @@ Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/
 
 ## 2026-11-13 内存优化后复验
 
-最新交付运行时代码为 `ddd6e31003b6ca4b6e5d4a18fd9110928840254a`，已正常推送到 `skyjt/ZCode_custom` 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43485739797](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797) 全部通过（job `132093688183`）；此版本替代上方历史产物作为当前下载。
+该轮交付运行时代码为 `ddd6e31003b6ca4b6e5d4a18fd9110928840254a`，已正常推送到 `skyjt/ZCode_custom` 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43485739797](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797) 全部通过（job `132093688183`）；此记录现为历史证据，当前下载见下方 2026-11-16 记录。
 
 - 原有迁移、安全负例与离线能力门禁全部保留并重新通过。Windows 工程回归现为 29/29，无跳过，真实注册表不同 command 负例仍执行；真实旧 SQLite/OS 密文、源数据保留、冲突拒绝、Agent/WinPTY、Office 库、SSH/SFTP、技能、PE 导入及防火墙阻断成包 GUI 均通过。
 - 最终本地 Node 24.14.0 / pnpm 10.33.2 类型检查通过，Lint 533 条既有告警、0 错误，架构新增/基线违规 0，正常 pre-push 门禁通过。Linux 工程回归 27 通过、2 项 Windows 原生检查跳过；上述 Windows 运行补齐验证。
 - 人工查看最终启动、关于、帮助菜单、浅色/深色代码预览、系统自测、模型设置和首次回复截图；名称/Logo/版本正确，缺模型提示只引导自定义模型，没有云升级或上游社区入口。首次发送真实经过 UI 与共享 Agent 到本机虚构模型并显示回复，只有一个聊天 runtime；不是实际内网模型验收。
 - `brand-audit.json` 扫描 28,553 个文本文件通过，仍仅 `legacy-data.cjs`、`legacy-migration.mjs`、`legacy-storage.js` 保留旧识别字符串。新版没有修改原始数据保留及 Windows 自定义入口保护规则。
-- [当前 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14069470959)外层 artifact ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，254,611,286 字节，无便携包。下载后实际 SHA-256 与 runner 记录一致：`512861188eb378e6adfe78e2f9e2d027039eea645a1907f601204ff795be08ae`。[当前诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14068442796)，保留期 14 天。
+- [该轮 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14069470959)外层 artifact ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，254,611,286 字节，无便携包。下载后实际 SHA-256 与 runner 记录一致：`512861188eb378e6adfe78e2f9e2d027039eea645a1907f601204ff795be08ae`。[该轮诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14068442796)，保留期 14 天。
 - 同机对照：启动就绪 90 秒工作集合计由 1166.57 降至 929.41 MiB；配置模型但未发送时由 2480.32 降至 944.85 MiB。启动 30 秒仍约 1372 MiB，打开插件页并首次回复后仍约 2910 MiB；本轮不能声称活动任务或真实浏览器内存已解决。口径、完整数据与取舍见[内存优化 spec](aibuddy7se-memory.md#2026-11-13-最终成包验收)。
 
 上方 Win7 真机、PowerShell 2.0/.NET 3.5、真实 Office 2013、真实模型/内网 SSH、实际旧 NSIS 覆盖安装及完整退出重启升级的未验收范围仍然成立。文档记录提交不改变此已验收 EXE 对应的运行时代码。
+
+## 2026-11-16 Git 与 Java 开发能力后复验
+
+当前交付运行时代码为 `121ad70a55273e1327175f3867b1d19743035234`，已正常推送到用户 fork 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全部通过（job `133095663892`）。本轮加入随包 Git，并按用户选择复用已安装 JDK 8/Maven；具体行为、原生 wincred 修复与完整证据见 [Java 开发环境 spec](aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
+
+- Windows 工程 33/33，无跳过。原注册表不同 command/安装位置/自定义入口安全负例、旧 SQLite/真实 OS 密文迁移、源数据保留与冲突拒绝重新通过。Agent/WinPTY、Office/Python 库、SSH/SFTP、技能、PE 导入及防火墙阻断 GUI 门禁全部保留并通过。
+- 打包前与成包后原生 Git 均通过：中文路径仓库操作、SSH/HTTPS clone 和新提交 push、远端 ref 核对、错误主机/证书拒绝；原生 wincred 保留错误密码不删除、正确密码删除和 Unicode/OAuth 字段的真实凭据断言。Java 8 固定 UTF-8 样本编译/运行及 Maven 版本探测通过，不等于真实项目构建已验收。
+- 本地类型检查通过，正常 pre-push 的 Lint 为 533 条既有告警、0 错误，schema/工程/架构门禁通过。人工逐一核对最终中英文开发自测、启动、关于、帮助、深浅代码预览/设置、模型配置与首次回复截图：名称/Logo/版本正确，无云升级或上游社区入口。成包自测 12 通过、1 注意、0 失败、1 未测；真实 UI 经共享 Agent 到虚构模型首次回复通过，只启动一个聊天 runtime。
+- `brand-audit.json` 扫描 28,562 个文本文件，仅三份原迁移识别模块允许旧字符串。旧原始数据保留和其它安装位置/自定义 Windows 入口保护规则不变。
+- [当前 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198479433)：外层 ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,404,424 字节，无便携包。实际下载文件的 SHA-256 与 runner 一致：`29b5a141c608a79d7ae330d77ac224d33fb001441683288a1f4e9b3a75b86ae4`。[当前诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198972317)，保留至 2026-11-30 04:58 UTC。
+- 本轮保留已有内存优化，但没有旧包同机对照。工作区就绪 30/90 秒工作集合计为 1374.40/963.14 MiB，配置模型未发送为 959.16 MiB，插件页与首次回复后为 2916.21 MiB；所有采样均无 java/javac 常驻进程。不能声称初始启动和任务高占用已经解决。
+
+Win7 真机/PowerShell 2.0/.NET 3.5、真实 Office 2013、真实 Java 项目/内网 Git/Maven 及企业认证、真实模型/内网 SSH、实际旧 NSIS 覆盖安装与完整退出升级重启仍未验收。此记录提交仅改文档，安装器对应代码仍为上述 `121ad70a`。

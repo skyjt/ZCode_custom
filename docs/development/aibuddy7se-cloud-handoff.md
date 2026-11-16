@@ -1,4 +1,6 @@
-> 云端接手及本轮内存优化已完成：运行时代码 `ddd6e31003b6ca4b6e5d4a18fd9110928840254a`，Actions [43485739797](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797) 全绿（Windows 工程 29/29）；EXE、SHA-256、品牌扫描与最终截图均已下载核对。当前下载与仍待真机验收项目见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-13-内存优化后复验)。[内存实测](../../specs/aibuddy7se-memory.md#2026-11-13-最终成包验收)：同机启动空闲 90 秒工作集合计约下降 20%，配置模型但未发送约下降 62%；30 秒初始占用与任务期间高占用仍未解决。以下原始交接故障描述保留为历史证据，不代表当前仍然失败。
+> 当前已验收运行时代码为 `121ad70a55273e1327175f3867b1d19743035234`，Actions [43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全绿（Windows 工程 33/33）。随包 Git、优先复用现有 JDK 8/Maven 的按需自测已完成；没有新增常驻 JVM。唯一离线 EXE、SHA-256、品牌扫描与最终中英文截图均已下载核对。当前下载与仍待真机验收项目见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-git-与-java-开发能力后复验)和[Java 开发环境验收](../../specs/aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
+>
+> 此前[内存同机实测](../../specs/aibuddy7se-memory.md#2026-11-13-最终成包验收)的优化保留：空闲 90 秒工作集合计约下降 20%，配置模型但未发送约下降 62%。本轮单次采样为启动 30 秒 1374.40 MiB、90 秒 963.14 MiB、插件页与首次回复后 2916.21 MiB，没有新旧包同机对照；初始启动与任务期间高占用仍未解决。以下原始交接故障描述保留为历史证据，不代表当前仍然失败。
 
 # aibuddy7se 云端开发交接（2026-11-13）
 

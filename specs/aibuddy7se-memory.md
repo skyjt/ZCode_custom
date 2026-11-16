@@ -109,3 +109,9 @@ Actions 43479173611 在安装器准备 ugrep 时失败：`powershell.exe` 从继
 - [EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14069470959)外层 ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，254,611,286 字节，无便携包。下载后实际 SHA-256 与 runner 的 `SHA256SUMS.txt` 一致：`512861188eb378e6adfe78e2f9e2d027039eea645a1907f601204ff795be08ae`。[诊断、截图与完整内存采样](https://github.com/skyjt/ZCode_custom/actions/runs/43485739797/artifacts/14068442796)和安装器 artifact 保留 14 天。
 
 仍未验收：Win7 SP1 x64 真机/PowerShell 2.0/.NET 3.5、真实 Office 2013、真实模型/内网 SSH、实际旧 NSIS 覆盖安装、完整退出后的真实升级重启，以及用户实际浏览器/任务负载的内存。离线 Office/Python/SSH/技能和原始数据保留规则维持；首次发送会承担延迟到此时的 Agent 初始化开销。
+
+## 2026-11-16 开发工具增量复验
+
+加入随包 Git 和现有 JDK 8/Maven 按需自测后，运行时代码 `121ad70a55273e1327175f3867b1d19743035234` 的 [Windows Actions 43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全部通过。保留上述优化与缓存/懒草稿/首次发送门禁；本轮没有旧包同机对照，不重新计算节省比例。完整采样与最新 EXE 见 [Java 开发环境验收](aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
+
+Server 2022 单次采样：启动就绪 30 秒工作集合计 1374.40 MiB，90 秒 963.14 MiB，模型已配置但未发送 959.16 MiB，打开插件页并首次回复后 2916.21 MiB；对应 Private bytes 为 1026.16、756.24、851.89、2366.18 MiB。所有采样的应用进程树均没有 java/javac；开发探针没有加入启动路径或引入常驻 JVM。初始启动、任务/插件与真实浏览器的高占用问题仍不能宣称解决。
