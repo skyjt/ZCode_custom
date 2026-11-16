@@ -12,6 +12,13 @@
       "extract": true
     },
     {
+      "name": "git-credential-wincred.c",
+      "url": "https://raw.githubusercontent.com/git/git/f635ab9ab496ad710fec16f3d854e064110d158f/contrib/credential/wincred/git-credential-wincred.c",
+      "sha256": "4246334c2943c8ff7a44ad1723b7130eef26524415d52b6e86e3c6b1a387511e",
+      "destination": "git/sources/wincred",
+      "extract": false
+    },
+    {
       "name": "python-3.11.18-embed-amd64.zip",
       "url": "https://github.com/adang1345/PythonVista/releases/download/v3.11.18/python-3.11.18-embed-amd64.zip",
       "sha256": "184424242da4f7aeeaee902234060135b4b84a0770cce12b830898b76388b2eb",

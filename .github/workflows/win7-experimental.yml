@@ -39,6 +39,7 @@ jobs:
             .cache/win7-runtime/*.zip
             .cache/win7-offline-downloads
           key: win7-downloads-windows-2022-${{ runner.arch }}-${{ hashFiles('scripts/win7/runtime.json', 'scripts/win7/offline-runtime.json') }}
+          restore-keys: win7-downloads-windows-2022-${{ runner.arch }}-
       - name: Install pinned dependencies
         shell: pwsh
         env:
@@ -56,6 +57,16 @@ jobs:
           "$env:JAVA_HOME_8_X64/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Engineering regression
         run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs scripts/test/win7-memory-profile.test.mjs
+      - name: Native Git and inherited Java preflight
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          node scripts/win7/developer-preflight.mjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm exec esbuild packages/services/src/git/providers/gitCommandProvider.ts --bundle --platform=node --format=cjs --outfile=.cache/win7-acceptance/git-provider.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/git-smoke.mjs .cache/win7-developer-preflight .cache/win7-acceptance/git-provider.cjs --preflight
+          exit $LASTEXITCODE
       - name: Renderer memory cache browser acceptance
         timeout-minutes: 3
         shell: pwsh

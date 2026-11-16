@@ -61,3 +61,12 @@ sequenceDiagram
 回环 SSH fixture 的本机 OpenSSH 实测：仅在 shell 层引用含空格的 UserKnownHostsFile 仍会被 SSH 配置解析器拆成多个文件，正确密钥也得到 `Host key verification failed`；在选项值内部再引用路径后成功。fixture 同时改用 ssh2 服务端连接实际提供的 `end()`，避免清理时的 TypeError 遮蔽原验收结果。严格主机验证和错误密钥负例保持。
 
 Actions 43800362165 已通过 33/33 工程回归、原成包门禁与完整 GUI，Java 超时未再复现，原因仍未确认；唯一失败为上述 Git SSH 正例的 `Host key verification failed`，故不交付该包。补充 Linux 的真实回环协议验证通过 SSH/HTTPS clone、新提交 push 与远端 ref 核对、未知主机/不受信任 TLS 拒绝；其中使用 Linux Git/临时 credential-store，仅用于验证 fixture，不能代替 Windows MinGit、wincred 或 JDK/Maven 成包验收。
+
+### 原生 wincred 修复与提前验收
+
+43802405334 的原门禁及中英文 GUI 通过，但真实 `git-credential-wincred.exe erase` 以 `3221226356`（`0xC0000374`）崩溃。2.46.2 的 helper 将字节长度误作 WCHAR 容量，且遗漏 NUL 空间；上游 [936eb757](https://github.com/git/git/commit/936eb75730b6e25248fcf0537811f867311d1341) 说明与本次退出状态一致。原 `get` 和 OAuth `store` 也有对应越界，不能通过不带 password 的 erase 或取消删除断言来绕过。
+
+- 保留 Git 2.46.2；仅将 wincred 从固定上游源码提交 `f635ab9ab496ad710fec16f3d854e064110d158f` 重新编译（已包含 get/erase/OAuth store 及 target 长度修复）。源码通过原离线资产清单锁定 SHA-256，随包保留源码、CMake 构建说明和 Git GPL 许可。构建使用 x64 MSVC、静态 CRT、`WINVER/_WIN32_WINNT=0x0601`，仍通过成包 PE 导入门禁；这不代替真实 Win7 验收。
+- 延续标准 Git wincred 格式和 Windows Credential Manager，不设计新凭据存储、降级明文 helper 或读取真实企业账户。原生场景核对 Unicode 凭据、错误 password 不删除、正确 password 删除后不存在、OAuth 字段往返和过长 target 明确拒绝。
+- 原 `prepareOfflineTools` 继续唯一拥有资产下载/摘要/配置/编译。在打包前复用同一准备函数和 Git 验收，输出单独的 `developer-tools-preflight.json`；成包后依旧执行全部原门禁和相同 Git 场景，输出 `developer-tools.json`。预检不能冒充安装器验收。
+- 下载缓存允许恢复相同 runner 架构的旧清单缓存，每个实际使用的资产仍重新按当前清单核对 SHA-256；错误摘要必须失败。

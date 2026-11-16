@@ -60,6 +60,7 @@ let ssh;
 const sshClients = new Set();
 const backendChildren = new Set();
 const checks = [];
+let report;
 
 try {
   await mkdir(env.HOME);
@@ -309,6 +310,37 @@ try {
   });
   assert.ok(stored.split(/\r?\n/).includes(`username=${username}`));
   assert.ok(stored.split(/\r?\n/).includes(`password=${password}`));
+  // 原生 helper 必须保留不同密码，不能为绕开旧版 erase 越界而省略 password。
+  await run(wincred, ["erase"], {
+    input: credential.replace(password, "different-fixture-password"),
+  });
+  assert.ok(
+    (await run(wincred, ["get"], { input: credential }))
+      .split(/\r?\n/)
+      .includes(`password=${password}`),
+  );
+  const oauthTarget = `protocol=https\nhost=${host}:${tlsPort}\nusername=凭据测试\n\n`;
+  const oauth =
+    oauthTarget.trimEnd() +
+    "\npassword=临时密码-123\noauth_refresh_token=临时刷新-456\npassword_expiry_utc=2000000000\n\n";
+  try {
+    await run(wincred, ["store"], { input: oauth });
+    const result = (await run(wincred, ["get"], { input: oauthTarget })).split(/\r?\n/);
+    for (const value of [
+      "username=凭据测试",
+      "password=临时密码-123",
+      "oauth_refresh_token=临时刷新-456",
+      "password_expiry_utc=2000000000",
+    ])
+      assert.ok(result.includes(value));
+  } finally {
+    await run(wincred, ["erase"], { input: oauthTarget });
+    assert.equal(await run(wincred, ["get"], { input: oauthTarget }), "");
+  }
+  await assert.rejects(
+    run(wincred, ["get"], { input: `protocol=https\nhost=${"x".repeat(1100)}.invalid\n\n` }),
+    (error) => error.code === 1,
+  );
   const trustedOptions = [...httpOptions, "-c", `http.sslCAInfo=${certificate}`];
   await g([...trustedOptions, "clone", url, join(root, "https-clone")]);
   await g([
@@ -336,45 +368,67 @@ try {
   assert.equal(java.status, "pass", java.detail);
   assert.equal(maven.status, "pass", maven.detail);
   checks.push("inherited JDK 8 compile/run and Maven version; no project dependencies downloaded");
-  await writeFile(
-    resolve(".cache/win7-acceptance/developer-tools.json"),
-    JSON.stringify(
-      {
-        result: "PASS",
-        git: "2.46.2.windows.1",
-        checks,
-        java,
-        maven,
-        scope:
-          "Windows Server 2022; fictional repositories/servers/credentials only; real Win7, internal Git/Maven, LFS and production Java builds untested",
-      },
-      null,
-      2,
-    ),
-  );
-  console.log(`PASS ${checks.join("; ")}`);
+  report = {
+    result: "PASS",
+    phase: process.argv.includes("--preflight") ? "before packaging" : "packaged application",
+    git: "2.46.2.windows.1",
+    checks,
+    java,
+    maven,
+    scope:
+      "Windows Server 2022; fictional repositories/servers/credentials only; real Win7, internal Git/Maven, LFS and production Java builds untested",
+  };
+} catch (error) {
+  // 清理也可能失败；先保留原始错误，避免再次只看到 erase 的退出码。
+  console.error("Git acceptance failed before cleanup:", error);
+  throw error;
 } finally {
-  if (credential) {
-    await run(wincred, ["erase"], { input: credential });
-    assert.equal(await run(wincred, ["get"], { input: credential }), "");
-  }
+  const errors = [];
+  const cleanup = async (action) => {
+    try {
+      await action();
+    } catch (error) {
+      errors.push(error);
+    }
+  };
+  await cleanup(async () => {
+    if (credential) {
+      await run(wincred, ["erase"], { input: credential });
+      assert.equal(await run(wincred, ["get"], { input: credential }), "");
+    }
+  });
   // ssh2 的服务端连接提供 end()，没有客户端 Socket 的 destroy() 方法。
-  for (const client of sshClients) client.end();
+  for (const client of sshClients) await cleanup(() => client.end());
   // 等后端真正关闭文件句柄后再删除临时仓库，避免 Windows 清理掩盖原始错误。
-  await Promise.all(
-    [...backendChildren].map(
-      (child) =>
-        new Promise((done) => {
-          child.once("close", done);
-          child.kill();
-        }),
+  await cleanup(() =>
+    Promise.all(
+      [...backendChildren].map(
+        (child) =>
+          new Promise((done) => {
+            child.once("close", done);
+            child.kill();
+          }),
+      ),
     ),
   );
-  if (ssh) await new Promise((done) => ssh.close(done));
-  if (https) {
-    https.closeAllConnections();
-    await new Promise((done) => https.close(done));
-  }
-  await rm(root, { recursive: true, force: true });
-  await rm(tlsRoot, { recursive: true, force: true });
+  await cleanup(async () => {
+    if (ssh) await new Promise((done) => ssh.close(done));
+  });
+  await cleanup(async () => {
+    if (https) {
+      https.closeAllConnections();
+      await new Promise((done) => https.close(done));
+    }
+  });
+  await cleanup(() => rm(root, { recursive: true, force: true }));
+  await cleanup(() => rm(tlsRoot, { recursive: true, force: true }));
+  if (errors.length) throw new AggregateError(errors, "Git fixture cleanup failed");
 }
+// 凭据删除与临时资源清理也属于门禁，全部成功以后才能记录 PASS。
+await writeFile(
+  resolve(
+    `.cache/win7-acceptance/developer-tools${process.argv.includes("--preflight") ? "-preflight" : ""}.json`,
+  ),
+  JSON.stringify(report, null, 2),
+);
+console.log(`PASS ${checks.join("; ")}; credential cleanup verified`);
