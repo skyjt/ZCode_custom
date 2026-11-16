@@ -1,5 +1,40 @@
 # aibuddy7se 内存优化
 
+## 2026-11-16 独立 Windows 堆诊断分支
+
+本轮先在独立分支复用已验收的 43838023557 安装器（代码 cf8022914），校验 EXE
+SHA-256 后复制诊断副本。原安装器、codex/win7-experimental 分支和原 CI 门禁保持不变。
+仅给副本 Main、Window Host、调度器、扩展宿主、Agent 和轻量插件宿主入口添加进程内
+inspector.Session 采样器；不开放调试端口，不改权限/schema/owner/lease 或缓存大小。
+Windows runtime 固定信息以 scripts/win7/runtime.json 为准。
+
+唯一所有者与顺序：
+
+    原 app-smoke 的阶段 → 测试控制器校验存活 PID/父子归属与 target token
+      → 单个进程内采样器 → 分配 profile/堆快照 → 离线 dominator 与调用栈摘要
+
+采样器只拥有自己的 inspector 会话、控制文件和计时器，不持有业务状态。每次请求带
+递增 sequence、唯一 target token 和阶段；过期或身份不符请求不执行。已知存储 worker
+按 PID + threadId 单独标识；同进程 RSS 不跨 isolate 求和，未插桩 worker 明确不覆盖。目标串行取快照，
+避免多进程快照同时占满内存。缺少 Main/Host 或文字阶段 Agent 证据必须失败，原生
+runtime-host/conhost 不支持 JS 堆时明确列作未覆盖，不能记为零。
+
+分配抽样从入口前开始，记录是否请求包含已被 GC 回收的对象；权重是估计分配量，
+不是 RSS。快照用于强边 dominator/retained size；弱边排除，重叠 retained 行不得相加。
+快照可能 GC，所有该运行的内存/耗时均标注诊断用途，禁止混入无 profiler 的性能收益。
+仅合成迁移/模型/文档数据，原始快照留在 runner 私有目录；artifact 只上传受限摘要和
+原有验收结果，字符串值/完整用户路径不写入 heap 摘要。
+
+工程回归须证明：真实 Node 进程的分配采样与快照可读；强边/共享子树/弱边的 retained
+计算正确；复制打补丁保留原输入哈希、native unpack 状态和 shebang；错误 token/
+过期请求不执行；退出/缺失目标不能冒充成功。app-smoke 只增加显式 --heap-diagnostics
+参数的诊断阶段，未使用该参数时流程与安全断言不变。
+
+找到明确热点后才实施单一、可回退的产品优化。验收另用未插桩包，在同一 Windows
+runner 独立用户/进程冷启动，本轮 AB/BA 交替四对，保留首次可用延迟、30/90 秒空闲、
+文字与真实工具、Word 首次与长轮换数据。诊断和性能 job 不互相替代；真实 Win7、
+Office 2013 和内网项目仍需单独验收。
+
 ## 2026-11-16 Word 样式解析成包验收
 
 代码 `cf8022914ae6f4e4186a007e91b317cf48feea4e`，

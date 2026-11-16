@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
@@ -12,6 +12,12 @@ import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "./memory-model-fixt
 const appDir = resolve(process.argv[2]);
 const output = resolve(process.argv[3]);
 await mkdir(output, { recursive: true });
+const heapArgument = process.argv.indexOf("--heap-diagnostics");
+const heapDirectory = heapArgument < 0 ? null : resolve(process.argv[heapArgument + 1]);
+if (heapDirectory) assert.ok(process.argv.includes("--measure-memory"));
+const heapCheckpoint = heapDirectory
+  ? (await import("./heap-diagnostics.mjs")).captureHeapCheckpoint
+  : null;
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
 const fixtureHome = await mkdtemp(join(tmpdir(), "aibuddy7se-gui-migration-"));
@@ -43,6 +49,7 @@ execFileSync(
   { stdio: "ignore" },
 );
 const modelFixture = await startMemoryModelFixture();
+const launchStarted = performance.now();
 const child = spawn(
   join(appDir, "aibuddy7se.exe"),
   ["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"],
@@ -90,8 +97,21 @@ try {
   await page.emulateMedia({ reducedMotion: null, colorScheme: null });
   // 内网版必须直接进入真实工作区；不能再靠跳过登录或关闭引导通过验收。
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 90000 });
+  await writeFile(
+    join(output, "startup-timing.json"),
+    JSON.stringify(
+      {
+        spawnToWorkspaceReadyMs: performance.now() - launchStarted,
+        diagnosticOnly: Boolean(heapDirectory),
+        scope: "Spawn to visible workspace sidebar; excludes fixture setup; OS cache not cleared",
+      },
+      null,
+      2,
+    ),
+  );
   if (process.argv.includes("--measure-memory")) {
     const samples = await profileStartupMemory(page, child.pid, output);
+    if (heapCheckpoint) await heapCheckpoint(heapDirectory, samples.at(-1));
     assert.match(
       log,
       /cron scheduler started/,
@@ -381,8 +401,10 @@ try {
       )
       .first();
     await input.fill("Reply exactly AIBUDDY7SE_MEMORY_FIRST_SEND_OK, without tools.");
+    const firstSendStarted = performance.now();
     await page.getByTestId("v4-composer-send").click({ timeout: 60000 });
     await page.getByText(MEMORY_MODEL_REPLY, { exact: true }).last().waitFor({ timeout: 120000 });
+    const firstReplyMs = performance.now() - firstSendStarted;
     const starts = log
       .split("\n")
       .filter((line) => /agent process started.*shared-local-tasks/.test(line));
@@ -394,6 +416,8 @@ try {
         {
           result: "PASS",
           runtimeStarts: starts.length,
+          firstReplyMs,
+          diagnosticOnly: Boolean(heapDirectory),
           requests: modelFixture.requests,
           scope: "Loopback fictional OpenAI model only; real model not tested",
         },
@@ -418,6 +442,13 @@ try {
         join(output, "memory-after-first-send-series.json"),
         JSON.stringify({ samples: replySamples }, null, 2),
       );
+      if (heapCheckpoint)
+        await heapCheckpoint(heapDirectory, replySamples.at(-1), [
+          "main",
+          "host",
+          "agent",
+          "plugin-host",
+        ]);
       const toolWallTimes = [];
       const toolSamples = [];
       for (let number = 1; number <= 5; number++) {
@@ -437,6 +468,13 @@ try {
       }
       await delay(15000);
       toolSamples.push(await sampleMemory(page, child.pid, "tools-idle-15s"));
+      if (heapCheckpoint)
+        await heapCheckpoint(heapDirectory, toolSamples.at(-1), [
+          "main",
+          "host",
+          "agent",
+          "plugin-host",
+        ]);
       assert.equal(
         log.split("\n").filter((line) => /agent process started.*shared-local-tasks/.test(line))
           .length,
@@ -559,6 +597,16 @@ try {
     JSON.stringify({ requests: modelFixture.requests, calls: modelFixture.toolRuns }, null, 2),
   );
   await writeFile(join(output, "startup.log"), log);
+  if (heapDirectory) {
+    for (const name of await readdir(output)) {
+      if (!/^memory.*\.json$/.test(name)) continue;
+      const report = JSON.parse(await readFile(join(output, name), "utf8"));
+      report.diagnosticOnly = true;
+      report.scope =
+        "Instrumented diagnostic run; snapshots may force GC and alter timing/RAM. Not performance acceptance.";
+      await writeFile(join(output, name), JSON.stringify(report, null, 2));
+    }
+  }
   execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome, "cleanup"], {
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
     stdio: "inherit",
