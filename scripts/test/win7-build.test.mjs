@@ -13,6 +13,37 @@ import { patchPnpmInstallSource } from "../win7/patch-pnpm.mjs";
 import { compute7zCompressArgs } from "app-builder-lib/out/targets/archive.js";
 import { parse as parseYaml } from "yaml";
 import { extractPrebuiltArchive } from "../prebuilt-binary-extract.mjs";
+import { build } from "esbuild";
+
+test("scheduler bundle excludes Host service assembly and Agent implementation", async () => {
+  const result = await build({
+    entryPoints: ["packages/desktop/src/scheduler/index.ts"],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node22",
+    write: false,
+    metafile: true,
+    external: [
+      "electron",
+      "node-pty",
+      "@napi-rs/keyring",
+      "ssh2",
+      "undici",
+      "@larksuiteoapi/node-sdk",
+      "yaml",
+      "node-forge",
+      "yauzl",
+      "koffi",
+    ],
+  });
+  for (const file of Object.keys(result.metafile.inputs)) {
+    assert.doesNotMatch(
+      file.replaceAll("\\", "/"),
+      /packages\/services\/src\/(?:node\.ts$|zcode-agent\/zcodeAgentService\.ts$)/,
+    );
+  }
+});
 
 test(
   "Windows archive extraction ignores foreign PowerShell modules and rejects damaged ZIPs",

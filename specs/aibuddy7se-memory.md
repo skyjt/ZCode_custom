@@ -1,5 +1,31 @@
 # aibuddy7se 内存优化
 
+## 后续开发：调度器依赖与 Office 解析器延迟加载
+
+本轮从干净且与 fork 同步的 `8ea01b48` 开始，运行时对照使用成功构建 43812974790（`a44a27aa`）。没有未提交修改、活动协作代理或正在运行的构建；保持现有执行环境和模型，不部署或发布 Release。
+
+- 调度器只通过 services 的有限公开子路径读取原 `AutomationRepo`、`OffPeakTaskRepo` 与 cron 函数，避免加载整个 Host 服务装配入口。公开导出直接指向原文件，没有第二个 Repo/状态机；常驻进程、轮询周期、唤醒、事务认领、恢复、退出和 Main 路由不变。构建回归禁止 scheduler 闭包重新包含 services/node。
+- 四个 Office 查看插件的 MCP 握手/工具目录不加载解析器；首次真正解析文件时通过本地 ESM 动态导入加载。esbuild 同次构建 `server.mjs`、`parsers.mjs` 和共享 chunk，保持 `OfficeError` 等对象身份；所有资产随包离线提供，种子/桌面/SEA 清单把解析入口列为必需资产。模块缓存由 Node loader 拥有，原 DocumentOwner 继续拥有会话、6 项文档缓存与文件句柄；不增加状态副本、不清理正在使用的文档或工具进程。
+- 延迟加载只转移解析器首次加载成本，必须单独报告首次与重复工具延迟。工具 schema/权限/工作区文件边界不变，损坏文件和越界访问继续返回原错误。
+
+```mermaid
+sequenceDiagram
+  participant MCP as 原 MCP server
+  participant Owner as 原 DocumentOwner
+  participant Loader as Node ESM loader
+  participant Parser as 原格式解析器
+  MCP->>MCP: initialize / tools/list（不加载 Parser）
+  MCP->>Owner: 首次 read/open_document
+  Owner->>Owner: 原路径审核与文件读取
+  Owner->>Loader: import 本地 parsers.mjs
+  Loader-->>Owner: 同一模块实例
+  Owner->>Parser: 原解析调用
+  Parser-->>Owner: ParsedDocument / 原 OfficeError
+  Note over Owner,Loader: 重复请求复用原文档缓存与模块缓存
+```
+
+验收：同 runner 对旧包和新包执行相同启动/空闲/设置/文字会话流程；追加真实无害 Bash 工具的首次和五轮重复调用、前后及空闲后进程采样。另对四个随包 Office MCP 执行工具目录、首次读取、重复读取和错误边界，核对原文件哈希、延迟与内存。所有采样不强制 GC/压缩工作集。保留原 Windows 安全/迁移/离线功能门禁，并检查调度器正常启动；Windows Server 数据不得声称为真实 Win7、Office 2013 或内网模型/服务验收。
+
 ## 2026-11-16 设置查询与轻量宿主成包验收
 
 代码 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，包含实现 `8331fc6f` 及对照流程修正。

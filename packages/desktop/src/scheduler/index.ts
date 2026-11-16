@@ -8,12 +8,10 @@
 //   - 闲时任务（off_peak_tasks）：启动回收中断任务，认领 schedulable=1 的 queued 任务派发；
 //     与 automation 表/消息/常量全部独立，⚠ 无 misfire-skip 语义（顺延不丢弃）
 // 本进程只读写 tasks-index，不碰 UI / agent runtime；createTask 由 host 域执行。
-import {
-  AutomationRepo,
-  computeAutomationNextRunAt,
-  isOneShotAutomation,
-  OffPeakTaskRepo,
-} from "@zcode/services/node";
+// 总入口还会求值 Host/Agent 服务装配；常驻调度器只加载原存储和 cron 公开入口。
+import { AutomationRepo } from "@zcode/services/automation-repo";
+import { OffPeakTaskRepo } from "@zcode/services/off-peak-repo";
+import { computeAutomationNextRunAt, isOneShotAutomation } from "@zcode/services/automation-cron";
 import {
   resolveWorkspaceKey,
   type ZCodeAutomation,
