@@ -58,7 +58,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: aibuddy7se-Win7-Offline-x64
-          run-id: 43838023557
+          run-id: 43859527521
           path: .cache/heap-installer/new
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify and extract previously accepted package
@@ -66,7 +66,7 @@ jobs:
         run: |
           $installer = @(Get-ChildItem .cache/heap-installer/new -Filter '*.exe')
           if ($installer.Count -ne 1) { throw 'Expected one installer' }
-          if ((Get-FileHash $installer[0].FullName -Algorithm SHA256).Hash.ToLower() -ne 'b743f9096c863505f73c6b4702371d7e671a093a6225c48d1958bc18147365bf') { throw 'Installer hash mismatch' }
+          if ((Get-FileHash $installer[0].FullName -Algorithm SHA256).Hash.ToLower() -ne '69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb') { throw 'Installer hash mismatch' }
           & 7z x $installer[0].FullName '-o.cache/heap-installer/new/nsis' -y | Out-Null
           if ($LASTEXITCODE) { throw 'NSIS extraction failed' }
           $payload = @(Get-ChildItem .cache/heap-installer/new/nsis -Recurse -Filter 'app-64.7z')
