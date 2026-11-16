@@ -74,6 +74,7 @@ const NODE_REPL_HOST_BUILD_IDENTITY_PATH = "dist/build-identity.json";
 /** 文档插件（documents / pdf / presentations / spreadsheets）查看面板的构建产物。 */
 export const OFFICIAL_OFFICE_VIEWER_RUNTIME_PATHS = [
   "dist/server.mjs",
+  "dist/parsers.mjs",
   "dist/ui/assets.json",
   "dist/ui/panel.html",
 ] as const;

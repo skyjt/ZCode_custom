@@ -5,7 +5,6 @@ import { OfficeError } from "#office/contract.ts";
 import { createDocumentOwner } from "#office/app/documents.ts";
 import { createWorkspaceFiles, createDocumentImporter } from "#office/adapters/files.ts";
 import { createOfficeServer } from "#office/adapters/server.ts";
-import { PARSERS } from "#office/adapters/parsers.ts";
 
 // 官方插件宿主通过导出的 main 启动；导入时直接连接会被宿主判定为无效入口。
 export async function main(): Promise<void> {
@@ -20,6 +19,9 @@ export async function main(): Promise<void> {
   const owner = createDocumentOwner({
     files: createWorkspaceFiles(workspace),
     async parse(file) {
+      // 工具目录查询也会启动 MCP；只在实际读取文件后加载解析器，避免空闲时求值 Excel/PDF 等库。
+      // 模块实例由 Node loader 复用，文档/会话缓存仍由原 owner 维护。
+      const { PARSERS } = await import("#office/adapters/parsers.ts");
       const parse = PARSERS[file.kind];
       if (!parse) throw new OfficeError("unsupported_type", `Unsupported file: ${file.path}`);
       return parse(file.bytes, file.path, pdfAssets);

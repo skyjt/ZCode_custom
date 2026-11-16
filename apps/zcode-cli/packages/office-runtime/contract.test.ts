@@ -13,6 +13,7 @@ describe("office-runtime contract", () => {
   it("guarantees the server and panel entry points the built-in plugins depend on", () => {
     expect(OFFICE_RUNTIME_OUTPUTS).toEqual([
       "dist/server.mjs",
+      "dist/parsers.mjs",
       "dist/ui/assets.json",
       "dist/ui/panel.html",
     ]);

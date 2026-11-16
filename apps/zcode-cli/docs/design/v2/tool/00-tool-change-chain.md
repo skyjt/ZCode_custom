@@ -1,5 +1,10 @@
 # Tool Change Chain Spec
 
+2026-11-16 后续内存优化：Office MCP 的目录/握手不求值格式解析器；DocumentOwner 在原文件
+审核之后首次解析时导入随包 parsers.mjs。Node loader 与原 owner 分别拥有模块/文档缓存，
+工具 schema、权限、错误码、输出和 UI/V4 投影不变。冷解析计入首次工具延迟；成包验证四种
+格式的首次/重复读取、越界与损坏文件错误、原文件哈希和完整离线资产，不只测 tools/list。
+
 2026-11-16 工具宿主内存优化：桌面自有插件的启动前缀优先选择同次构建的 `plugin-host.cjs`，
 排除未使用的 Agent 代码。server 路径、argv/env、tool schema/顺序/权限、MCP 连接池、输出与
 UI/V4 投影不变；沿用原官方插件身份和 CUA broker 准入。未随包提供轻量入口的 Node/SEA/SSH

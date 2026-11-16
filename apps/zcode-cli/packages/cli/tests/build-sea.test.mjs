@@ -1305,7 +1305,12 @@ async function writeDocumentPluginFixtures(root) {
     await writeTestFile(root, `packages/${name}-plugin/skills/${skill}/SKILL.md`, "");
     // 0.2.0 起文档插件带查看面板：viewer skill 与 office-runtime 构建产物都是必需资产。
     await writeTestFile(root, `packages/${name}-plugin/skills/${skill}-viewer/SKILL.md`, "");
-    for (const runtimePath of ["dist/server.mjs", "dist/ui/assets.json", "dist/ui/panel.html"]) {
+    for (const runtimePath of [
+      "dist/server.mjs",
+      "dist/parsers.mjs",
+      "dist/ui/assets.json",
+      "dist/ui/panel.html",
+    ]) {
       await writeTestFile(root, `packages/${name}-plugin/${runtimePath}`, "");
     }
   }

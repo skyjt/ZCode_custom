@@ -223,8 +223,14 @@ module.exports = new Proxy({}, { get: (_, key) => (key === "setGracefulCleanup" 
 const server = await build({
   plugins: [officeProfile, unusedExcelJsDeps],
   metafile: true,
-  entryPoints: [join(root, "src/adapters/main.ts")],
-  outfile: join(dist, "server.mjs"),
+  entryPoints: {
+    server: join(root, "src/adapters/main.ts"),
+    parsers: join(root, "src/adapters/parsers.ts"),
+  },
+  outdir: dist,
+  outExtension: { ".js": ".mjs" },
+  chunkNames: "chunks/[name]-[hash]",
+  splitting: true,
   bundle: true,
   platform: "node",
   format: "esm",

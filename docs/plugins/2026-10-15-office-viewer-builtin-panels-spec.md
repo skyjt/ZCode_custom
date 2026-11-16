@@ -36,7 +36,7 @@ office-runtime/scripts/build.mjs（插件名取自 .zcode-plugin/plugin.json）
 
 ## 3. 必需资产与版本事实源
 
-产物路径的唯一定义是 office-runtime `contract.ts` 的 `OFFICE_RUNTIME_OUTPUTS`：`dist/server.mjs`、`dist/ui/assets.json`、`dist/ui/panel.html`。以下清单都要同步：
+产物路径的唯一定义是 office-runtime `contract.ts` 的 `OFFICE_RUNTIME_OUTPUTS`：`dist/server.mjs`、`dist/parsers.mjs`、`dist/ui/assets.json`、`dist/ui/panel.html`。解析器在首次解析时按需加载；完整 `dist/`（包括共享 chunk）必须离线分发，不能只复制入口文件。以下清单都要同步：
 
 | 位置                                                  | 内容                                                                                                                     |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |

@@ -18,7 +18,12 @@ const browserUseRequiredRuntimePaths = [
 ];
 
 // 文档插件查看面板的构建产物（office-runtime 输出到各插件 dist/）。
-const officeViewerRuntimePaths = ["dist/server.mjs", "dist/ui/assets.json", "dist/ui/panel.html"];
+const officeViewerRuntimePaths = [
+  "dist/server.mjs",
+  "dist/parsers.mjs",
+  "dist/ui/assets.json",
+  "dist/ui/panel.html",
+];
 
 export const officialSeaPlugins = [
   {

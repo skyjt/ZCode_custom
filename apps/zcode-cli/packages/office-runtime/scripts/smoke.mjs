@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +22,16 @@ await cp(join(here, "fixtures"), join(workspace, "docs"), {
   filter: (path) => !path.endsWith(".py"),
 });
 await symlink("/etc/hosts", join(workspace, "docs/escape.pdf")).catch(() => undefined);
+const parserProbe = join(workspace, "parser-probe.mjs");
+await writeFile(
+  parserProbe,
+  `import { registerHooks } from "node:module";
+registerHooks({ load(url, context, next) {
+  if (url.endsWith("/parsers.mjs")) process.stderr.write("OFFICE_PARSER_LOADED\\n");
+  return next(url, context);
+}});`,
+);
+let parserLoadLog = "";
 
 const client = new Client({ name: `${name}-smoke`, version: "1" });
 const call = (name, args = {}) => client.callTool({ name, arguments: args });
@@ -38,17 +48,23 @@ const failCode = async (name, args) => {
 const text = (result) => result.content[0].text;
 
 try {
-  await client.connect(
-    new StdioClientTransport({
-      command: process.execPath,
-      args: [join(root, "dist/server.mjs")],
-      cwd: workspace,
-      env: { PATH: process.env.PATH ?? "", ZCODE_WORKSPACE_ROOT: workspace },
-      stderr: "pipe",
-    }),
-  );
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ["--import", parserProbe, join(root, "dist/server.mjs")],
+    cwd: workspace,
+    env: { PATH: process.env.PATH ?? "", ZCODE_WORKSPACE_ROOT: workspace },
+    stderr: "pipe",
+  });
+  transport.stderr?.on("data", (chunk) => {
+    parserLoadLog += chunk;
+  });
+  await client.connect(transport);
 
   const { tools } = await client.listTools();
+  assert.ok(
+    !parserLoadLog.includes("OFFICE_PARSER_LOADED"),
+    "Tool discovery must not load parsers",
+  );
   const meta = Object.fromEntries(tools.map((tool) => [tool.name, tool._meta?.ui]));
   assert.deepEqual(meta.open_document, {
     resourceUri: ui("panel.html"),
@@ -307,6 +323,11 @@ try {
   for (let i = 0; i < 6; i++) await inSession("s2", "load_document", { path: sample });
   await assert.rejects(client.readResource({ uri: ui(`file/${other.file.token}/0`) }));
   await client.readResource({ uri: ui(`file/${first.file.token}/0`) });
+  assert.equal(
+    parserLoadLog.split("OFFICE_PARSER_LOADED").length - 1,
+    1,
+    "Real reads must load exactly one shared parser module",
+  );
   process.stdout.write(`${name} smoke (${kinds.join(", ")}): ok\n`);
 } finally {
   await client.close();

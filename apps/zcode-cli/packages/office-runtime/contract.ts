@@ -19,6 +19,7 @@ export interface OfficePluginConfig {
  */
 export const OFFICE_RUNTIME_OUTPUTS = [
   "dist/server.mjs",
+  "dist/parsers.mjs",
   "dist/ui/assets.json",
   "dist/ui/panel.html",
 ] as const;

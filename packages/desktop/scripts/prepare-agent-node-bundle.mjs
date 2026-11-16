@@ -99,7 +99,12 @@ const browserUseRequiredRuntimePaths = [
 ];
 // 文档插件（documents / pdf / presentations / spreadsheets）的查看面板由共享包
 // @zcode/office-runtime 构建进各插件 dist/；插件包自身没有 TypeScript 源码。
-const officeViewerRuntimePaths = ["dist/server.mjs", "dist/ui/assets.json", "dist/ui/panel.html"];
+const officeViewerRuntimePaths = [
+  "dist/server.mjs",
+  "dist/parsers.mjs",
+  "dist/ui/assets.json",
+  "dist/ui/panel.html",
+];
 const officialPluginPackages = [
   {
     packageName: "@zcode/android-emulator-plugin",
