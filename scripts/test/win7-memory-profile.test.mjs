@@ -23,7 +23,14 @@ test("local memory model fixture completes stream and refuses unexpected routes"
 for (const stream of [false, true])
   test(`memory fixture verifies actual Bash output (stream=${stream})`, async () => {
     const fixture = await startMemoryModelFixture();
-    const messages = [{ role: "user", content: "AIBUDDY7SE_TOOL_PROBE_1" }];
+    const messages = [
+      { role: "user", content: "AIBUDDY7SE_TOOL_PROBE_1" },
+      // 实际 Agent 可在用户输入后追加 user-role reminder；最后一条 user 不一定是用户正文。
+      {
+        role: "user",
+        content: [{ type: "text", text: "<system-reminder>Tools ready</system-reminder>" }],
+      },
+    ];
     const post = async () => {
       const response = await fetch(`${fixture.baseUrl}/chat/completions`, {
         method: "POST",
@@ -68,6 +75,10 @@ for (const stream of [false, true])
       assert.equal(denied.status, 500);
       assert.equal(fixture.toolRuns.length, 0);
       messages.at(-1).content = "AIBUDDY7SE_TOOL_OUTPUT_1";
+      messages.push({
+        role: "user",
+        content: "<system-reminder>Command settled</system-reminder>",
+      });
       assert.equal((await post()).message.content, "AIBUDDY7SE_TOOL_DONE_1");
       assert.equal(fixture.toolRuns.length, 1);
       assert.ok(fixture.toolRuns[0].elapsedMs >= 0);

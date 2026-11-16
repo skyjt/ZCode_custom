@@ -17,7 +17,8 @@ export async function startMemoryModelFixture() {
         chunks.push(chunk);
       }
       const path = new URL(req.url, "http://127.0.0.1").pathname;
-      requests.push({ method: req.method, path });
+      const observation = { method: req.method, path };
+      requests.push(observation);
       if (req.method !== "POST" || path !== "/v1/chat/completions") {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: { message: "Unsupported fixture route" } }));
@@ -27,13 +28,24 @@ export async function startMemoryModelFixture() {
       const envelope = { id: "memory-fixture", created: 1, model: body.model };
       let message = { role: "assistant", content: MEMORY_MODEL_REPLY };
       let finishReason = "stop";
-      const userIndex = (body.messages ?? []).findLastIndex((item) => item.role === "user");
-      const userContent = body.messages?.[userIndex]?.content;
-      const prompt =
-        typeof userContent === "string"
-          ? userContent
-          : (userContent ?? []).map((item) => item.text ?? "").join("\n");
-      const probe = /\bAIBUDDY7SE_TOOL_PROBE_(\d+)\b/.exec(prompt);
+      const textOf = (content) =>
+        typeof content === "string"
+          ? content
+          : (content ?? []).map((item) => item.text ?? "").join("\n");
+      const probePattern = /\bAIBUDDY7SE_TOOL_PROBE_(\d+)\b/;
+      // Agent 在工具结果后追加 user-role reminder；按本次合成探针定位正文，不能取最后的 user。
+      const userIndex = (body.messages ?? []).findLastIndex(
+        (item) => item.role === "user" && probePattern.test(textOf(item.content)),
+      );
+      const probe = probePattern.exec(textOf(body.messages?.[userIndex]?.content));
+      // 只留合成探针编号、角色和工具名，失败时也能排查 wire；不记录输入正文或凭据。
+      observation.roles = (body.messages ?? []).map((item) => item.role);
+      observation.toolNames = (body.tools ?? []).map((tool) => tool.function?.name);
+      observation.probes = (body.messages ?? []).map((item) =>
+        item.role === "user"
+          ? (/\bAIBUDDY7SE_TOOL_PROBE_(\d+)\b/.exec(JSON.stringify(item.content))?.[1] ?? null)
+          : null,
+      );
       if (probe && body.tools?.some((tool) => tool.function?.name === "Bash")) {
         const number = Number(probe[1]);
         const id = `memory-tool-${number}`;

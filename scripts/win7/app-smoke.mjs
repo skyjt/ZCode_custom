@@ -554,6 +554,10 @@ try {
     }
   }
   await modelFixture.close();
+  await writeFile(
+    join(output, "model-fixture.json"),
+    JSON.stringify({ requests: modelFixture.requests, calls: modelFixture.toolRuns }, null, 2),
+  );
   await writeFile(join(output, "startup.log"), log);
   execFileSync(join(appDir, "aibuddy7se.exe"), [fixtureScript, appDir, fixtureHome, "cleanup"], {
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
