@@ -1,8 +1,46 @@
 # aibuddy7se 完整品牌与升级迁移
 
+## 2026-11-16 Word 解析优化后复验
+
+当前已通过功能验收的代码为 `cf8022914ae6f4e4186a007e91b317cf48feea4e`，仅推送用户 fork
+`skyjt/ZCode_custom` 的 `codex/win7-experimental`。
+[Windows Actions 43838023557](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557)
+（job `133199473145`）全部通过：Windows 工程 36/36、零跳过；真实注册表中文路径、不同
+command、其它安装位置/自定义入口负例保留。旧 SQLite/OS 密文迁移、原始数据/冲突保护、
+Agent/WinPTY/进程归属、轻量宿主权限、离线 Office/Python/SSH/SFTP/Git、现有 JDK 8/Maven、
+技能、PE 与防火墙阻断成包 GUI 均通过，没有新增常驻 JVM。
+
+本轮只减少 Word 文本解析时不参与标题/样式继承的格式子树展开，原文件和查看面板仍保留
+格式，文档缓存/所有者/权限边界不变。新旧包同一 Server 2022 runner 完成五轮真实 Bash、
+Word 60 次和其它 Office 各 20 次轮换，文件内容、损坏/越界拒绝与原文哈希均通过。
+Word 60 次后 working set **123.65 → 104.05 MiB**，private bytes **140.90 → 121.03 MiB**，
+平均轮换读取 **27.0 → 16.7 ms**；首次打开 **137.8 → 184.0 ms**、随后首次读取 **2.4 →
+35.3 ms**，第 20 到 60 次仍有增长。整体启动 90 秒 working set **957.98 → 954.88 MiB**，
+文字均值 **1594.36 → 1689.57 MiB**，没有证明整体 RAM 改善。详细对照、不利结果和下一步
+见[内存验收](aibuddy7se-memory.md#2026-11-16-word-样式解析成包验收)。
+
+13 张最终截图已逐一检查，名称/Logo、关于/帮助、中英文自测、深浅代码预览、模型配置、
+文字/工具回复与手动 MCP 正常。品牌扫描 28,572 个文本文件，仅 `legacy-data.cjs`、
+`legacy-migration.mjs`、`legacy-storage.js` 保留旧识别字符串。自测 12 通过、1 注意、0
+失败、1 未测；自动/手动/重进 MCP 检查进程为 0/1/1。根/CLI 类型检查、Office 84 项及
+完整 MCP smoke、正常 pre-push 通过；根 Lint 526 既有告警/0 错误，CLI 86 既有告警/0
+错误，架构新增/基线违规 0。
+
+[当前验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557/artifacts/14212254898)：
+`aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,429,328 字节；Actions 外层 ZIP 恰含一个
+EXE，没有便携包。实际下载 SHA-256 与 runner 一致：
+`b743f9096c863505f73c6b4702371d7e671a093a6225c48d1958bc18147365bf`。
+[诊断/截图/同机新旧原始数据](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557/artifacts/14213128002)
+保留至 2026-11-30 09:40 UTC（北京时间 17:40）。构建步骤 11 分 36 秒，完整 job 25 分
+08 秒（双版本 GUI/Office 对照 8 分 59 秒）；未削减门禁，没有发布 Release 或部署。
+
+真实 Win7、Office 2013、真实模型/内网 SSH/Git/Maven 项目及企业认证、实际旧 NSIS 覆盖
+安装仍未验收；Server 2022 与虚构数据不能替代这些验收。后续文档提交不改变安装器源码。
+下面保留历史记录；当前下载和结论以本节为准。
+
 ## 2026-11-16 调度器与 Office 后复验
 
-当前已通过功能验收的代码为 `3fce87dd116956f0c20253b5e2172edcdd5907fd`，仅推送用户 fork
+该轮已通过功能验收的代码为 `3fce87dd116956f0c20253b5e2172edcdd5907fd`，仅推送用户 fork
 `skyjt/ZCode_custom` 的 `codex/win7-experimental`。
 [Windows Actions 43829709499](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499)
 （job `133171871338`）全部通过：工程 36/36，零跳过；真实注册表中文路径、不同 command、
@@ -23,7 +61,7 @@ private bytes 为 1448.67 → 1437.09 MiB。Office 首次打开变慢，Word 轮
 纳入原品牌转换；自测 12 通过、1 注意、0 失败、1 未测。正常 pre-push 通过，根类型检查
 通过，Lint 526 既有告警/0 错误，架构新增/基线违规 0。
 
-[当前验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499/artifacts/14209257226)：
+[该轮验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499/artifacts/14209257226)：
 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,424,932 字节；外层 Actions ZIP 恰含一个
 EXE，没有便携包。实际下载校验与 runner 一致：
 `5004501678705a84b17d89eaff96fe92a6caceac278961a2a29c7952f2edd17c`。
@@ -143,13 +181,13 @@ Windows 虚构用户 fixture 必须在启动前创建 AppData/Roaming、AppData/
 
 ## 2026-11-16 Git 与 Java 开发能力后复验
 
-当前交付运行时代码为 `121ad70a55273e1327175f3867b1d19743035234`，已正常推送到用户 fork 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全部通过（job `133095663892`）。本轮加入随包 Git，并按用户选择复用已安装 JDK 8/Maven；具体行为、原生 wincred 修复与完整证据见 [Java 开发环境 spec](aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
+该轮交付运行时代码为 `121ad70a55273e1327175f3867b1d19743035234`，已正常推送到用户 fork 的 `codex/win7-experimental`，未推送上游。[Windows Actions 43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全部通过（job `133095663892`）。本轮加入随包 Git，并按用户选择复用已安装 JDK 8/Maven；具体行为、原生 wincred 修复与完整证据见 [Java 开发环境 spec](aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
 
 - Windows 工程 33/33，无跳过。原注册表不同 command/安装位置/自定义入口安全负例、旧 SQLite/真实 OS 密文迁移、源数据保留与冲突拒绝重新通过。Agent/WinPTY、Office/Python 库、SSH/SFTP、技能、PE 导入及防火墙阻断 GUI 门禁全部保留并通过。
 - 打包前与成包后原生 Git 均通过：中文路径仓库操作、SSH/HTTPS clone 和新提交 push、远端 ref 核对、错误主机/证书拒绝；原生 wincred 保留错误密码不删除、正确密码删除和 Unicode/OAuth 字段的真实凭据断言。Java 8 固定 UTF-8 样本编译/运行及 Maven 版本探测通过，不等于真实项目构建已验收。
 - 本地类型检查通过，正常 pre-push 的 Lint 为 533 条既有告警、0 错误，schema/工程/架构门禁通过。人工逐一核对最终中英文开发自测、启动、关于、帮助、深浅代码预览/设置、模型配置与首次回复截图：名称/Logo/版本正确，无云升级或上游社区入口。成包自测 12 通过、1 注意、0 失败、1 未测；真实 UI 经共享 Agent 到虚构模型首次回复通过，只启动一个聊天 runtime。
 - `brand-audit.json` 扫描 28,562 个文本文件，仅三份原迁移识别模块允许旧字符串。旧原始数据保留和其它安装位置/自定义 Windows 入口保护规则不变。
-- [当前 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198479433)：外层 ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,404,424 字节，无便携包。实际下载文件的 SHA-256 与 runner 一致：`29b5a141c608a79d7ae330d77ac224d33fb001441683288a1f4e9b3a75b86ae4`。[当前诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198972317)，保留至 2026-11-30 04:58 UTC。
+- [该轮 EXE 下载](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198479433)：外层 ZIP 恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,404,424 字节，无便携包。实际下载文件的 SHA-256 与 runner 一致：`29b5a141c608a79d7ae330d77ac224d33fb001441683288a1f4e9b3a75b86ae4`。[该轮诊断与截图](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768/artifacts/14198972317)，保留至 2026-11-30 04:58 UTC。
 - 本轮保留已有内存优化，但没有旧包同机对照。工作区就绪 30/90 秒工作集合计为 1374.40/963.14 MiB，配置模型未发送为 959.16 MiB，插件页与首次回复后为 2916.21 MiB；所有采样均无 java/javac 常驻进程。不能声称初始启动和任务高占用已经解决。
 
 Win7 真机/PowerShell 2.0/.NET 3.5、真实 Office 2013、真实 Java 项目/内网 Git/Maven 及企业认证、真实模型/内网 SSH、实际旧 NSIS 覆盖安装与完整退出升级重启仍未验收。此记录提交仅改文档，安装器对应代码仍为上述 `121ad70a`。

@@ -1,8 +1,8 @@
-> 当前通过功能验收的代码为 `3fce87dd116956f0c20253b5e2172edcdd5907fd`，Actions [43829709499](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499) 全绿（Windows 工程 36/36）。本轮缩小调度器依赖，并延迟加载四类 Office 解析器；原迁移/权限/离线能力门禁保留。唯一 EXE、SHA-256、品牌扫描和 13 张最终截图均已下载核对；验证包与未覆盖范围见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-调度器与-office-后复验)。没有部署或发布 Release。
+> 当前通过功能验收的代码为 `cf8022914ae6f4e4186a007e91b317cf48feea4e`，Actions [43838023557](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557) 全绿（Windows 工程 36/36）。本轮减少 Word 样式解析的临时分配，保留原格式/文件、缓存所有者、迁移/权限/离线门禁。唯一 EXE、SHA-256、品牌扫描和 13 张最终截图均已下载核对；验证包与未覆盖范围见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-word-解析优化后复验)。仅推送用户 fork，没有部署或发布 Release。
 >
-> [最新同机对照](../../specs/aibuddy7se-memory.md#2026-11-16-调度器与-office-成包对照验收)：对旧包 43812974790 和新包执行相同 GUI、五轮真实命令及四类 Office 流程。启动 90 秒 working set 956.38 → 955.58 MiB，文字回复均值 1593.90 → 1663.63 MiB（上升 4.37%），private bytes 1448.67 → 1437.09 MiB（下降 0.80%）。本轮只有局部收益，不能称为整体 RAM 明显改善；Office 首次打开更慢，Word 轮换读取占用也更高。此前约 42% 属于更早一轮，不能重复算作本轮收益。
+> [最新同机对照](../../specs/aibuddy7se-memory.md#2026-11-16-word-样式解析成包验收)：对旧包 43829709499 和新包执行相同 GUI、五轮真实命令及四类 Office 流程。Word 60 次轮换后 working set 123.65 → 104.05 MiB（−15.85%），private bytes 140.90 → 121.03 MiB（−14.10%），平均读取 27.0 → 16.7 ms；但首次打开 137.8 → 184.0 ms、首次读取 2.4 → 35.3 ms，20 到 60 次仍增长。启动 90 秒 working set 957.98 → 954.88 MiB，文字均值 1594.36 → 1689.57 MiB（+5.97%），private bytes 1445.90 → 1443.06 MiB。确认重复 Word 解析局部收益，整体 RAM 目标仍未达到；其他 Office 不利结果也已记录。此前约 42% 属于更早一轮，不能重复计算。
 >
-> 首轮 43825818453 在旧包工具回复等待失败，尚未运行 Office 内存测试；真实 Agent 复现确认是测试模型误读工具后的 user-role 系统提醒，修复探针定位后全流程通过，未放宽输出/权限负例。当前没有构建阻塞。下一步优先分析 Main/Window Host 装配与 Word 解析分配，补独立重复启动和长任务对照；Win7 真机、Office 2013、内网模型/SSH/Git/Maven 与旧 NSIS 覆盖安装仍未验收。保留随包 Git、复用现有 JDK 8/Maven，没有新增常驻 JVM。以下早期交接故障及旧数据为历史记录。
+> 当前没有测试/构建阻塞。先前 43825818453 的工具回复等待失败由测试模型误读 user-role 系统提醒导致，已修复并通过真实 Agent 与成包回归，未放宽权限/输出负例。本轮 Main/Window Host 只完成依赖图调查，尚无新增生产优化；bundle 大小不等于 RAM。下一步先取分配/保留堆证据，再评估 Win7 已禁用 RUM 的加载路径，并补交替顺序的多次成包冷启动、Word 首次延迟和长任务对照。本地无可运行 Electron/Xvfb；桌面实测来自 Server 2022 Actions，不替代真实 Win7、Office 2013、内网模型/SSH/Git/Maven 与旧 NSIS 覆盖安装。保留随包 Git、复用现有 JDK 8/Maven，没有新增常驻 JVM。以下早期交接故障及旧数据为历史记录。
 
 # aibuddy7se 云端开发交接（2026-11-13）
 
