@@ -71,20 +71,29 @@ async function probeJavaEnvironment(folder, env = process.env) {
     timeout: 15000,
     maxBuffer: 64 * 1024,
   };
+  let stage = "versions";
   try {
-    const [runtime, compiler] = await Promise.all([
+    // 任一版本命令失败时也必须等另一个退出，否则 Windows 的 cwd 句柄会阻止临时目录清理。
+    const versions = await Promise.allSettled([
       exec(java, ["-version"], options),
       exec(javac, ["-version"], options),
     ]);
+    for (const [index, result] of versions.entries()) {
+      if (result.status === "rejected") {
+        stage = index === 0 ? "java version" : "javac version";
+        throw result.reason;
+      }
+    }
+    const [runtime, compiler] = versions.map((result) => result.value);
     const javaVersion = /(?:openjdk|java) version "([^"]+)"/.exec(
       runtime.stdout + runtime.stderr,
     )?.[1];
     const javacVersion = /\bjavac\s+(\S+)/.exec(compiler.stdout + compiler.stderr)?.[1];
-    const versions = `Java ${javaVersion || "unknown"}; javac ${javacVersion || "unknown"}`;
+    const versionDetail = `Java ${javaVersion || "unknown"}; javac ${javacVersion || "unknown"}`;
     if (!javaVersion?.startsWith("1.8.") || !javacVersion?.startsWith("1.8.")) {
       return {
         status: "warn",
-        detail: `${location}; ${versions}; expected Java 8; existing installation unchanged`,
+        detail: `${location}; ${versionDetail}; expected Java 8; existing installation unchanged`,
       };
     }
     const file = join(folder, "AibuddyDeveloperProbe.java");
@@ -93,20 +102,22 @@ async function probeJavaEnvironment(folder, env = process.env) {
       'public class AibuddyDeveloperProbe { public static void main(String[] args) { if ("中文".length() != 2) throw new AssertionError(); System.out.print("AIBUDDY7SE_JAVA8_OK"); } }',
       "utf8",
     );
+    stage = "compile";
     await exec(javac, ["-proc:none", "-encoding", "UTF-8", "-d", folder, file], options);
+    stage = "run";
     const result = await exec(java, ["-cp", folder, "AibuddyDeveloperProbe"], options);
     assert.equal(result.stdout.trim(), "AIBUDDY7SE_JAVA8_OK");
     const consistent =
       (await sameExecutable(java, pathJava)) && (await sameExecutable(javac, pathJavac));
     return {
       status: consistent ? "pass" : "warn",
-      detail: `${location}; ${versions}; UTF-8 sample compiled and ran${consistent ? "" : "; JAVA_HOME and PATH disagree or PATH is incomplete; choose the intended JDK before building"}`,
+      detail: `${location}; ${versionDetail}; UTF-8 sample compiled and ran${consistent ? "" : "; JAVA_HOME and PATH disagree or PATH is incomplete; choose the intended JDK before building"}`,
     };
   } catch (error) {
     // 不回传工具原始错误输出，其中可能包含本机脚本回显的配置或秘密。
     return {
       status: "warn",
-      detail: `${location}; JDK probe failed (${error.code || "invalid output"}); no project built`,
+      detail: `${location}; JDK ${stage} probe failed (${error.code || "invalid output"}); no project built`,
     };
   }
 }
