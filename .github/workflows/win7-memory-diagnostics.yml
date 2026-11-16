@@ -3,11 +3,16 @@ on:
   push:
     branches: [codex/win7-memory-profiling-20261116]
   workflow_dispatch:
+    inputs:
+      run_comparison:
+        description: Run four independent AB/BA pairs in addition to diagnostics
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: win7-memory-evidence-${{ github.ref }}
+  group: win7-memory-evidence-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   diagnostics:
@@ -94,7 +99,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
   comparison:
-    if: github.repository == 'skyjt/ZCode_custom'
+    if: github.repository == 'skyjt/ZCode_custom' && (inputs.run_comparison || contains(github.event.head_commit.message, '[cold-comparison]'))
     runs-on: windows-2022
     timeout-minutes: 60
     env:

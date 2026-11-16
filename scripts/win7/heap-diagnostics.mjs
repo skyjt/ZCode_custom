@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { cp, mkdir, readdir, readFile, writeFile, rm, access } from "node:fs/promises";
-import { dirname, join, relative, resolve, isAbsolute, sep } from "node:path";
+import { dirname, join, relative, resolve, isAbsolute, sep, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
@@ -38,7 +38,8 @@ function archiveFiles(archive) {
   const result = new Map();
   for (const entry of listPackage(archive)) {
     const name = entry.replaceAll("\\", "/").replace(/^\/+/, "");
-    const metadata = statFile(archive, name, false);
+    // Windows ASAR 按本机分隔符查目录；统一摘要路径不能直接传给查询 API。
+    const metadata = statFile(archive, normalize(name), false);
     if (!metadata.files && !metadata.link) result.set(name, metadata);
   }
   return result;
@@ -110,8 +111,8 @@ export async function prepareDiagnosticCopy(source, destination, directory) {
     if (original.unpacked) nativeUnpackedFiles++;
     if (!patched.has(name)) {
       assert.equal(
-        digest(extractFile(copiedArchive, name)),
-        digest(extractFile(archive, name)),
+        digest(extractFile(copiedArchive, normalize(name))),
+        digest(extractFile(archive, normalize(name))),
         "Unrelated file changed: " + name,
       );
       unchangedFiles++;

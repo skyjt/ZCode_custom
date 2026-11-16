@@ -99,7 +99,10 @@ test("diagnostic copy preserves originals, native pack state and executable sheb
       "main/aibuddy7seDataSizeWorker.js",
     ])
       await writeFile(join(staging, "out", name), "export const worker = true;\n");
-    await writeFile(join(staging, "node_modules/native/addon.node"), "native fixture bytes");
+    await writeFile(
+      join(staging, join("node_modules", "native", "addon.node")),
+      "native fixture bytes",
+    );
     const archive = join(source, "resources/app.asar");
     await createPackageWithOptions(staging, archive, { unpack: "*.{node,dll,dylib,exe}" });
     for (const name of ["aibuddy7se.cjs", "plugin-host.cjs"])
@@ -117,11 +120,15 @@ test("diagnostic copy preserves originals, native pack state and executable sheb
     assert.equal(manifest.nativeUnpackedFiles, 1);
     assert.equal(manifest.unchangedFiles, 2);
     assert.equal(
-      statFile(join(copy, "resources/app.asar"), "node_modules/native/addon.node").unpacked,
+      statFile(join(copy, "resources/app.asar"), join("node_modules", "native", "addon.node"))
+        .unpacked,
       true,
     );
     assert.equal(
-      extractFile(join(copy, "resources/app.asar"), "node_modules/native/addon.node").toString(),
+      extractFile(
+        join(copy, "resources/app.asar"),
+        join("node_modules", "native", "addon.node"),
+      ).toString(),
       "native fixture bytes",
     );
     assert.match(
@@ -129,7 +136,7 @@ test("diagnostic copy preserves originals, native pack state and executable sheb
       /^#![^\n]+\nrequire\(/,
     );
     assert.match(
-      extractFile(join(copy, "resources/app.asar"), "out/main/index.js").toString(),
+      extractFile(join(copy, "resources/app.asar"), join("out", "main", "index.js")).toString(),
       /^import heapProbeReady/,
     );
     await assert.rejects(prepareDiagnosticCopy(source, source, output), /disjoint/);

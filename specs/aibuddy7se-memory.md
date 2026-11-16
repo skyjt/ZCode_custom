@@ -8,6 +8,11 @@ SHA-256 后复制诊断副本。原安装器、codex/win7-experimental 分支和
 inspector.Session 采样器；不开放调试端口，不改权限/schema/owner/lease 或缓存大小。
 Windows runtime 固定信息以 scripts/win7/runtime.json 为准。
 
+Windows 工程回归发现 ASAR 库查询必须使用本机分隔符；摘要仍使用统一 `/` 路径，
+查询/读取边界转换为本机路径，不放宽文件哈希或 unpack 断言。独立 workflow 按提交
+隔离并发，诊断修复不取消已开始的四对对照；后续仅显式 run_comparison 输入或
+提交标记 [cold-comparison] 启动新的完整对照，防止无关诊断修复重复占用 runner。
+
 唯一所有者与顺序：
 
     原 app-smoke 的阶段 → 测试控制器校验存活 PID/父子归属与 target token
