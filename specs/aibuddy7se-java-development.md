@@ -52,4 +52,6 @@ sequenceDiagram
 
 首轮 Actions 43798670712 的 Windows 工程回归为 31/32：特殊路径 Maven 探针和原注册表安全负例通过，JDK fixture 清理发生 EBUSY。原版本探针并行使用 Promise.all，任意命令失败后可能在另一个进程尚持有 cwd 时清理；改为等待所有版本命令结束并报告具体失败阶段，保留特殊路径与版本冲突断言。该轮没有生成新 EXE。
 
+43799134307 补充诊断确认，runner JDK 8 通过中文目录 junction 启动时，两条原生命令均直接退出 2（`could not find java.dll` / `Could not find Java SE Runtime Environment`）。自测报告注意符合实际，不能强行宣称该 launcher 路径可用。正例改用本机真实 JDK 安装，源码和 cwd 继续包含中文、空格、百分号及其他 shell 字符；固定编译文件名/类路径相对于 cwd 传递，避免旧 JDK 参数编码限制。另用真实本机失败进程验证两条版本命令均退出后能立即清理，无 mock 或增加等待。
+
 来源：[Git Windows 版本边界](https://gitforwindows.org/requirements.html)、[2.46.2 发行资产与摘要](https://github.com/git-for-windows/git/releases/tag/v2.46.2.windows.1)、[Maven 仓库与离线依赖](https://maven.apache.org/guides/introduction/introduction-to-repositories)。

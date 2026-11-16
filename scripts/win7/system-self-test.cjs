@@ -103,9 +103,14 @@ async function probeJavaEnvironment(folder, env = process.env) {
       "utf8",
     );
     stage = "compile";
-    await exec(javac, ["-proc:none", "-encoding", "UTF-8", "-d", folder, file], options);
+    // 临时目录已经是 cwd，固定相对文件名不再经过旧 JDK 的本机参数编码转换。
+    await exec(
+      javac,
+      ["-proc:none", "-encoding", "UTF-8", "-d", ".", "AibuddyDeveloperProbe.java"],
+      options,
+    );
     stage = "run";
-    const result = await exec(java, ["-cp", folder, "AibuddyDeveloperProbe"], options);
+    const result = await exec(java, ["-cp", ".", "AibuddyDeveloperProbe"], options);
     assert.equal(result.stdout.trim(), "AIBUDDY7SE_JAVA8_OK");
     const consistent =
       (await sameExecutable(java, pathJava)) && (await sameExecutable(javac, pathJavac));

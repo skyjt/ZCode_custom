@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { runChecks } from "../win7/system-self-test.cjs";
-import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
 import probes from "../win7/system-self-test.cjs";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 
 test("self-test continues after failure and reports optional and untested capabilities honestly", async () => {
   const checks = await runChecks([
@@ -89,12 +87,13 @@ test(
 test(
   "native JDK 8 probe compiles UTF-8 source and flags a different PATH Java",
   { skip: process.platform !== "win32" },
-  async (t) => {
+  async () => {
     const folder = await mkdtemp(join(tmpdir(), "Java 中文 & (x) %PATH% ! "));
     try {
       assert.ok(process.env.JAVA_HOME_8_X64 || process.env.JAVA_HOME, "CI must provide JDK 8");
-      const home = join(folder, "jdk8");
-      await symlink(process.env.JAVA_HOME_8_X64 || process.env.JAVA_HOME, home, "junction");
+      // 复用实际安装，不通过旧 JDK launcher 无法识别的中文目录链接伪造安装位置。
+      // 工作目录及源文件仍在上方中文、空格和 shell 特殊字符路径中。
+      const home = process.env.JAVA_HOME_8_X64 || process.env.JAVA_HOME;
       const env = {
         ...process.env,
         JAVA_HOME: home,
@@ -103,35 +102,6 @@ test(
         JAVA_TOOL_OPTIONS: "-javaagent:must-not-run",
       };
       const report = await probes.probeJavaEnvironment(folder, env);
-      if (report.status !== "pass") {
-        // 仅输出固定 CI fixture 的诊断；产品报告不回显实际用户命令输出。
-        const diagnosticEnv = { ...env };
-        for (const name of Object.keys(diagnosticEnv))
-          if (/OPTIONS|OPTS|CLASSPATH/i.test(name)) delete diagnosticEnv[name];
-        for (const executable of ["java.exe", "javac.exe"]) {
-          try {
-            t.diagnostic(
-              JSON.stringify(
-                await promisify(execFile)(join(home, "bin", executable), ["-version"], {
-                  env: diagnosticEnv,
-                  cwd: folder,
-                  timeout: 15000,
-                  encoding: "utf8",
-                }),
-              ),
-            );
-          } catch (error) {
-            t.diagnostic(
-              JSON.stringify({
-                executable,
-                code: error.code,
-                stdout: error.stdout,
-                stderr: error.stderr,
-              }),
-            );
-          }
-        }
-      }
       assert.equal(report.status, "pass", report.detail);
       assert.match(report.detail, /compiled and ran/);
       assert.doesNotMatch(report.detail, /must-not-run/);
@@ -140,6 +110,32 @@ test(
       // 独立存在的 java 候选就应揭示 PATH 与 JAVA_HOME 不同，不能悄悄修正用户环境。
       await writeFile(join(folder, "different", "bin", "java.exe"), "not a Java executable");
       assert.equal((await probes.probeJavaEnvironment(folder, conflict)).status, "warn");
+    } finally {
+      await rm(folder, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "failed native Java version commands have both exited before cleanup",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const folder = await mkdtemp(join(tmpdir(), "java-failed-probes-"));
+    try {
+      const bin = join(folder, "bin");
+      await mkdir(bin);
+      // Node 是真实本机可执行文件，会拒绝 Java 的 -version；不 mock 进程退出或 Windows 句柄。
+      await copyFile(process.execPath, join(bin, "java.exe"));
+      await copyFile(process.execPath, join(bin, "javac.exe"));
+      const report = await probes.probeJavaEnvironment(folder, {
+        ...process.env,
+        JAVA_HOME: folder,
+        Path: undefined,
+        PATH: bin,
+      });
+      assert.equal(report.status, "warn");
+      assert.match(report.detail, /version probe failed/);
+      await rm(folder, { recursive: true });
     } finally {
       await rm(folder, { recursive: true, force: true });
     }
