@@ -1,25 +1,101 @@
 # aibuddy7se 内存优化
 
-## 2026-11-16 已完成证据归档；Host 候选 RAM 仍待测
+## 2026-11-16 成包复测完成：Host 临时分配下降，整体 RAM 目标未达
 
-本轮在独立 `codex/win7-memory-profiling-20261116` 分支工作；原分支仍为 24932434，
-未部署或发布 Release。产品候选代码 e6b95358 仅在单次 Provider 操作内复用完整校验后的
-canonical signature；没有跨调用缓存、跳过校验、强制 GC、裁剪工作集或关闭必要能力。
+本轮在独立 `codex/win7-memory-profiling-20261116` 分支完成可逆优化，原分支仍为
+24932434，未发布或部署。产品代码 [e6b95358](https://github.com/skyjt/ZCode_custom/commit/e6b95358a8f8d5705855ae3b777529ead37e9b36)
+仅在一次 Provider read、锁内 applyRemoteRelease 或 watcher refresh 中复用完整校验后
+的 canonical signature。WeakMap 不保存在 Source 字段；磁盘重读、版本冲突、拒绝降级、
+私有文件原子写入、跨进程锁、LKG、Endpoint 隔离与权限边界均保留。
 
-两次 cf8022914 原包堆诊断均成功：
+### 实际分配与保留堆
+
+两次 cf8022914 原包诊断
 [43856538703](https://github.com/skyjt/ZCode_custom/actions/runs/43856538703)、
-[43859527537](https://github.com/skyjt/ZCode_custom/actions/runs/43859527537)。第二次
-[摘要 artifact 14221629845](https://github.com/skyjt/ZCode_custom/actions/runs/43859527537/artifacts/14221629845)
-ZIP SHA-256 为 `2e9893086710b090076da6ab585193eb20107ca3f899055bf797dbfc1e948b28`。
-取得 Main、Host、Scheduler、Extension Host、Agent 与 6 个插件宿主的 26 个阶段摘要；
-退出 worker、Renderer/GPU/utility 和原生 runtime-host/conhost 明确列作 Node 堆未覆盖。
-采样器不额外开放 Node inspector 网络端口，原始堆不上传。后次已修复 Script 节点名的
-CI 绝对路径，仅保留包内定位；没有真实用户数据。
+[43859527537](https://github.com/skyjt/ZCode_custom/actions/runs/43859527537)，以及候选
+[43863159301](https://github.com/skyjt/ZCode_custom/actions/runs/43863159301) 全部成功。
+候选 [摘要 artifact 14224558513](https://github.com/skyjt/ZCode_custom/actions/runs/43863159301/artifacts/14224558513)
+ZIP SHA-256：`200772b9d4c69aec054066052d53b7cacbc75ef319a1e2bef91058a242b5f39c`。
 
-两轮 Host 90 秒累计抽样分配约 184.89/184.60 MiB、强边保留堆 39.89/39.92 MiB；
-top-80 中 Zod/内置配置编码栈至少 62.44/66.04 MiB。Main 强边堆约 44.85 MiB，RUM
-Script 节点自身保留约 3.42 MiB；这不是完整 SDK 的 RSS，也不能解释全部 Main 占用。
-快照会 GC，后续分配包含采样器处理前次快照的开销，诊断 WS/PB 明显膨胀，禁止当收益。
+| 启动 90 秒诊断指标 MiB | 基线 1 | 基线 2 | 候选 |
+| --- | ---: | ---: | ---: |
+| Host 累计抽样分配 | 184.891 | 184.601 | 153.213 |
+| Host top-80 中 Zod/内置配置编码抽样 | 62.443 | 66.040 | 46.246 |
+| Host 强边保留堆 | 39.887 | 39.920 | 39.880 |
+| Provider Source 节点 retained | 0.264885 | 0.264885 | 0.264885 |
+| Main 强边保留堆 | 44.839 | 44.851 | 44.851 |
+
+Host 累计抽样分配约下降 17%，相关编码栈同步减少，Source 保留量不增长；源码确认
+同一次读取重复序列化同一候选，支持减少临时分配的机制。独立 Node 热点四对实验也
+测到累计抽样分配配对中位 -32.60%，输出 hash 相同，但结束 heapUsed 有时更高。
+上述分配量不是常驻 RAM，也不是四对无插桩统计。
+
+Main 的 RUM Script 节点保留约 3.42 MiB，不能当作整个 SDK 的 RSS 或解释全部 Main
+占用；未据此改变加载/证书路径。Agent 文字阶段强边堆约 105.3 MiB，其中 CLI Script
+保留约 30.12 MiB、源字符串约 29.82 MiB（31,269,868 字节）；需要另行定位加载和原生
+占用，不能把 bundle 文件大小直接换算为进程 RAM。
+
+每个诊断 run 有 Main、Host、Scheduler、Extension Host、Agent 和 6 个插件宿主共 26 个
+阶段摘要。已退出 worker、Renderer/GPU/utility 及原生 runtime-host/conhost 的 Node 堆
+未覆盖，不能记零。强边 dominator 是估计，重叠 retained 行不可相加；快照会 GC，后续
+累计分配含前次 profiler/snapshot 处理开销。所有诊断 WS/PB 不进入下方验收。采样器不
+额外开放 Node inspector 端口；三个下载 ZIP 均确认没有原始 heap snapshot/profile，
+后两次摘要已把 CI 绝对路径规范为包内定位，全部使用合成数据。
+
+### 候选的四对无插桩验收
+
+[run 43859527521](https://github.com/skyjt/ZCode_custom/actions/runs/43859527521) 的 build
+与 comparison 两个 job 均成功。比较 cf8022914 与 e6b95358，同一 Windows Server 2022
+runner，AB/BA/AB/BA，各 4 次新进程和新夹具；没有清空 OS 文件缓存。每次文字三快照
+先取均值，只算一个试验单位。全部 8 次 GUI、32 份 Office 报告、40 次真实 Bash 输出
+通过；下载后从原始 JSON 独立复算全部 58 项汇总指标与 Main/Host/后代归属，均一致。
+
+[对照 artifact 14225683904](https://github.com/skyjt/ZCode_custom/actions/runs/43859527521/artifacts/14225683904)
+ZIP SHA-256：`ee16496176e5712ed8e335bb8c8d298a2f7d9ade28a2862ab27dc7179ffe45da`。
+逐对数据、范围、角色分组及来源哈希保存在
+[持久证据索引](./aibuddy7se-memory-evidence-20261116.json)。以下百分比是四个配对变化的
+中位数，不是两个总体中位数相除。working set 合计可能重复共享页；private bytes 是
+私有提交量。样本小，不声称统计显著性、峰值改善或长期无泄漏。
+
+| 整棵进程树指标 MiB | 基线中位数 | 候选中位数 | 配对变化中位数 | 各对范围 |
+| --- | ---: | ---: | ---: | ---: |
+| 30 秒 working set | 1375.81 | 1418.16 | +0.81% | -2.75% 至 +4.51% |
+| 30 秒 private bytes | 1032.05 | 1071.05 | +1.84% | -1.67% 至 +5.43% |
+| 90 秒 working set | 952.65 | 951.23 | -0.12% | -1.68% 至 +0.64% |
+| 90 秒 private bytes | 751.72 | 745.86 | -0.78% | -3.17% 至 +1.39% |
+| 文字 working set | 1633.92 | 1607.50 | -1.56% | -2.85% 至 -0.58% |
+| 文字 private bytes | 1433.85 | 1428.24 | -0.39% | -2.40% 至 +1.83% |
+| 工具后空闲 working set | 1497.73 | 1467.25 | -1.55% | -3.33% 至 +0.24% |
+| 工具后空闲 private bytes | 1456.82 | 1451.14 | -0.39% | -2.67% 至 +2.08% |
+
+文字 working set 四对均下降，但幅度小；90 秒空闲基本持平，30 秒和 private bytes
+仍有不利变化。第 3 对 Main 在 30 秒的 working set 为 +32.81%，90 秒为 +0.11%；没有
+隐藏此暂态波动，也不能由单个快照判定原因。整棵树 RAM 目标仍未达到。
+
+| 文字阶段角色 | 基线 WS MiB | 候选 WS MiB | WS 配对变化/范围 | PB 配对变化/范围 |
+| --- | ---: | ---: | ---: | ---: |
+| Main 自身 | 152.63 | 152.80 | -0.21% / -1.81% 至 +4.72% | -0.90% / -3.22% 至 +1.56% |
+| Window Host 自身 | 132.83 | 127.06 | -4.67% / -8.17% 至 +3.22% | -0.80% / -2.07% 至 +2.00% |
+| Host 后代合计 | 840.41 | 818.97 | -2.55% / -4.25% 至 +0.04% | +1.66% / -4.53% 至 +3.29% |
+
+Host 自身 WS 三对下降、一对增加；后代 PB 三对增加，不能把进程树变化全部归因于
+这次签名复用。Main 保留堆与文字自身 WS 基本不变，尚无足够证据作进一步生产改动。
+
+| 延迟 ms | 基线中位数 | 候选中位数 | 配对变化中位数 | 各对范围 |
+| --- | ---: | ---: | ---: | ---: |
+| 启动至工作区可用 | 7594.47 | 7610.78 | -0.67% | -14.80% 至 +0.69% |
+| 首次文字回复 | 5204.81 | 5256.38 | +0.21% | -4.92% 至 +6.18% |
+| 首次真实工具 UI 完成 | 1435.63 | 1413.39 | -2.31% | -3.50% 至 +3.81% |
+| 后四次工具平均 UI 完成 | 1054.44 | 1057.93 | +0.33% | -12.73% 至 +4.14% |
+
+首次启动基线第 1 次 8947.43 ms，其余约 7566–7611 ms；不把首对波动当作稳定加速。
+Office 的完整内容、原文哈希、损坏/越界拒绝全部通过。本次没有修改 Office；其首用
+配对变化中位数为 Word -3.21%（-5.81% 至 +23.88%）、Excel +2.48%（-19.49% 至
++14.02%）、PowerPoint -4.22%（-17.86% 至 +30.50%）、PDF -5.37%（-7.98% 至 -0.85%）。
+Word 60 次 WS 为 +0.61%（-2.58% 至 +2.29%），整体接近持平；完整轮换/延迟不利
+数据保留在索引，不能将不同 runner 的绝对毫秒直接与下面原 Word 实验相比较。
+
+### 原 Word 优化的独立复测
 
 原 Word 代码的四对 AB/BA 无插桩复测已通过：
 [comparison job 133259475682](https://github.com/skyjt/ZCode_custom/actions/runs/43855759324/job/133259475682)，
@@ -44,31 +120,30 @@ comparison job 本身成功，未被取消或重启。
 20→60 次仍增长，未证明长期泄漏消失。先前文字约 +6% 没有复现；整体仍基本持平，
 不能把小幅波动归因于没有调用的 Word。以上不包含本次 Host 候选。
 
-候选 [run 43859527521](https://github.com/skyjt/ZCode_custom/actions/runs/43859527521) 的
-build job 133272366069 全部成功；原构建/安全步骤完整保留，新增实际 Electron 44.2.0 /
-Node 24.20.0 的 Provider 文件、双进程竞争、watcher 回归 7 组通过。应用自测 12 通过、
-1 注意（OS 非 Win7）、0 失败、1 未测。候选 EXE SHA-256：
-`69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb`。
-四对旧包/候选包 comparison job 133282119165 正在运行；候选实际堆另在 run 43863159301
-独立采样，不混用两个 job 的内存数据。没有这些最终结果前不宣称整体 RAM 改善。
+### 安全回归与交付范围
 
-本地候选类型检查、Lint（526 既有告警/0 错误）、schema 8、架构工程 61、受影响工程
-76、保留 CLI 回归 14、诊断工程 9 均通过。原 pre-push 命令在本环境被 tsx Unix pipe
-限制阻断；同一 SQLite 检查改用 node --import tsx 执行，其余门禁逐项原样通过，没有
-删门禁或修改 package.json。独立 Node 四对热点诊断的累计抽样分配中位 -32.60%，
-首次读取中位 -23.80%，输出 hash 一致；结束 heapUsed 有时更高，不当作 RAM 收益。
+完整原构建/安全步骤逐项保留，WinPTY/进程归属、凭据迁移、PE imports、离线 Office/
+Python/SSH/SFTP、Git/TLS 拒绝不可信证书、现有 JDK 8/Maven、技能、防火墙 GUI 均通过。
+新增 Provider 7 组文件/双进程竞争/watcher 场景使用当前源码公开入口独立打包，再由
+候选随包 Electron 44.2.0 / Node 24.20.0 执行；不冒充从 ASAR 直接导出内部对象的单测。
+实际产品接入另由 GUI 和候选 Host 堆栈覆盖。13 张候选构建截图已核对；应用自测为
+12 通过、1 注意（OS 非 Win7）、0 失败、1 未测（真实连接）。
 
-真实 Win7、Office 2013 GUI/COM、内网模型/项目/认证、旧 NSIS 实机覆盖安装与长浏览
-仍未验收。以下保留此前实现契约和历史单次结果，最新结论以上述重复测试为准。
+[验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43859527521/artifacts/14224021699)
+SHA-256：`69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb`。
+安装器与构建诊断保留至 2026-11-30，堆/对照 artifact 保留至 2026-11-23；持久 JSON
+保存逐对数值和哈希。候选留在独立分支，没有合并原分支、部署或创建 Release。
 
-## 2026-11-16 候选实际成包诊断
+本地候选 typecheck、Lint（526 既有告警/0 错误）、schema 8、架构工程 61、受影响工程
+76、CLI 回归 14、诊断工程 9 均通过。原 pre-push 启动 tsx 时遇到
+`Error: listen EPERM: operation not permitted /tmp/tsx-1000/212.pipe`；同一 SQLite 检查器
+改用 `node --import tsx` 执行通过，其余门禁逐项原样通过。没有修改 package.json 或
+删门禁；这是执行环境 Unix IPC 限制，不是自动审批拒绝。编译检查的 4 GiB heap 设置
+没有进入产品启动参数。首轮 ASAR 失败已修复，当前无待完成 CI 或推送权限阻塞。
 
-候选代码 e6b95358 的完整 Windows build job 133272366069 已通过，run 43859527521。
-在独立 runner 对该已验收包追加堆采样，安装器 SHA-256 固定为
-`69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb`。
-先前 run 43856538703 与 43859527537 都采样 cf8022914 原包；它们不能冒充候选数据。
-候选四对无插桩对照在原 comparison job 133282119165 继续，不取消、不重启；诊断运行
-只用于核对实际 Host 分配栈，不能将其 WS/PB 与未插桩对照相混。
+真实 Win7、Office 2013 GUI/COM、内网模型/项目/认证、旧 NSIS 实机覆盖安装、长浏览
+和长期泄漏仍未验收；Main/Chromium/原生分配仍有采样覆盖缺口。以下保留实施前契约
+和历史单次结果，最新结论以上述重复测试为准。
 
 ## 2026-11-16 Host 内置配置签名的重复分配候选
 
