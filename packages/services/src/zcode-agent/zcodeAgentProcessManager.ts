@@ -1441,6 +1441,7 @@ export class ZCodeAgentProcessManager {
       this.reportRuntimeReady(managed);
       log("ZCode agent process started", {
         workspaceKey,
+        ...(this.lane ? { lane: this.lane } : {}),
         command: effectiveCommand.command,
         cwd: spawnPreflight.cwd,
         pid: runtimePid,

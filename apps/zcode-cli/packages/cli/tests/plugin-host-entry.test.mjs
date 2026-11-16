@@ -18,8 +18,13 @@ const cliRoot = resolve(import.meta.dirname, "..");
 const forbiddenEvaluation = "AGENT_ENTRY_EVALUATED";
 const processTimeoutMs = 10_000;
 
-for (const minify of [false, true]) {
-  test(`plugin host avoids Agent initialization in ${minify ? "desktop" : "Node"} bundles`, async () => {
+for (const { minify, pluginHostOnly } of [
+  { minify: false, pluginHostOnly: false },
+  { minify: true, pluginHostOnly: false },
+  { minify: false, pluginHostOnly: true },
+  { minify: true, pluginHostOnly: true },
+]) {
+  test(`plugin host ${pluginHostOnly ? "lightweight" : "full"} ${minify ? "desktop" : "Node"} bundle preserves execution boundaries`, async (t) => {
     const directory = await mkdtemp(join(tmpdir(), "zcode-plugin-entry-"));
     const outfile = join(directory, "zcode.cjs");
     const serverPath = join(directory, "server.mjs");
@@ -45,9 +50,10 @@ export async function main() {
   }));
 }`,
       );
-      await build({
+      const result = await build({
         alias: resolveBuildAliases(),
         bundle: true,
+        define: { __ZCODE_PLUGIN_HOST_ONLY__: String(pluginHostOnly) },
         entryPoints: [join(cliRoot, "src/main.ts")],
         external: resolveBuildExternal(),
         format: "cjs",
@@ -74,6 +80,12 @@ export async function main() {
           },
         ],
       });
+      if (pluginHostOnly) {
+        for (const input of Object.keys(result.metafile.inputs)) {
+          assert.equal(blockedModules.has(resolve(input)), false, `Agent code included: ${input}`);
+        }
+      }
+      t.diagnostic(`bundle bytes: ${(await readFile(outfile)).length}`);
 
       const { stdout, stderr } = await execFileAsync(
         process.execPath,
@@ -137,7 +149,11 @@ export async function main() {
       // 证明探针实际生效：普通命令仍进入业务分支，触发被注入的求值错误。
       await assert.rejects(
         execFileAsync(process.execPath, [outfile, "--version"], { timeout: processTimeoutMs }),
-        (error) => error.stderr.includes(forbiddenEvaluation),
+        (error) =>
+          error.stderr.includes(
+            pluginHostOnly ? "only accepts plugin-host commands" : forbiddenEvaluation,
+          ) &&
+          (!pluginHostOnly || !error.stderr.includes(forbiddenEvaluation)),
       );
     } finally {
       await rm(directory, { force: true, recursive: true });

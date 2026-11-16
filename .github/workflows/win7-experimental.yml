@@ -113,6 +113,10 @@ jobs:
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 2
         run: node scripts/win7/agent-smoke.cjs packages/desktop/dist/win7/win-unpacked .cache/runtime-host-acceptance/Release/adapter.cjs
+      - name: Lightweight plugin host execution boundaries
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 3
+        run: node --test apps/zcode-cli/packages/cli/tests/plugin-host-entry.test.mjs
       - name: Packaged legacy credential migration
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         timeout-minutes: 2
@@ -189,7 +193,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 10
+        timeout-minutes: 12
         shell: pwsh
         run: |
           $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe").Path
@@ -217,7 +221,7 @@ jobs:
               if ($LASTEXITCODE) { throw 'Cannot extract baseline application' }
               $baselineExe = (Resolve-Path "$baseline/app/aibuddy7se.exe").Path
               New-NetFirewallRule -DisplayName "$rule-baseline" -Direction Outbound -Program $baselineExe -Action Block -Enabled True -Profile Any | Out-Null
-              node scripts/win7/app-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline --measure-memory --baseline
+              node scripts/win7/app-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline --measure-memory --baseline --baseline-first-send
               if ($LASTEXITCODE) { throw 'Baseline packaged memory/startup check failed' }
             }
             node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance --measure-memory

@@ -4321,8 +4321,19 @@ export function createZCodeAgentService(
   }
 
   // mcp/list 专用：与插件管理命令隔离进程，见 mcpStatusProcessManager 处的说明。
-  async function getMcpStatusClient(): Promise<ZCodeProtocolClient> {
+  async function getMcpStatusClient(
+    mode?: ZCodeAgentListMcpServerStatusesParams["mode"],
+  ): Promise<ZCodeProtocolClient> {
     const workspace = { workspacePath: ensurePluginManagementWorkspacePath() };
+    if (
+      ZCODE_WIN7_EDITION &&
+      mode === "status" &&
+      !mcpStatusProcessManager.getExistingClient(workspace)
+    ) {
+      // 被动列表不应创建第二棵工具树。原 status handler 不连接 MCP，复用可回收管理面；
+      // 已有检查 client 时仍读取原 owner，不能丢失 OAuth 或切换它的 workspace lease。
+      return getPluginManagementClient();
+    }
     const client = await mcpStatusProcessManager.getClient(workspace);
     wireClient(client, workspace, "mcp-status");
     return client;
@@ -5169,7 +5180,7 @@ export function createZCodeAgentService(
 
     async listMcpServerStatuses(params: ZCodeAgentListMcpServerStatusesParams) {
       const requestMcpList = async (options?: { omitMcpServers?: boolean; omitMode?: boolean }) => {
-        const client = await getMcpStatusClient();
+        const client = await getMcpStatusClient(params.mode);
         // 管理目录只是进程载体；先登记本次实际探测目标，反向授权才能精确校验归属。
         // 放在重试闭包内，兼容重试和进程重建都不会遗漏登记。
         rememberClientTarget(client, params);

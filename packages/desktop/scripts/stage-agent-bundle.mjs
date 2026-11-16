@@ -10,7 +10,7 @@
 // 误判成「代码没起作用」。两边共用这一份，dev 与打包不可能再各自漂移。
 import { stageCredentialKeyring } from "../../../scripts/stage-credential-keyring.mjs";
 import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 export const AGENT_BUNDLE_SOURCE_RELATIVE = "apps/zcode-cli/packages/cli/dist/zcode.cjs";
 
@@ -59,9 +59,14 @@ export async function stageAgentBundle({ repoRoot, platformKey, log = console.lo
   if (!existsSync(cliBundlePath)) {
     throw new Error(`[stage:agent-bundle] agent bundle 源产物不存在：${cliBundlePath}`);
   }
+  const pluginHostPath = resolve(dirname(cliBundlePath), "plugin-host.cjs");
+  if (!existsSync(pluginHostPath)) {
+    throw new Error(`[stage:agent-bundle] plugin host bundle 源产物不存在：${pluginHostPath}`);
+  }
   rmSync(glmDir, { recursive: true, force: true });
   mkdirSync(glmDir, { recursive: true });
   copyFileSync(cliBundlePath, stagedBundlePath);
+  copyFileSync(pluginHostPath, resolve(glmDir, "plugin-host.cjs"));
   const meta = {
     runtime: "electron-node",
     entry: "zcode.cjs",

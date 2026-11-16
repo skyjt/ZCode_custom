@@ -1,5 +1,10 @@
 # Tool Change Chain Spec
 
+2026-11-16 工具宿主内存优化：桌面自有插件的启动前缀优先选择同次构建的 `plugin-host.cjs`，
+排除未使用的 Agent 代码。server 路径、argv/env、tool schema/顺序/权限、MCP 连接池、输出与
+UI/V4 投影不变；沿用原官方插件身份和 CUA broker 准入。未随包提供轻量入口的 Node/SEA/SSH
+继续走原完整 CLI。验收包括完整/轻量入口的授权正负例、真实 stdio、Office/SSH/REPL 门禁。
+
 工具 schema、顺序与描述是固定字节（tools 段字节进入缓存前缀）：`toToolJsonSchema` 按
 zod v4 toJSONSchema 的 key 顺序输出——`$schema` 在最前，`description`、`default` 在 `type` 前，
 数组的 `minItems`/`maxItems` 在 `type` 前，属性声明顺序不变；ToolSearch 输入 schema 走同一入口。

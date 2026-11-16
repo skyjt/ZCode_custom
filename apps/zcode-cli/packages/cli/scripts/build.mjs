@@ -176,13 +176,14 @@ export const buildCli = async ({
     env,
   });
 
-  await build({
+  const buildOptions = {
     banner: {
       js: "#!/usr/bin/env node",
     },
     bundle: true,
     define: {
       __CLI_VERSION__: JSON.stringify(cliVersion),
+      __ZCODE_PLUGIN_HOST_ONLY__: "false",
     },
     entryPoints: [resolve(cliDirectory, "src/main.ts")],
     // Ink 7 and yoga-layout use top-level await, so the CJS CLI bundle loads the TUI
@@ -211,13 +212,24 @@ export const buildCli = async ({
     // 在两端都不会用到目标运行时不支持的语法/特性。
     target: "node22",
     alias: resolveBuildAliases({ cliDirectory, rootDirectory }),
+  };
+  await build(buildOptions);
+  // 只提前分流命令仍会让每个工具进程读取/解析完整 bundle。构建同源轻量入口，
+  // 让 esbuild 排除 Agent/provider 分支；完整 CLI 继续自包含以兼容 SEA 和旧远端。
+  const pluginHostFile = resolve(cliDirectory, "dist/plugin-host.cjs");
+  await build({
+    ...buildOptions,
+    define: { ...buildOptions.define, __ZCODE_PLUGIN_HOST_ONLY__: "true" },
+    outfile: pluginHostFile,
   });
 
   if (!sourcemap) {
     await rm(sourcemapFile, { force: true });
+    await rm(`${pluginHostFile}.map`, { force: true });
   }
 
   await chmod(outfile, executableFileMode);
+  await chmod(pluginHostFile, executableFileMode);
   // zcode.cjs 内联了第三方代码；dist 旁的伴随声明供发行 CLI 与统一分发包（build-zcode）复制。
   await stageThirdPartyNotices(resolve(cliDirectory, "dist"), resolve(rootDirectory, "../.."));
 };

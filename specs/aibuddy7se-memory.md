@@ -1,6 +1,47 @@
 # aibuddy7se 内存优化
 
+## 2026-11-16 分阶段优化：设置查询与工具宿主
+
+基线为 Actions 43805639768 的运行时代码 121ad70a。打开插件页再向虚构模型发送一次纯文本请求后，24 个进程的 working set 合计 2916.21 MiB、private bytes 2366.18 MiB；其中设置 MCP 检查树 8 个进程、968.95/680.86 MiB，聊天树 9 个进程、1137.55/798.93 MiB。working set 会重复计共享页，private bytes 是提交量，不等于实际私有物理 RAM。不能用 renderer JS heap（52.81 MiB）解释整个进程树。
+
+第一步只改变 Win7 的被动设置查询：
+
+- 自动打开/配置投影变化使用已有 `mcp/list mode=status`，只展示配置及已有检查状态；未检查不能显示连接成功。手动刷新、启用与实际工具调用继续执行真实连接。
+- 若原 `mcp-status` manager 已有 client，status 请求继续在该 client 读取，以保留 OAuth、当前 workspace 的状态及原 lease。否则复用可空闲回收的插件管理 lane；不得因只读查询创建第二个 MCP 检查树。
+- connect 请求仍独占原 `mcp-status` lane，不能阻塞插件安装/卸载。保留五分钟空闲策略和在途请求保护，不提前关闭授权窗口，不回收聊天、REPL 或浏览器。
+- 原 CLI handler、Host 工作区登记、UI epoch 和刷新队列继续拥有状态；不增设状态缓存或第二个 owner。旧 Agent 不支持 status 时仍明确失败，禁止降级 connect。现代 Desktop/Web 行为不变。
+- 进程启动日志增加已有 lane 字段，便于区分同 cwd 的管理与检查进程，不记录参数、凭据或新用户数据。
+
+```mermaid
+sequenceDiagram
+  participant UI as Win7 设置页
+  participant Host as 原 Agent Service
+  participant Plugin as 插件管理 lane
+  participant Status as MCP 检查 lane
+  UI->>Host: 自动展示 mode=status
+  alt 已有检查 client
+    Host->>Status: 读取原 workspace 状态 / OAuth
+  else 尚无检查 client
+    Host->>Plugin: 原 status handler（无连接副作用）
+  end
+  UI->>Host: 手动刷新 mode=connect
+  Host->>Status: 原连接准入与真实检查
+  Note over Plugin,Status: 独立 stdio 队列；不改聊天 owner/lease 或手机恢复语义
+```
+
+验收先覆盖真实成包：插件页自动查询完成、无 mcp-status spawn；首次纯文本回复后采样；再点击手动 MCP 刷新，确认真实检查 lane 启动及请求完成，再次进入页面复用原 lane。对照包也必须执行插件页及首次发送，不能拿旧包启动内存与新包任务后内存比较。原安全负例、功能门禁及品牌截图全部保留。后续宿主/前端优化逐步追加实测，不预先承诺目标 RAM。
+
 ## 范围与规则
+
+第二步减少每个自有工具宿主的重复加载：从同一 CLI main 源码构建 `plugin-host.cjs`，构建期排除普通 Agent/provider/run 分支。入口仍执行原环境清洗、进程名称、stderr/error 边界和官方 CUA 凭据校验；成功启动 MCP 后不能按一次性 CLI 回收。轻量入口收到非 plugin-host 命令必须明确失败，不能隐式加载 Agent。
+
+完整 `zcode.cjs` 保持自包含（Node/SEA/SSH 兼容）。桌面打包同时暂存轻量入口，缺失时报错，不能静默交付旧的重宿主。官方插件配置优先使用当前 CLI 旁的轻量入口；无伴随文件的独立 CLI/SEA/旧远端保持原路径。不新建 tool schema、连接池、权限路径或环境变量，不回收有状态工具；同一原插件 server.js 接收原 argv/env 并持有原 stdio。
+
+CLI 回归分别执行完整/轻量入口的普通插件、授权 CUA、拒绝非法 CUA、未知命令；构建 metafile 证明轻量包没有 Agent 模块。真实成包补轻量宿主 stdio 请求/响应与参数、环境清洗，并保留 Office/SSH/REPL 全部门禁。RAM 降幅以同 runner 成包采样为准，包体积不是 RAM。
+
+这两步本地验证：根类型检查通过，Lint 526 告警/0 错误（修复本次 MCP 状态页相关的不稳定空数组/对象依赖，专项 0 告警/0 错误）；CLI/bootstrap 类型检查与 Lint 通过（bootstrap 既有告警保留）。完整/轻量入口四组执行边界全部通过，官方启动路径 4/4、MCP 状态/工作区切换/官方授权 20/20 通过；构建与 Win7 工程场景 41 通过、5 项 Windows 原生场景在 Linux 跳过，必须等待 Windows 门禁。架构新/基线违规均 0，但目标 App/CLI 多数目录未纳入受管模块，不能把此项当作完整边界证明。
+
+压缩入口构建约 15.6 MB → 0.50 MB，只能证明避免重复加载的代码体积；实际 RAM 待同一 Windows runner 对照，首次回复后连续三次采样（无强制 GC/工作集压缩）。
 
 用户反馈刚启动以及执行任务、浏览网页时总 RAM 超过 1 GB。本轮先减少可确认的启动分配和无界缓存，不承诺未经测量的降幅。
 

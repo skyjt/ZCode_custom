@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it } from "vitest";
-import { writeOfficialPluginRuntimeManifest } from "../src/app/official-plugin-runtime.js";
+import {
+  officialPluginHostPrefixArgs,
+  writeOfficialPluginRuntimeManifest,
+} from "../src/app/official-plugin-runtime.js";
 
 describe("official plugin runtime manifest", () => {
   const cleanups: string[] = [];
@@ -12,6 +15,26 @@ describe("official plugin runtime manifest", () => {
   afterEach(async () => {
     process.argv[1] = originalEntrypoint;
     await Promise.all(cleanups.splice(0).map((root) => rm(root, { force: true, recursive: true })));
+  });
+
+  it("uses the adjacent lightweight host and retains the standalone CLI fallback", async () => {
+    const root = await mkdtemp(join(tmpdir(), "zcode-plugin-host-"));
+    cleanups.push(root);
+    process.argv[1] = join(root, "zcode.cjs");
+    expect(officialPluginHostPrefixArgs()?.slice(-2)).toEqual([
+      process.argv[1],
+      "__zcode-plugin-host",
+    ]);
+    await writeFile(join(root, "plugin-host.cjs"), "// bundled fixture");
+    expect(officialPluginHostPrefixArgs()?.slice(-2)).toEqual([
+      join(root, "plugin-host.cjs"),
+      "__zcode-plugin-host",
+    ]);
+    await rm(join(root, "plugin-host.cjs"));
+    expect(officialPluginHostPrefixArgs()?.slice(-2)).toEqual([
+      process.argv[1],
+      "__zcode-plugin-host",
+    ]);
   });
 
   it("does not rewrite an unchanged runtime manifest", async () => {

@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import {
   ZCODE_OFFICIAL_PLUGIN_MARKETPLACE,
@@ -122,7 +123,14 @@ export function officialPluginHostPrefixArgs(): string[] | undefined {
   const entrypoint = process.argv[1];
   if (!entrypoint) return undefined;
 
-  return [...process.execArgv, resolve(entrypoint), ZCODE_PLUGIN_HOST_COMMAND];
+  const pluginHost = join(dirname(resolve(entrypoint)), "plugin-host.cjs");
+  // 成包工具曾各自解析完整 Agent bundle。优先使用同次打包的轻量入口，
+  // 独立 Node/旧远端没有伴随文件时保持原命令，SEA 在上方直接返回自身入口。
+  return [
+    ...process.execArgv,
+    existsSync(pluginHost) ? pluginHost : resolve(entrypoint),
+    ZCODE_PLUGIN_HOST_COMMAND,
+  ];
 }
 
 function isSeaRuntime(): boolean {

@@ -52,6 +52,15 @@ let log = "";
 let browser;
 let page;
 const interactionMemory = [];
+const mcpStatusRequestCount = () =>
+  log.split("\n").filter((line) => /mcp-sync\.listWorkspaceMcpServerStatuses OK/.test(line)).length;
+const mcpStatusStarts = () =>
+  log.split("\n").filter((line) => /agent process started.*"lane":"mcp-status"/.test(line)).length;
+async function waitForMcpStatusRequest(previousCount) {
+  const deadline = Date.now() + 60_000;
+  while (mcpStatusRequestCount() <= previousCount && Date.now() < deadline) await delay(100);
+  assert.ok(mcpStatusRequestCount() > previousCount, "Real MCP status request must complete");
+}
 try {
   const endpoint = await new Promise((done, fail) => {
     const timer = setTimeout(() => fail(new Error("Packaged app startup timed out")), 60000);
@@ -323,7 +332,7 @@ try {
       JSON.stringify({ samples: interactionMemory }, null, 2),
     );
   }
-  if (!process.argv.includes("--baseline")) {
+  if (!process.argv.includes("--baseline") || process.argv.includes("--baseline-first-send")) {
     if (await page.getByTestId("settings-page").isVisible()) {
       await page.getByTestId("settings-back-button").click();
     }
@@ -338,9 +347,18 @@ try {
       "On-demand startup must retain the real workspace command catalog",
     );
     // 90 秒启动采样后插件管理 lane 已退出，设置页必须能按需重建并读取真实安装清单。
+    const beforePluginStatus = mcpStatusRequestCount();
     await page.getByTestId("task-settings-button").click();
     await page.getByTestId("settings-section-nav-plugin").click();
     await page.getByTestId("plugin-settings-plugin-row").first().waitFor({ timeout: 60000 });
+    await waitForMcpStatusRequest(beforePluginStatus);
+    if (!process.argv.includes("--baseline")) {
+      assert.equal(
+        mcpStatusStarts(),
+        0,
+        "Passive plugin display must not start a MCP checking tree",
+      );
+    }
     await page.getByTestId("settings-back-button").click();
     assert.doesNotMatch(
       log,
@@ -382,9 +400,57 @@ try {
     if (process.argv.includes("--measure-memory")) {
       // 延迟分配不等于任务阶段的内存降幅；保留首次实际回复后的整棵进程树证据。
       await delay(30_000);
+      const replySamples = [await sampleMemory(page, child.pid, "first-reply-30s")];
       await writeFile(
         join(output, "memory-after-first-send.json"),
-        JSON.stringify(await sampleMemory(page, child.pid, "first-reply-30s"), null, 2),
+        JSON.stringify(replySamples[0], null, 2),
+      );
+      for (let repeat = 1; repeat <= 2; repeat++) {
+        await delay(5_000);
+        replySamples.push(await sampleMemory(page, child.pid, `first-reply-followup-${repeat}`));
+      }
+      await writeFile(
+        join(output, "memory-after-first-send-series.json"),
+        JSON.stringify({ samples: replySamples }, null, 2),
+      );
+    }
+    if (!process.argv.includes("--baseline")) {
+      // 在采样之后执行主动检查；不能通过删除真实连接能力来获得更低的纯文本内存。
+      const beforeManualPageStatus = mcpStatusRequestCount();
+      await page.getByTestId("task-settings-button").click();
+      await page.getByTestId("settings-section-nav-plugin").click();
+      await page.getByRole("tab", { name: /^MCP/ }).click();
+      await waitForMcpStatusRequest(beforeManualPageStatus);
+      const beforeManualStatus = mcpStatusRequestCount();
+      await page.getByTestId("mcp-settings-refresh").click();
+      await page
+        .locator('[data-testid="mcp-settings-refresh"]:not(:disabled)')
+        .waitFor({ timeout: 60000 });
+      await waitForMcpStatusRequest(beforeManualStatus);
+      assert.equal(mcpStatusStarts(), 1, "Manual refresh must start the real independent MCP lane");
+      await page.screenshot({ path: join(output, "mcp-manual-check.png") });
+      await page.getByTestId("settings-back-button").click();
+      const beforeReopenStatus = mcpStatusRequestCount();
+      await page.getByTestId("task-settings-button").click();
+      await page.getByTestId("settings-section-nav-plugin").click();
+      await waitForMcpStatusRequest(beforeReopenStatus);
+      assert.equal(
+        mcpStatusStarts(),
+        1,
+        "Reopening settings must reuse the existing checking owner",
+      );
+      await writeFile(
+        join(output, "mcp-passive-status.json"),
+        JSON.stringify(
+          {
+            result: "PASS",
+            passiveStarts: 0,
+            manualStarts: 1,
+            reopenedStarts: mcpStatusStarts(),
+          },
+          null,
+          2,
+        ),
       );
     }
   }

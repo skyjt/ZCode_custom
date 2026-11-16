@@ -6,7 +6,7 @@
  * Supports the unified ZCode Agent MCP source backed by settings directories.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { convertToZCodeAgentMcpServer } from "@zcode/shared";
+import { convertToZCodeAgentMcpServer, ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   TID_MCP_OPEN_AUTHORIZATION_BUTTON,
   TID_PLUGIN_MCP_SERVER_ROW,
@@ -619,8 +619,14 @@ export function McpSettingsSection({
   // snapshot 投影到 B，更不能让后续 effect 把这些敏感配置发送给 B 的 Agent。
   const mcpStoreMatchesActiveWorkspace =
     Boolean(activeWorkspaceKey) && currentMcpStoreWorkspaceKey === activeWorkspaceKey;
-  const servers = mcpStoreMatchesActiveWorkspace ? storedServers : [];
-  const statusSnapshots = mcpStoreMatchesActiveWorkspace ? storedStatusSnapshots : {};
+  const servers = useMemo(
+    () => (mcpStoreMatchesActiveWorkspace ? storedServers : []),
+    [mcpStoreMatchesActiveWorkspace, storedServers],
+  );
+  const statusSnapshots = useMemo(
+    () => (mcpStoreMatchesActiveWorkspace ? storedStatusSnapshots : {}),
+    [mcpStoreMatchesActiveWorkspace, storedStatusSnapshots],
+  );
   const isConfigLoaded = useMcpStore((s) => s.isConfigLoaded);
   const ensureLoadedForWorkspace = useMcpStore((s) => s.ensureLoadedForWorkspace);
   const loadMcpFromUserDirectory = useMcpStore((s) => s.loadMcpFromUserDirectory);
@@ -962,7 +968,9 @@ export function McpSettingsSection({
     if (!transition.shouldRefresh) {
       return;
     }
-    void requestMcpServerStatusList();
+    // 成包采样发现被动打开插件页会额外启动整组 MCP 子进程；Win7 只读取状态，
+    // 手动刷新/启用继续走真实 connect，未检查的配置不能被标为 connected。
+    void requestMcpServerStatusList(ZCODE_WIN7_EDITION ? { mode: "status" } : undefined);
   }, [autoStatusListRefreshKey, requestMcpServerStatusList]);
 
   useEffect(() => {

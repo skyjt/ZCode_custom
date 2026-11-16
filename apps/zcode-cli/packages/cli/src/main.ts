@@ -12,12 +12,16 @@ import { installProtocolStderrBoundary } from "./protocol-stderr.js";
 import { createProtocolProcessLifecycle } from "./protocol-lifecycle.js";
 import { isProtocolServerInvocation } from "./arguments.js";
 
+// 同一入口构建轻量插件宿主；源码/普通 CLI 保留完整分支，不增加运行时环境开关。
+declare const __ZCODE_PLUGIN_HOST_ONLY__: boolean | undefined;
+
 void main();
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   // 存储模式也可运行在 Host Worker 中，不能修改整个 Host 的进程名称。
-  if (argv[0] !== STORAGE_MIGRATION_COMMAND && !argv.includes("--prepare-storage")) setCliProcessTitle();
+  if (argv[0] !== STORAGE_MIGRATION_COMMAND && !argv.includes("--prepare-storage"))
+    setCliProcessTitle();
   // 真实 zcode CLI 进程里仍可能有少量路径直接读取 process.env。
   // 入口先清洗用户 shell 注入的 NODE_ENV、代理和证书变量；网络变量只封存给后续 Bash/tool 子进程恢复。
   applyCliRuntimeEnvSanitization(process.env);
@@ -64,25 +68,29 @@ async function main(): Promise<void> {
       process.exitCode = await runPluginHostCommand(context, argv.slice(1));
       return;
     }
-    if (argv[0] !== STORAGE_MIGRATION_COMMAND && !argv.includes("--prepare-storage")) {
-      const { prepareCliProviderRuntimeEnv } = await import("./provider-runtime-env.js");
-      Object.assign(
-        process.env,
-        await prepareCliProviderRuntimeEnv({
-          argv,
-          env: process.env,
-        }),
-      );
-    }
-    lifecycle?.signal.throwIfAborted();
-    const { run } = await import("./run.js");
-    lifecycle?.signal.throwIfAborted();
-    const exitCode = await run(context, {
-      protocolLifecycle: lifecycle,
-      protocolInput: lifecycle?.input,
-    });
+    if (typeof __ZCODE_PLUGIN_HOST_ONLY__ !== "undefined" && __ZCODE_PLUGIN_HOST_ONLY__) {
+      throw new Error("This runtime only accepts plugin-host commands.");
+    } else {
+      if (argv[0] !== STORAGE_MIGRATION_COMMAND && !argv.includes("--prepare-storage")) {
+        const { prepareCliProviderRuntimeEnv } = await import("./provider-runtime-env.js");
+        Object.assign(
+          process.env,
+          await prepareCliProviderRuntimeEnv({
+            argv,
+            env: process.env,
+          }),
+        );
+      }
+      lifecycle?.signal.throwIfAborted();
+      const { run } = await import("./run.js");
+      lifecycle?.signal.throwIfAborted();
+      const exitCode = await run(context, {
+        protocolLifecycle: lifecycle,
+        protocolInput: lifecycle?.input,
+      });
 
-    process.exitCode = exitCode;
+      process.exitCode = exitCode;
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     stderr.write(`${message}\n`);

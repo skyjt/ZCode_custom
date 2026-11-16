@@ -6,6 +6,12 @@ MCP 设置页需要展示当前配置中各 server 的状态。旧方案在设�
 
 ## 目标
 
+Win7 内网版的被动加载例外（2026-11-16）：自动刷新显式使用 `mode=status`，不主动连接工具。
+Host 优先读取已经存在的 `mcp-status` client；没有时使用原插件管理 client 读取配置快照，后者
+按现有 30 秒空闲策略回收。手动刷新/启用仍走独立检查 lane，五分钟空闲保护不变，OAuth
+状态轮询继续读取原检查 owner。未检查状态不等于连接成功；不支持 status 的旧 Agent 不降级。
+具体阶段和成包回归见 [内存规格](../../specs/aibuddy7se-memory.md)。以下默认 connect 行为适用于主动检查及现代版本。
+
 - 设置页初次加载使用一次批量状态查询，避免按 server 数量触发自动检查。
 - 批量状态查询走独立的 `mcp-status` lane control-plane CLI 进程，与 plugin 管理命令（`plugins/*`）隔离进程；两者共用同一个内部 cwd（数据目录下的 `.zcode/plugin-workspace`，即 `getDataBaseDir()/.zcode/plugin-workspace`，默认等于 `~/.zcode/plugin-workspace`；E2E 隔离 HOME 或自定义 data dir 时不在 `~` 下），但不共用 stdio 连接。
 - 保留单 server 主动检查能力，但只在用户手动检查或启用后检查时触发。

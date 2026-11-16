@@ -1,5 +1,16 @@
 # Command Center
 
+## Bundled Plugin Host
+
+构建同时从同一 `main.ts` 生成完整 `zcode.cjs` 和轻量 `plugin-host.cjs`。后者通过构建常量
+`__ZCODE_PLUGIN_HOST_ONLY__` 排除普通命令的 run/provider 依赖，仅接受已有 `__zcode-plugin-host`
+调用，其他命令明确失败。该常量不是环境变量或运行时配置；源码/完整 CLI 缺省走原分支。
+两者共享环境清洗、官方 CUA 身份校验、argv 恢复和 MCP stdio 生命周期。
+
+官方插件优先使用当前入口旁存在的轻量 bundle；没有时保持完整 CLI 路径，SEA 始终沿用
+自身入口。桌面 staging 必须复制同次构建的轻量包，缺失即失败。完整 CLI 不依赖伴随文件，
+独立 Node/远端 SSH 部署不因缺少轻量包失效。不能把轻量入口当普通 Agent 命令入口。
+
 ## CLI Process Identity
 
 CLI 命令名继续保持 `zcode`，用于兼容现有 npm `bin`、脚本、help 和文档示例。操作系统可见的 Node 进程名必须统一设置为 `zcode-cli`，避免通过 `ps`、Activity Monitor、任务管理器或 ZCode app-server 父进程管理面板观察时只看到 `node` 或不稳定的脚本名。
