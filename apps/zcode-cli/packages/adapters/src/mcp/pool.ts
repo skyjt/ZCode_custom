@@ -1,3 +1,4 @@
+import { hasUsableMcpCatalog } from "@zcode/contracts";
 import type {
   Logger,
   McpCallToolOptions,
@@ -394,7 +395,9 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         options.telemetry?.recordSessionStartup({
           configuredCount: enabledServers.length,
           connectedCount,
-          failedCount: enabledServers.length - connectedCount,
+          failedCount: enabledServers.filter(
+            ([name]) => !statuses[name] || !hasUsableMcpCatalog(statuses[name]),
+          ).length,
           processCount: enabledServers.filter(
             ([serverName, config]) =>
               config.type === "stdio" && statuses[serverName]?.status === "connected",

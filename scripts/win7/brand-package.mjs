@@ -1,3 +1,4 @@
+import { buildMcpCatalog } from "./build-mcp-catalog.mjs";
 import { mkdir, readdir, readFile, writeFile, rename, access } from "node:fs/promises";
 import { extname, join, relative, resolve } from "node:path";
 
@@ -97,6 +98,7 @@ export async function auditBrandTree(root, report = { textFiles: 0, migrationFil
 export async function brandPackagedApplication(context, report) {
   await brandTree(context.appOutDir);
   await auditBrandTree(context.appOutDir, report);
+  await buildMcpCatalog(context.appOutDir);
   const evidence = resolve(import.meta.dirname, "../../.cache/win7-acceptance");
   await mkdir(evidence, { recursive: true });
   await writeFile(join(evidence, "brand-audit.json"), JSON.stringify(report, null, 2));

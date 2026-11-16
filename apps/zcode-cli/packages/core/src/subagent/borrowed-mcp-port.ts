@@ -1,3 +1,4 @@
+import { hasUsableMcpCatalog } from "@zcode/contracts";
 import type { McpConnectionSnapshot, McpPort } from "@zcode/contracts";
 import { SUBAGENT_COMPUTER_USE_UNAVAILABLE_MESSAGE } from "./computer-use-policy.js";
 
@@ -21,7 +22,7 @@ export function createBorrowedSubagentMcpAccess(
   );
   const connectedServerNames = new Set(
     Object.entries(statuses)
-      .filter(([, status]) => status.status === "connected")
+      .filter(([, status]) => hasUsableMcpCatalog(status))
       .map(([serverName]) => serverName),
   );
   const snapshot: McpConnectionSnapshot = {

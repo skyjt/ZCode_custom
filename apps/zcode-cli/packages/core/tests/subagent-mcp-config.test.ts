@@ -32,3 +32,18 @@ it("inline subagent MCP cannot claim Host-owned provenance to bypass workspace t
     expect(result.invalidServerNames).toEqual(["known"]);
   }
 });
+
+it("accepts a dormant verified catalog but rejects failed and empty disconnected servers", () => {
+  const status = {
+    status: "disconnected" as const,
+    toolCount: 1,
+    transport: "stdio" as const,
+    updatedAt: new Date(0).toISOString(),
+  };
+  expect(matchesRequiredMcpServer("office", { office: status })).toBe(true);
+  expect(matchesRequiredMcpServer("*", { office: status })).toBe(true);
+  expect(matchesRequiredMcpServer("office", { office: { ...status, error: "closed" } })).toBe(
+    false,
+  );
+  expect(matchesRequiredMcpServer("office", { office: { ...status, toolCount: 0 } })).toBe(false);
+});

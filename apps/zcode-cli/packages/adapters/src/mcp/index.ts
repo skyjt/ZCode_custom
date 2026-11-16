@@ -120,7 +120,18 @@ const MCP_STDIO_ERROR_MESSAGE_MAX_CHARS = 512;
  */
 const MAX_TRACKED_SERVER_REQUEST_IDS = 64;
 
+/** Only the host may inject a verified bundled catalog; public MCP config cannot opt in. */
+export interface TrustedMcpCatalog {
+  tools: unknown[];
+  idleResourceUri?: string;
+  idleTimeoutMs: number;
+}
+
 export interface CreateMcpAdapterOptions {
+  trustedCatalog?: (
+    name: string,
+    config: McpServerConfig,
+  ) => Promise<TrustedMcpCatalog | undefined>;
   clientName?: string;
   clientVersion?: string;
   connectionContext?: McpConnectionContext;
@@ -183,7 +194,17 @@ export const MCP_NOTIFICATION_RESOURCES_UPDATED = "notifications/resources/updat
 export const MCP_NOTIFICATION_RESOURCES_LIST_CHANGED = "notifications/resources/list_changed";
 export const MCP_NOTIFICATION_MESSAGE = "notifications/message";
 
+interface DemandState {
+  catalog: TrustedMcpCatalog;
+  active: number;
+  revision: number;
+  timer?: ReturnType<typeof setTimeout>;
+  starting?: Promise<void>;
+  retiring?: Promise<void>;
+}
+
 interface McpServerRecord {
+  demand?: DemandState;
   client?: McpClient;
   abortController?: AbortController;
   connecting?: Promise<McpServerStatus>;
@@ -298,6 +319,9 @@ class NodeMcpAdapter implements McpPort {
     Pick<McpServerStatus, "failureKind" | "serverRequestId">
   >();
   private readonly records = new Map<string, McpServerRecord>();
+  private readonly catalogPending = new Set<string>();
+  private readonly trustedCatalog?: CreateMcpAdapterOptions["trustedCatalog"];
+  private closed = false;
   private readonly workingDirectory?: string;
   private readonly workspaceKey?: string;
   private readonly elicitation?: McpElicitationPort;
@@ -310,6 +334,7 @@ class NodeMcpAdapter implements McpPort {
   private readonly activeCallTraces = new Map<string, McpElicitationTrace>();
 
   constructor(options: CreateMcpAdapterOptions) {
+    this.trustedCatalog = options.trustedCatalog;
     this.clientName = options.clientName ?? "zcode";
     this.clientVersion = options.clientVersion ?? "0.0.0";
     this.connectionContext = options.connectionContext;
@@ -343,7 +368,7 @@ class NodeMcpAdapter implements McpPort {
     });
     const configuredNames = new Set(Object.keys(servers));
     await Promise.all(
-      Array.from(this.records.keys())
+      Array.from(new Set([...this.records.keys(), ...this.catalogPending]))
         .filter((name) => !configuredNames.has(name))
         .map((name) => this.disconnectServer(name)),
     );
@@ -394,6 +419,57 @@ class NodeMcpAdapter implements McpPort {
     config: McpServerConfig,
     options: McpConnectOptions = {},
   ): Promise<McpServerStatus> {
+    if (this.closed) throw new Error("MCP adapter is closed");
+    // 保留非候选连接原时序，不能通过额外 await 改变 OAuth pending 的同步可见性。
+    if (!this.trustedCatalog || config.enabled === false || config.type !== "stdio")
+      return this.connectNow(name, config, options);
+    options.signal?.throwIfAborted();
+    const generation = this.connectionGenerations.get(name) ?? 0;
+    this.catalogPending.add(name);
+    try {
+      const catalog = await this.trustedCatalog(name, config);
+      options.signal?.throwIfAborted();
+      if (this.closed || (this.connectionGenerations.get(name) ?? 0) !== generation)
+        throw new Error("MCP configuration changed during catalog validation");
+      if (!catalog) return this.connectNow(name, config, options);
+      const current = this.records.get(name);
+      if (current?.demand && isDeepStrictEqual(current.config, config)) return current.status;
+      const next = this.nextConnectionGeneration(name);
+      await this.closeRecord(name);
+      if (this.closed || !this.isCurrentConnection(name, next))
+        throw new Error("MCP catalog configuration was retired");
+      const tools = this.catalogTools(name, config, catalog);
+      const status = this.createStatus(config, "disconnected", { toolCount: tools.length });
+      this.records.set(name, {
+        config,
+        status,
+        tools,
+        demand: { catalog, active: 0, revision: 0 },
+      });
+      this.logger?.info("MCP builtin catalog ready without a process", {
+        event: "mcp.catalog.ready",
+        mcpServerName: name,
+        toolCount: tools.length,
+      });
+      return status;
+    } finally {
+      this.catalogPending.delete(name);
+    }
+  }
+
+  private catalogTools(name: string, config: McpServerConfig, catalog: TrustedMcpCatalog) {
+    return catalog.tools.map((tool) =>
+      normalizeMcpToolDescriptor(name, tool, config.timeoutMs, false, config.alwaysLoad),
+    );
+  }
+
+  private async connectNow(
+    name: string,
+    config: McpServerConfig,
+    options: McpConnectOptions = {},
+    demand?: DemandState,
+  ): Promise<McpServerStatus> {
+    if (this.closed) throw new Error("MCP adapter is closed");
     const startedAt = Date.now();
     const timeoutMs = config.timeoutMs ?? DEFAULT_MCP_TIMEOUT_MS;
     const generation = this.nextConnectionGeneration(name);
@@ -407,6 +483,11 @@ class NodeMcpAdapter implements McpPort {
       transport: config.type,
     });
     await this.closeRecord(name);
+    if (this.closed || !this.isCurrentConnection(name, generation))
+      throw new Error("MCP connection was retired before startup");
+
+    if (demand && isStdioTransportProcessAlive(this.records.get(name)?.transport))
+      throw new Error("MCP previous process cleanup is incomplete");
 
     if (config.enabled === false) {
       const status = this.createStatus(config, "disabled");
@@ -435,6 +516,7 @@ class NodeMcpAdapter implements McpPort {
 
     const connectingStatus = this.createStatus(config, "connecting");
     const record: McpServerRecord = {
+      demand,
       abortController,
       config,
       status: connectingStatus,
@@ -462,9 +544,9 @@ class NodeMcpAdapter implements McpPort {
 
   async disconnectServer(name: string): Promise<McpServerStatus | undefined> {
     const record = this.records.get(name);
-    if (!record) return undefined;
-
+    // 验证目录期间可能尚无 record；删除配置也必须使该异步结果失效。
     this.nextConnectionGeneration(name);
+    if (!record) return undefined;
     await this.closeRecord(name);
     const status = this.createStatus(record.config, "disconnected");
     this.records.set(name, {
@@ -565,6 +647,15 @@ class NodeMcpAdapter implements McpPort {
     request: McpListResourcesRequest,
     options: McpCallToolOptions = {},
   ): Promise<McpListResourcesResult> {
+    return this.withDemandActivity(request.serverName, () =>
+      this.listResourcesActive(request, options),
+    );
+  }
+
+  private async listResourcesActive(
+    request: McpListResourcesRequest,
+    options: McpCallToolOptions,
+  ): Promise<McpListResourcesResult> {
     const { record, deadline, timeoutMessage } = await this.resolveForResourceRequest(
       request.serverName,
       "resources/list",
@@ -586,6 +677,15 @@ class NodeMcpAdapter implements McpPort {
   async listResourceTemplates(
     request: McpListResourcesRequest,
     options: McpCallToolOptions = {},
+  ): Promise<McpListResourceTemplatesResult> {
+    return this.withDemandActivity(request.serverName, () =>
+      this.listResourceTemplatesActive(request, options),
+    );
+  }
+
+  private async listResourceTemplatesActive(
+    request: McpListResourcesRequest,
+    options: McpCallToolOptions,
   ): Promise<McpListResourceTemplatesResult> {
     const { record, deadline, timeoutMessage } = await this.resolveForResourceRequest(
       request.serverName,
@@ -615,6 +715,15 @@ class NodeMcpAdapter implements McpPort {
   async subscribeResource(
     request: McpResourceSubscriptionRequest,
     options: McpCallToolOptions = {},
+  ): Promise<void> {
+    return this.withDemandActivity(request.serverName, () =>
+      this.subscribeResourceActive(request, options),
+    );
+  }
+
+  private async subscribeResourceActive(
+    request: McpResourceSubscriptionRequest,
+    options: McpCallToolOptions,
   ): Promise<void> {
     const { record, deadline, timeoutMessage } = await this.resolveForResourceRequest(
       request.serverName,
@@ -650,6 +759,15 @@ class NodeMcpAdapter implements McpPort {
   async unsubscribeResource(
     request: McpResourceSubscriptionRequest,
     options: McpCallToolOptions = {},
+  ): Promise<void> {
+    return this.withDemandActivity(request.serverName, () =>
+      this.unsubscribeResourceActive(request, options),
+    );
+  }
+
+  private async unsubscribeResourceActive(
+    request: McpResourceSubscriptionRequest,
+    options: McpCallToolOptions,
   ): Promise<void> {
     const removed = this.resourceSubscriptions.remove(
       request.serverName,
@@ -798,6 +916,13 @@ class NodeMcpAdapter implements McpPort {
     request: McpCallToolRequest,
     options: McpCallToolOptions = {},
   ): Promise<McpToolCallResult> {
+    return this.withDemandActivity(request.serverName, () => this.callToolActive(request, options));
+  }
+
+  private async callToolActive(
+    request: McpCallToolRequest,
+    options: McpCallToolOptions,
+  ): Promise<McpToolCallResult> {
     const timeoutMs =
       options.timeoutMs ??
       this.records.get(request.serverName)?.config.timeoutMs ??
@@ -892,6 +1017,15 @@ class NodeMcpAdapter implements McpPort {
     request: McpReadResourceRequest,
     options: McpCallToolOptions = {},
   ): Promise<McpReadResourceResult> {
+    return this.withDemandActivity(request.serverName, () =>
+      this.readResourceActive(request, options),
+    );
+  }
+
+  private async readResourceActive(
+    request: McpReadResourceRequest,
+    options: McpCallToolOptions,
+  ): Promise<McpReadResourceResult> {
     const timeoutMs =
       options.timeoutMs ??
       this.records.get(request.serverName)?.config.timeoutMs ??
@@ -932,6 +1066,15 @@ class NodeMcpAdapter implements McpPort {
     timeoutMessage: string,
     signal: AbortSignal | undefined,
   ): Promise<McpServerRecord & { client: McpClient }> {
+    signal?.throwIfAborted();
+    const configured = this.records.get(serverName);
+    if (configured?.demand && configured.status.status !== "connected")
+      await waitWithinMcpDeadline(
+        this.startDemand(serverName, configured),
+        deadline,
+        timeoutMessage,
+        signal,
+      );
     const pending = this.records.get(serverName)?.connecting;
     if (pending) {
       // 修复原因：connecting 是 adapter 持有的共享连接/OAuth 恢复任务。过去这里裸 await，
@@ -1287,7 +1430,9 @@ class NodeMcpAdapter implements McpPort {
       status: "started",
       transport: config.type,
     });
-    await this.connectServer(name, config);
+    const record = this.records.get(name);
+    if (record?.demand) await this.startDemand(name, record);
+    else await this.connectServer(name, config);
   }
 
   /**
@@ -1454,7 +1599,141 @@ class NodeMcpAdapter implements McpPort {
     }
   }
 
+  private startDemand(name: string, record: McpServerRecord): Promise<void> {
+    const demand = record.demand!;
+    if (demand.starting) return demand.starting;
+    const generation = this.connectionGenerations.get(name) ?? 0;
+    demand.starting = (async () => {
+      await demand.retiring;
+      const verified = await this.trustedCatalog?.(name, record.config);
+      if (
+        this.closed ||
+        !this.isCurrentConnection(name, generation) ||
+        this.records.get(name)?.demand !== demand
+      )
+        throw new Error("MCP demand connection was retired");
+      if (!verified || !isDeepStrictEqual(verified, demand.catalog)) {
+        record.tools = [];
+        record.status = this.createStatus(record.config, "disconnected", {
+          error: "Trusted MCP runtime changed; reload required",
+        });
+        this.toolListRevisionCounter += 1;
+        throw new Error("Trusted MCP runtime changed; reload required");
+      }
+      await this.connectNow(name, record.config, {}, demand);
+    })().finally(() => {
+      demand.starting = undefined;
+    });
+    return demand.starting;
+  }
+
+  private async withDemandActivity<T>(name: string, operation: () => Promise<T>): Promise<T> {
+    if (this.closed) throw new Error("MCP adapter is closed");
+    const demand = this.records.get(name)?.demand;
+    if (!demand) return operation();
+    demand.active += 1;
+    demand.revision += 1;
+    if (demand.timer) clearTimeout(demand.timer);
+    demand.timer = undefined;
+    try {
+      await demand.retiring;
+      if (this.closed || this.records.get(name)?.demand !== demand)
+        throw new Error("MCP demand connection was retired");
+      return await operation();
+    } finally {
+      demand.active -= 1;
+      this.scheduleDemandIdle(name, demand);
+    }
+  }
+
+  private scheduleDemandIdle(name: string, demand: DemandState): void {
+    const record = this.records.get(name);
+    if (
+      this.closed ||
+      record?.demand !== demand ||
+      record.status.status !== "connected" ||
+      demand.active ||
+      demand.timer ||
+      demand.retiring ||
+      !demand.catalog.idleResourceUri ||
+      demand.catalog.idleTimeoutMs <= 0
+    )
+      return;
+    demand.timer = setTimeout(() => {
+      demand.timer = undefined;
+      void this.retireDemandIfIdle(name, demand).catch((error: unknown) => {
+        this.logger?.warn("MCP idle readiness failed; process retained", {
+          event: "mcp.idle.check.failed",
+          mcpServerName: name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.scheduleDemandIdle(name, demand);
+      });
+    }, demand.catalog.idleTimeoutMs);
+    demand.timer.unref?.();
+  }
+
+  private async retireDemandIfIdle(name: string, demand: DemandState): Promise<void> {
+    const record = this.records.get(name);
+    const canRetire = () =>
+      !this.closed &&
+      this.records.get(name) === record &&
+      record?.status.status === "connected" &&
+      demand.active === 0 &&
+      this.resourceSubscriptions.uris(name).length === 0 &&
+      (this.appConnectionListeners.get(name)?.size ?? 0) === 0;
+    if (!record?.client || !canRetire()) {
+      this.scheduleDemandIdle(name, demand);
+      return;
+    }
+    const revision = demand.revision;
+    const uri = demand.catalog.idleResourceUri!;
+    const readiness = await record.client.readResource({ uri }, { timeout: MCP_PING_TIMEOUT_MS });
+    const ready = readiness.contents?.some(
+      (item) => item.uri === uri && "text" in item && item.text === '{"safeToStop":true}',
+    );
+    // readiness 在 await 期间过时：即使新请求已结束也不能沿用旧的无状态结论。
+    if (!ready || !canRetire() || demand.revision !== revision) {
+      this.scheduleDemandIdle(name, demand);
+      return;
+    }
+    const generation = this.nextConnectionGeneration(name);
+    demand.retiring = (async () => {
+      await this.closeRecord(name);
+      // 原回收函数会记录清理失败而不抛错；仍存活时不能丢失 transport 并另起宿主。
+      if (isStdioTransportProcessAlive(record.transport)) {
+        record.status = this.createStatus(record.config, "disconnected", {
+          error: "MCP previous process cleanup is incomplete",
+        });
+        throw new Error("MCP previous process cleanup is incomplete");
+      }
+      if (
+        !this.closed &&
+        this.isCurrentConnection(name, generation) &&
+        this.records.get(name) === record
+      ) {
+        const tools = this.catalogTools(name, record.config, demand.catalog);
+        this.records.set(name, {
+          config: record.config,
+          tools,
+          demand,
+          status: this.createStatus(record.config, "disconnected", { toolCount: tools.length }),
+        });
+        this.logger?.info("MCP idle process reclaimed; catalog retained", {
+          event: "mcp.idle.reclaimed",
+          mcpServerName: name,
+        });
+      }
+    })();
+    try {
+      await demand.retiring;
+    } finally {
+      demand.retiring = undefined;
+    }
+  }
+
   async close(): Promise<void> {
+    this.closed = true;
     const startedAt = Date.now();
     const serverCount = this.records.size;
     for (const name of this.records.keys()) {
@@ -1626,6 +1905,11 @@ class NodeMcpAdapter implements McpPort {
           config.alwaysLoad,
         ),
       );
+      const demand = this.records.get(name)?.demand;
+      if (demand && !isDeepStrictEqual(tools, this.catalogTools(name, config, demand.catalog))) {
+        this.toolListRevisionCounter += 1;
+        throw new Error("Trusted MCP catalog differs from the running server; reload required");
+      }
       const negotiatedProtocolEra = client.getProtocolEra();
       const negotiatedProtocolVersion = client.getNegotiatedProtocolVersion();
       const status = this.createStatus(config, "connected", {
@@ -1643,6 +1927,7 @@ class NodeMcpAdapter implements McpPort {
         status,
         tools,
         transport,
+        demand,
       });
       // A3：重连（同一 adapter 实例）后按登记表重放订阅；首次连接登记表为空，直接跳过。
       await this.replayResourceSubscriptions(name, client);
@@ -1715,6 +2000,7 @@ class NodeMcpAdapter implements McpPort {
         toolCount: tools.length,
         transport: config.type,
       });
+      if (demand) this.scheduleDemandIdle(name, demand);
       return status;
     } catch (error) {
       // 过去这里等的是旧 provider 自己开的 listener，且用 session 的 15 秒预算做
@@ -1939,7 +2225,7 @@ class NodeMcpAdapter implements McpPort {
     if (!this.isCurrentConnection(name, generation)) {
       return this.records.get(name)?.status ?? status;
     }
-    this.records.set(name, { config, status, tools: [] });
+    this.records.set(name, { config, status, tools: [], demand: this.records.get(name)?.demand });
     this.logger?.warn("MCP server connection failed", {
       ...this.connectionContext,
       connectDurationMs,
@@ -2167,6 +2453,8 @@ class NodeMcpAdapter implements McpPort {
   private async closeRecord(name: string): Promise<void> {
     const record = this.records.get(name);
     if (!record) return;
+    if (record.demand?.timer) clearTimeout(record.demand.timer);
+    if (record.demand) record.demand.timer = undefined;
     record.abortController?.abort(new Error(`MCP server ${name} connection closed`));
     if (!record.client && !record.transport) return;
     await this.closeClientAndTransport(name, record.client, record.transport);
@@ -2257,6 +2545,8 @@ class NodeMcpAdapter implements McpPort {
   ): Promise<{ identity: string; generation: number } | null> {
     const record = this.records.get(name);
     if (!record) return null;
+    if (record.demand && record.status.status !== "connected")
+      await this.withDemandActivity(name, () => this.startDemand(name, record));
     const generation = this.connectionGenerations.get(name) ?? 0;
     // 会话恢复先于 MCP 握手完成；复用已有连接任务，避免首次打开把 connecting 误判为失败。
     await record.connecting;

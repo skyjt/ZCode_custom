@@ -1,3 +1,4 @@
+import { resolveTrustedBuiltinMcpCatalog } from "./app/official-plugin-runtime.js";
 import { createNodePluginAdapter } from "@zcode/adapters/plugins";
 import { createOfficialPluginPreparation } from "./app/bundled-plugins.js";
 import { resolveZCodePlugins } from "./plugins.js";
@@ -311,6 +312,7 @@ export async function runZCodeProtocolAgent(
       configResult.config.features.mcp === false
         ? undefined
         : createMcpAdapterConnectionPool({
+            trustedCatalog: resolveTrustedBuiltinMcpCatalog,
             mcpOAuth: { credentialStore: mcpCredentialStore },
             elicitation: {
               requestElicitation: (request, elicitationOptions) =>

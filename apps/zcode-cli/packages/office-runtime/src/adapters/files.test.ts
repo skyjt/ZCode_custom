@@ -93,3 +93,16 @@ it("startup does not create an import directory in a preview-only workspace", as
   expect(await readdir(root)).toEqual([]);
   await importer.close();
 });
+
+it("keeps an unfinished import pinned until explicit cancellation", async () => {
+  const { importer } = await fixture();
+  try {
+    expect(importer.canStop()).toBe(true);
+    const id = await importer.begin("a.pdf", 1);
+    expect(importer.canStop()).toBe(false);
+    await importer.cancel(id);
+    expect(importer.canStop()).toBe(true);
+  } finally {
+    await importer.close();
+  }
+});

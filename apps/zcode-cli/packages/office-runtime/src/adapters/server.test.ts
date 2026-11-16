@@ -43,7 +43,7 @@ async function connect() {
     expect(result.isError, JSON.stringify(result.content)).toBeFalsy();
     return result.structuredContent as Record<string, any>;
   };
-  return { call, client };
+  return { call, client, owner };
 }
 
 it("says read and search serve the panel and names the skills for other work", async () => {
@@ -99,4 +99,32 @@ it("reads the session only from a non-empty string", () => {
   expect(sessionOf({ session_id: "" })).toBeUndefined();
   expect(sessionOf({ session_id: 7 })).toBeUndefined();
   expect(sessionOf(undefined)).toBeUndefined();
+});
+
+it("reports idle readiness without closing current documents", async () => {
+  const { call, client } = await connect();
+  const ready = async () => {
+    const result = await client.readResource({ uri: "zcode://runtime/idle" });
+    const content = result.contents[0];
+    return content && "text" in content ? JSON.parse(content.text).safeToStop : undefined;
+  };
+  expect(await ready()).toBe(true);
+  await call("s1", "read_document", { anchor: "report.docx" });
+  expect(await ready()).toBe(true);
+  await call("s1", "open_document", { path: "report.docx" });
+  expect(await ready()).toBe(false);
+  expect((await call("s1", "get_viewer")).document.path).toBe("report.docx");
+});
+
+it("keeps view and byte-handle owners pinned until their explicit release", async () => {
+  const { owner } = await connect();
+  const session = owner.session("s1");
+  await session.report({ viewId: "window", path: "report.docx" });
+  expect(owner.canStop()).toBe(false);
+  session.releaseView("window");
+  expect(owner.canStop()).toBe(true);
+  const loaded = await session.load("report.docx");
+  expect(owner.canStop()).toBe(false);
+  for (let index = 0; index < loaded.file.chunks; index++) owner.chunk(loaded.file.token, index);
+  expect(owner.canStop()).toBe(true);
 });

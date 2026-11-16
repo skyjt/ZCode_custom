@@ -17,6 +17,7 @@ const {
   clientConnectMock,
   clientListToolsMock,
   clientPingMock,
+  clientReadResourceMock,
   transportCloseMock,
   transportFinishAuthMock,
   authMock,
@@ -34,6 +35,9 @@ const {
   })),
   clientConnectMock: vi.fn(async () => {}),
   clientListToolsMock: vi.fn(async () => ({ tools: [] })),
+  clientReadResourceMock: vi.fn(async () => ({
+    contents: [{ uri: "zcode://runtime/idle", text: '{"safeToStop":true}' }],
+  })),
   clientPingMock: vi.fn(async () => ({})),
   transportCloseMock: vi.fn(async () => {}),
   transportFinishAuthMock: vi.fn(async () => {}),
@@ -51,6 +55,12 @@ vi.mock("@modelcontextprotocol/client", async (importOriginal) => {
       readonly connect = clientConnectMock;
       readonly listTools = clientListToolsMock;
       readonly ping = clientPingMock;
+      readonly readResource = clientReadResourceMock;
+      readonly subscribeResource = vi.fn(async () => ({}));
+      readonly unsubscribeResource = vi.fn(async () => ({}));
+      getServerCapabilities() {
+        return { resources: { subscribe: true } };
+      }
       onclose?: () => void;
 
       constructor(info: { name: string; version: string }, options?: unknown) {
@@ -108,6 +118,7 @@ vi.mock("@modelcontextprotocol/client/stdio", () => ({
   },
 }));
 
+import { ProcessTreeStdioClientTransport } from "../src/mcp/stdio-transport.js";
 import { createMcpAdapter } from "../src/mcp/index.js";
 import { createMcpTelemetryTracker } from "../src/mcp/telemetry.js";
 
@@ -187,6 +198,10 @@ describe("createMcpAdapter", () => {
     clientCallToolMock.mockClear();
     clientConnectMock.mockClear();
     clientListToolsMock.mockClear();
+    clientReadResourceMock.mockReset();
+    clientReadResourceMock.mockResolvedValue({
+      contents: [{ uri: "zcode://runtime/idle", text: '{"safeToStop":true}' }],
+    });
     clientPingMock.mockClear();
     clientPingMock.mockResolvedValue({});
     transportCloseMock.mockClear();
@@ -198,6 +213,321 @@ describe("createMcpAdapter", () => {
     clientCallToolMock.mockResolvedValue({
       content: [{ type: "text", text: "ok" }],
     });
+  });
+
+  const demandConfig = { type: "stdio" as const, command: "node", args: ["fixture.js"] };
+  const demandCatalog = {
+    tools: [{ name: "read", inputSchema: { type: "object" } }],
+    idleTimeoutMs: 120_000,
+    idleResourceUri: "zcode://runtime/idle",
+  };
+  function demandAdapter() {
+    clientListToolsMock.mockResolvedValue(demandCatalog);
+    return createMcpAdapter({ trustedCatalog: async () => demandCatalog });
+  }
+
+  it("rebuilt demand advertises without spawning and shares first startup", async () => {
+    const adapter = demandAdapter();
+    const gate = Promise.withResolvers<void>();
+    const entered = Promise.withResolvers<void>();
+    clientConnectMock.mockImplementationOnce(async () => {
+      entered.resolve();
+      await gate.promise;
+    });
+    try {
+      const snapshot = await adapter.connectConfiguredServers({ office: demandConfig });
+      expect(snapshot.tools).toHaveLength(1);
+      expect(snapshot.statuses.office).toMatchObject({ status: "disconnected", toolCount: 1 });
+      expect(clientConnectMock).not.toHaveBeenCalled();
+      const first = adapter.callTool({ serverName: "office", toolName: "read" });
+      const second = adapter.callTool({ serverName: "office", toolName: "read" });
+      await entered.promise;
+      expect(clientConnectMock).toHaveBeenCalledTimes(1);
+      gate.resolve();
+      await Promise.all([first, second]);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      expect(clientConnectMock).toHaveBeenCalledTimes(1);
+      expect(clientCallToolMock).toHaveBeenCalledTimes(3);
+    } finally {
+      gate.resolve();
+      await adapter.close();
+    }
+  });
+
+  it("rebuilt demand keeps shared startup when one waiter cancels", async () => {
+    const adapter = demandAdapter();
+    const gate = Promise.withResolvers<void>();
+    const entered = Promise.withResolvers<void>();
+    clientConnectMock.mockImplementationOnce(async () => {
+      entered.resolve();
+      await gate.promise;
+    });
+    try {
+      await adapter.connectServer("office", demandConfig);
+      const controller = new AbortController();
+      const first = adapter.callTool(
+        { serverName: "office", toolName: "read" },
+        { signal: controller.signal },
+      );
+      const rejected = expect(first).rejects.toThrow();
+      const second = adapter.callTool({ serverName: "office", toolName: "read" });
+      await entered.promise;
+      controller.abort();
+      await rejected;
+      expect(clientCloseMock).not.toHaveBeenCalled();
+      gate.resolve();
+      await second;
+      expect(clientCallToolMock).toHaveBeenCalledTimes(1);
+    } finally {
+      gate.resolve();
+      await adapter.close();
+    }
+  });
+
+  it("rebuilt demand rejects a changed runtime and mismatched real schema", async () => {
+    let reads = 0;
+    const changed = createMcpAdapter({
+      trustedCatalog: async () => (++reads === 1 ? demandCatalog : undefined),
+    });
+    try {
+      await changed.connectServer("office", demandConfig);
+      await expect(changed.callTool({ serverName: "office", toolName: "read" })).rejects.toThrow(
+        "runtime changed",
+      );
+      expect(clientConnectMock).not.toHaveBeenCalled();
+      expect(await changed.listTools()).toHaveLength(0);
+    } finally {
+      await changed.close();
+    }
+    const mismatch = demandAdapter();
+    clientListToolsMock.mockResolvedValueOnce({
+      tools: [{ name: "write", inputSchema: { type: "object" } }],
+    });
+    try {
+      await mismatch.connectServer("office", demandConfig);
+      await expect(mismatch.callTool({ serverName: "office", toolName: "read" })).rejects.toThrow();
+      expect(clientCallToolMock).not.toHaveBeenCalled();
+    } finally {
+      await mismatch.close();
+    }
+  });
+
+  it("rebuilt demand leaves third-party discovery and disabled servers unchanged", async () => {
+    const resolver = vi.fn(async () => undefined);
+    const adapter = createMcpAdapter({ trustedCatalog: resolver });
+    try {
+      await adapter.connectServer("third-party", demandConfig);
+      await adapter.connectServer("disabled", { ...demandConfig, enabled: false });
+      expect(clientConnectMock).toHaveBeenCalledTimes(1);
+      expect(resolver).toHaveBeenCalledTimes(1);
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("rebuilt demand reclaims idle stateless hosts and wakes for resource use", async () => {
+    vi.useFakeTimers();
+    const adapter = demandAdapter();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office).toMatchObject({
+        status: "disconnected",
+        toolCount: 1,
+      });
+      await adapter.readResource({ serverName: "office", uri: "zcode://runtime/idle" });
+      expect(clientConnectMock).toHaveBeenCalledTimes(2);
+    } finally {
+      await adapter.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand retains documents, subscriptions and App observers", async () => {
+    vi.useFakeTimers();
+    const adapter = demandAdapter();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      clientReadResourceMock.mockResolvedValueOnce({
+        contents: [{ uri: "zcode://runtime/idle", text: '{"safeToStop":false}' }],
+      });
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office.status).toBe("connected");
+      const off = adapter.onAppConnectionInvalidated!("office", () => {});
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office.status).toBe("connected");
+      off();
+      const resource = { serverName: "office", uri: "resource://long-lived", subscriberKey: "s1" };
+      await adapter.subscribeResource!(resource);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office.status).toBe("connected");
+      await adapter.unsubscribeResource!(resource);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office.status).toBe("disconnected");
+    } finally {
+      await adapter.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand waits for a long tool and a full fresh idle interval", async () => {
+    vi.useFakeTimers();
+    const adapter = demandAdapter();
+    const gate = Promise.withResolvers<void>();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      clientCallToolMock.mockImplementationOnce(async () => {
+        await gate.promise;
+        return { content: [] };
+      });
+      const call = adapter.callTool(
+        { serverName: "office", toolName: "read" },
+        { timeoutMs: 600_000 },
+      );
+      await vi.advanceTimersByTimeAsync(240_000);
+      expect((await adapter.status()).office.status).toBe("connected");
+      gate.resolve();
+      await call;
+      await vi.advanceTimersByTimeAsync(119_999);
+      expect((await adapter.status()).office.status).toBe("connected");
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await adapter.status()).office.status).toBe("disconnected");
+    } finally {
+      gate.resolve();
+      await adapter.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand rejects stale readiness after an overlapping completed call", async () => {
+    vi.useFakeTimers();
+    const adapter = demandAdapter();
+    const gate = Promise.withResolvers<{ contents: { uri: string; text: string }[] }>();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      clientReadResourceMock.mockImplementationOnce(() => gate.promise);
+      await vi.advanceTimersByTimeAsync(120_000);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      gate.resolve({ contents: [{ uri: "zcode://runtime/idle", text: '{"safeToStop":true}' }] });
+      await vi.advanceTimersByTimeAsync(0);
+      expect((await adapter.status()).office.status).toBe("connected");
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect((await adapter.status()).office.status).toBe("disconnected");
+    } finally {
+      await adapter.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand refuses replacement while the retired child is still alive", async () => {
+    vi.useFakeTimers();
+    const adapter = demandAdapter();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      const alive = vi
+        .spyOn(ProcessTreeStdioClientTransport.prototype, "processAlive", "get")
+        .mockReturnValue(true);
+      try {
+        await vi.advanceTimersByTimeAsync(120_000);
+        expect((await adapter.status()).office.error).toContain("cleanup is incomplete");
+        await expect(adapter.callTool({ serverName: "office", toolName: "read" })).rejects.toThrow(
+          "cleanup is incomplete",
+        );
+        expect(clientConnectMock).toHaveBeenCalledTimes(1);
+      } finally {
+        alive.mockRestore();
+      }
+    } finally {
+      await adapter.close();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand preserves hosts without a readiness contract or with idle disabled", async () => {
+    vi.useFakeTimers();
+    try {
+      for (const catalog of [
+        { ...demandCatalog, idleResourceUri: undefined },
+        { ...demandCatalog, idleTimeoutMs: 0 },
+      ]) {
+        clientListToolsMock.mockResolvedValue(catalog);
+        const adapter = createMcpAdapter({ trustedCatalog: async () => catalog });
+        try {
+          await adapter.connectServer("host", demandConfig);
+          await adapter.callTool({ serverName: "host", toolName: "read" });
+          await vi.advanceTimersByTimeAsync(600_000);
+          expect((await adapter.status()).host.status).toBe("connected");
+          expect(clientReadResourceMock).not.toHaveBeenCalled();
+        } finally {
+          await adapter.close();
+        }
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebuilt demand recovers a crashed host on the next explicit call", async () => {
+    const adapter = demandAdapter();
+    try {
+      await adapter.connectServer("office", demandConfig);
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      capturedClients.at(-1)?.onclose?.();
+      expect((await adapter.status()).office.error).toContain("unexpectedly");
+      await adapter.callTool({ serverName: "office", toolName: "read" });
+      expect(clientConnectMock).toHaveBeenCalledTimes(2);
+      expect(clientCallToolMock).toHaveBeenCalledTimes(2);
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("rebuilt demand cannot reappear after configuration deletion during validation", async () => {
+    const entered = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
+    const adapter = createMcpAdapter({
+      trustedCatalog: async () => {
+        entered.resolve();
+        await gate.promise;
+        return demandCatalog;
+      },
+    });
+    const pending = adapter.connectServer("office", demandConfig);
+    const rejected = expect(pending).rejects.toThrow("configuration changed");
+    await entered.promise;
+    await adapter.connectConfiguredServers({});
+    gate.resolve();
+    await rejected;
+    expect(await adapter.listTools()).toEqual([]);
+    expect(clientConnectMock).not.toHaveBeenCalled();
+    await adapter.close();
+  });
+
+  it("rebuilt demand cannot wake after close during startup verification", async () => {
+    let reads = 0;
+    const entered = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
+    const adapter = createMcpAdapter({
+      trustedCatalog: async () => {
+        if (++reads > 1) {
+          entered.resolve();
+          await gate.promise;
+        }
+        return demandCatalog;
+      },
+    });
+    await adapter.connectServer("office", demandConfig);
+    const pending = adapter.callTool({ serverName: "office", toolName: "read" });
+    const rejected = expect(pending).rejects.toThrow("retired");
+    await entered.promise;
+    await adapter.close();
+    gate.resolve();
+    await rejected;
+    expect(clientConnectMock).not.toHaveBeenCalled();
   });
 
   it("close waits for cancelled handshake resource cleanup before returning", async () => {

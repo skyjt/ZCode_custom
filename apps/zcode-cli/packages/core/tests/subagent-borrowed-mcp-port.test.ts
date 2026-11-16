@@ -8,6 +8,28 @@ import type {
 import { createBorrowedSubagentMcpAccess } from "../src/subagent/borrowed-mcp-port.js";
 
 describe("borrowed subagent MCP port", () => {
+  it("borrows dormant catalog tools while preserving explicit deny", async () => {
+    const parent = createMockMcpPort();
+    const snapshot = {
+      statuses: { office: { ...createStatus("disconnected"), toolCount: 1 } },
+      tools: [createDescriptor("office", "read")],
+    };
+    const borrowed = createBorrowedSubagentMcpAccess(parent, snapshot, ["office"]);
+    expect(await borrowed.port.listTools()).toHaveLength(1);
+    await borrowed.port.callTool({ serverName: "office", toolName: "read" });
+    expect(parent.callTool).toHaveBeenCalledTimes(1);
+    const denied = createBorrowedSubagentMcpAccess(
+      parent,
+      snapshot,
+      ["office"],
+      new Set(["office"]),
+    );
+    expect(await denied.port.listTools()).toHaveLength(0);
+    await expect(
+      denied.port.callTool({ serverName: "office", toolName: "read" }),
+    ).rejects.toThrow();
+  });
+
   it("replays an exact server-scoped startup snapshot with connected tools only", async () => {
     const alphaTool = createDescriptor("alpha", "search");
     const similarlyNamedTool = createDescriptor("alpha-extra", "search");

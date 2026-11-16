@@ -121,6 +121,20 @@ export function createOfficeServer({
 }) {
   const server = new McpServer({ name: SERVER_NAME, version: PLUGIN_VERSION });
 
+  let activeRequests = 0;
+  const idleUri = "zcode://runtime/idle";
+  server.registerResource("runtime-idle", idleUri, { mimeType: "application/json" }, async () => ({
+    contents: [
+      {
+        uri: idleUri,
+        mimeType: "application/json",
+        text: JSON.stringify({
+          safeToStop: activeRequests === 0 && owner.canStop() && (importer?.canStop() ?? true),
+        }),
+      },
+    ],
+  }));
+
   const register = <Shape extends z.ZodRawShape>(
     name: string,
     config: {
@@ -151,6 +165,7 @@ export function createOfficeServer({
         },
       },
       (async (input: z.infer<z.ZodObject<Shape>>, extra: { _meta?: Record<string, unknown> }) => {
+        activeRequests += 1;
         try {
           const { text, structured } = await execute(input, owner.session(sessionOf(extra._meta)));
           return textResult(text, structured);
@@ -165,6 +180,8 @@ export function createOfficeServer({
             isError: true,
             ...textResult(`[${code}] ${message}`, { error: { code, message } }),
           };
+        } finally {
+          activeRequests -= 1;
         }
       }) as never,
     );

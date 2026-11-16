@@ -1,3 +1,4 @@
+import { hasUsableMcpCatalog } from "@zcode/contracts";
 import type { McpServerConfig, McpServerStatus } from "@zcode/contracts";
 import { matchesModelVisibleMcpServerName } from "../mcp/name.js";
 
@@ -47,12 +48,12 @@ export function matchesRequiredMcpServer(
   statuses: Record<string, McpServerStatus>,
 ): boolean {
   if (requiredName === "*") {
-    return Object.values(statuses).some((status) => status.status === "connected");
+    return Object.values(statuses).some((status) => hasUsableMcpCatalog(status));
   }
   const expected = requiredName.toLowerCase();
   return Object.entries(statuses).some(
     ([serverName, status]) =>
-      status.status === "connected" &&
+      hasUsableMcpCatalog(status) &&
       // MCP tool name 会把 plugin:android-emulator:android-emulator
       // 规范化成 plugin_android-emulator_android-emulator；required-server 检查
       // 必须使用同一套模型可见命名规则，否则已连接的 plugin MCP 会被误判为 missing。

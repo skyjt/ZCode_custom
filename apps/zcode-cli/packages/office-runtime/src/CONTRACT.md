@@ -46,3 +46,9 @@ sequenceDiagram
 ```
 
 The page uses one official `App`; `ui/bootstrap.ts` connects it before loading the UI bundle through resources, keeping every tool result. The sandbox has no network: pdf.js cMaps, fonts and wasm, the pdf.js and react-xlsx workers, the xlsx wasm and the pdf plugin's bundled CJK fallback font (`fonts/*.woff2`, listed in `cjk-fallback.json`) are read as resources (`ui://<plugin>/assets/…`, only those of the plugin's formats); the panel resource declares `zcode/csp.wasmUnsafeEval`. How the PDF panel picks fonts for non-embedded CJK text and normalizes extracted text: `docs/plugins/2026-10-15-office-viewer-builtin-panels-spec.md` §5.
+
+## Idle readiness (local rebuild prototype)
+
+Internal resource `zcode://runtime/idle` reports `safeToStop` only when tools are inactive,
+DocumentOwner has no current document, view or byte handle, and importer has no incomplete upload.
+It never closes documents. The host must also exclude active requests, subscriptions and App observers.

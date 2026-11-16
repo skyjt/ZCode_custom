@@ -1,5 +1,7 @@
 # Tool Change Chain Spec
 
+2026-11-16 本地重建：可信随包 MCP 目录 → 原权限准入 → 单飞按需建连 → 原 callTool / resource 链 → Office owner readiness → 代际受控空闲回收；详见 specs/aibuddy7se-demand-rebuild.md。浏览器用后回收未启用，不冒称旧原型。
+
 2026-11-16 Word 分配优化：原 DocumentOwner → parseDocx → 同一 XML 解析器；仅 styles.xml
 不展开未参与标题/继承判断的格式子树，保留名称、basedOn、outlineLvl、实体禁展开及原字节。
 工具 schema/输出、权限、MCP/面板协议、原文渲染、会话/缓存所有者不变；验收覆盖复杂样式

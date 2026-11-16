@@ -1,3 +1,4 @@
+import { resolveTrustedBuiltinMcpCatalog } from "./official-plugin-runtime.js";
 import { createWorkspaceMcpTrust } from "../workspace-mcp-trust/index.js";
 import { subagentProfilesFromSnapshot } from "../runtime-subagents/index.js";
 import { CliDefaultSelection } from "./cli-default-selection.js";
@@ -549,6 +550,7 @@ export async function createZCodeApp(options: ZCodeAppOptions): Promise<ZCodeApp
         ? undefined
         : (options.mcpPortFactory?.({ workingDirectory }) ??
           createMcpAdapter({
+            trustedCatalog: resolveTrustedBuiltinMcpCatalog,
             clientVersion: appVersion,
             env: options.env,
             logger,

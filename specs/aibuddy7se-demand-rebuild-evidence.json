@@ -1,0 +1,146 @@
+{
+  "version": "rebuild-local",
+  "platform": "linux",
+  "node": "v24.14.0",
+  "scope": "one real Word MCP child, synthetic fixture; not whole application memory",
+  "stages": [
+    {
+      "stage": "catalog_ready",
+      "pid": null,
+      "processAlive": false,
+      "status": "disconnected",
+      "toolCount": 15
+    },
+    {
+      "stage": "first_word",
+      "pid": 64,
+      "processAlive": true,
+      "status": "connected",
+      "toolCount": 15,
+      "elapsedMs": 474.0923849999999
+    },
+    {
+      "stage": "repeat_word",
+      "pid": 64,
+      "processAlive": true,
+      "status": "connected",
+      "toolCount": 15,
+      "elapsedMs": 2.9775919999999587
+    },
+    {
+      "stage": "after_idle",
+      "pid": 64,
+      "processAlive": false,
+      "status": "disconnected",
+      "toolCount": 15
+    },
+    {
+      "stage": "reuse_word",
+      "pid": 90,
+      "processAlive": true,
+      "status": "connected",
+      "toolCount": 15,
+      "elapsedMs": 431.4587509999983
+    },
+    {
+      "stage": "open_document",
+      "pid": 90,
+      "processAlive": true,
+      "status": "connected",
+      "toolCount": 15,
+      "elapsedMs": 4.996166000000812
+    },
+    {
+      "stage": "document_protected_after_idle",
+      "pid": 90,
+      "processAlive": true,
+      "status": "connected",
+      "toolCount": 15
+    }
+  ],
+  "closedPids": [
+    64,
+    90
+  ],
+  "baseCommit": "d50fd51dc35cc34af5cf659a0643495e96d872b5",
+  "originalMissingCommit": "7d69ad490a173963641129938ce1ea81e98dea16",
+  "isReconstruction": true,
+  "idleExperimentMs": 30000,
+  "productionDefaultIdleMs": 120000,
+  "limitations": [
+    "One local Linux Word child; no full-app memory measurements or A/B benchmark",
+    "Catalog supplied to real adapter by smoke harness; Windows bundle bootstrap untested",
+    "Browser post-use reclamation remains disabled",
+    "Win7, Office 2013 COM, intranet and scheduled wake not validated"
+  ],
+  "tests": {
+    "newLifecycle": {
+      "passed": 13
+    },
+    "fullMcp": {
+      "passed": 56,
+      "failed": 9,
+      "unhandledErrors": 2
+    },
+    "unmodifiedBaselineMcp": {
+      "passed": 43,
+      "failed": 9,
+      "unhandledErrors": 2
+    },
+    "callers": {
+      "passed": 55,
+      "files": 7
+    },
+    "office": {
+      "passed": 87,
+      "files": 16
+    },
+    "brandEngineering": {
+      "passed": 12,
+      "skippedWindowsOnly": 1
+    }
+  },
+  "logSha256": {
+    "rebuild-real-word.log": "0fbe220694c6278f9bd6b858a129f29a31866d4d2779091f33076fe3222564cc",
+    "rebuild-cli-typecheck.log": "b9d99decf050891fc22b327450559258c4ae54365f683f830140b7ed40504f7a",
+    "rebuild-brand-test.log": "be6858347f8943b68329009bbf04ef9672951fd9e423cb003100f4bd7c8e150a",
+    "rebuild-real-word-final.log": "b5bb8fbce60c3d55675ce623f9059a8419df3dc115ab7f6eb95ab77ccc625188",
+    "rebuild-office.log": "2071c625db39dc249d7b7231cd32a8729771df318d20688e81112760ab7fdc6c",
+    "rebuild-demand-final.log": "63e889ea5e5233f12784ebfeb81fa17b2394f4c05b6549cd433ac37401b35094",
+    "rebuild-mcp.log": "711971b0ef9ae5fdab438eeeeaac7f31af8f8e1c125521d11633e3746579ebc1",
+    "rebuild-adapter-final.log": "8b5e29f4242dfe831d57ff02fce071b036b0d6f59508f58ab65b8bf56d73889f",
+    "rebuild-build.log": "20da7ea007b8a042ba3a0ca063f89532d6e393054f3b65d7cfa9c7ad367e8fea",
+    "rebuild-lint.log": "76594f98fe0d2eba99335fbb6817998a3bbd65e7607ab5448a05b0273bd7e5d3",
+    "rebuild-callers-extra.log": "a6d7f5f0022cade85f4755a1608293f8513a34a6918502cfbae3871af87719e2",
+    "rebuild-lint-final.log": "47acc13f0ef7436e1cf6aea51552ccc131c500480adb624d469b35262dd9da59",
+    "rebuild-typecheck-retry.log": "1bdb6ff3cc65ecc563166404eaaf3d1c590b33b72cd1fb15ed463c24e2f171a0",
+    "rebuild-office-final.log": "c874781a0798f6bcd43508a24e850ae187f7f6eee22c1423daecb93bb3c553a9",
+    "rebuild-callers.log": "8d56ce262faed72ebc822d638d4384f57bd329aa28394a011eb9bffe36fb676a",
+    "rebuild-cli-lint-final.log": "8ba457525f508024ef7c200e74528a4ad2e46200e5ab5fa3c0cb8b3f6cb082fe",
+    "rebuild-cli-lint.log": "b2e47c272de81c91c65d64fb473dfb5d00db975247ab51c9564be2291324caae",
+    "rebuild-typecheck.log": "b8b3af85263f04554f6869608a4078a080c00324eb370bb21b6eed4a78da39fb",
+    "rebuild-cli-typecheck-final.log": "6b65f2c0b7e542faf38ead9f1b13307ea45382408e043d72c43337bd404772aa",
+    "rebuild-mcp-baseline.log": "f92673f3fcc45a9ffdcafce1c6a2e23bbf8f0975b25c5f2b0009355928e74b5c",
+    "rebuild-mcp-final.log": "4e2dc3e25f8adcd9aaae1a4043d2464ba1d1f6404f9821892473fa8cae8ce823",
+    "rebuild-word-build.log": "5b6402e0eafa04bb7caa76c9a37c8ec77534d5a69b7f8176396407ee0d35775c",
+    "rebuild-install.log": "be0b8867a3fd9bdea59777190fe174a0a848d101e2726d76b3e7374319e6f93d"
+  },
+  "sameBaselineOAuthFailures": [
+    "exposes pending OAuth authorization URL through server status",
+    "reuses an unchanged configured connection while OAuth authorization is pending",
+    "keeps a reused OAuth connection alive when a bounded caller times out",
+    "only cancels the caller waiter when a reused OAuth connection is aborted",
+    "treats per-connect OAuth authorization timeout as a caller budget, not a transaction kill",
+    "keeps runtime OAuth recovery alive after the triggering caller times out",
+    "shares one runtime OAuth recovery across concurrent tool callers",
+    "does not let a caller abort close the shared runtime OAuth callback listener",
+    "only opens OAuth authorization URL when an opener is injected"
+  ],
+  "checks": {
+    "rootTypecheck": "passed on serial retry; initial concurrent run killed (137)",
+    "cliTypecheck": "34/34 passed",
+    "rootLint": "0 errors, 526 warnings",
+    "cliLint": "0 errors, 86 warnings",
+    "architecture": "baseline 0, new 0"
+  }
+}

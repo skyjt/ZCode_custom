@@ -226,6 +226,7 @@ export function createDocumentImporter(
     }
   }
   return {
+    canStop: () => uploads.size === 0,
     // 只读工作区仍可预览；启动清扫失败只记录，不能阻断插件连接。
     initialize: () => run(() => sweep().catch((error) => options.onCleanupError?.(error))),
     begin: (name: string, size: number, owner = "default") =>

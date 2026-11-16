@@ -524,3 +524,11 @@ export interface McpPort {
    */
   close(): Promise<void>;
 }
+
+/** Verified catalog availability is distinct from a live transport. */
+export function hasUsableMcpCatalog(status: McpServerStatus): boolean {
+  return (
+    status.status === "connected" ||
+    (status.status === "disconnected" && !status.error && (status.toolCount ?? 0) > 0)
+  );
+}

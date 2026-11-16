@@ -1,6 +1,8 @@
-import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import type { TrustedMcpCatalog } from "@zcode/adapters/mcp";
+import { readFile, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, relative, isAbsolute, sep } from "node:path";
 import {
   ZCODE_OFFICIAL_PLUGIN_MARKETPLACE,
   ZCODE_PLUGIN_HOST_COMMAND,
@@ -172,4 +174,102 @@ function runtimeDir(): string | undefined {
 
 function entrypointDir(): string | undefined {
   return process.argv[1] ? dirname(process.argv[1]) : undefined;
+}
+
+/** Read only the host-installed manifest, never a workspace or plugin-provided catalog. */
+export async function resolveTrustedBuiltinMcpCatalog(
+  _name: string,
+  config: McpServerConfig,
+): Promise<TrustedMcpCatalog | undefined> {
+  if (
+    config.type !== "stdio" ||
+    config.command !== process.execPath ||
+    (config.source?.kind !== "builtin" && config.source?.kind !== "plugin")
+  )
+    return undefined;
+  const prefix = officialPluginHostPrefixArgs();
+  if (
+    !prefix ||
+    config.args?.length !== prefix.length + 1 ||
+    !prefix.every((arg, index) => config.args?.[index] === arg)
+  )
+    return undefined;
+  const entry = config.args[prefix.length]!;
+  const allowed = ["documents", "spreadsheets", "presentations", "pdf", "node-repl-host"];
+  for (const base of bundleBaseDirs()) {
+    let raw: string;
+    try {
+      raw = await readFile(join(base, "builtin-mcp-catalog.json"), "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      throw error;
+    }
+    const catalog = JSON.parse(raw) as {
+      version: number;
+      idleTimeoutMs: number;
+      plugins: Array<{
+        id: string;
+        entry: string;
+        files: Record<string, string>;
+        tools: unknown[];
+        idleResourceUri?: string;
+      }>;
+    };
+    if (
+      catalog.version !== 1 ||
+      !Array.isArray(catalog.plugins) ||
+      !Number.isInteger(catalog.idleTimeoutMs) ||
+      (catalog.idleTimeoutMs !== 0 &&
+        (catalog.idleTimeoutMs < 30_000 || catalog.idleTimeoutMs > 3_600_000))
+    )
+      throw new Error("Invalid bundled MCP catalog");
+    for (const plugin of catalog.plugins) {
+      const expected = plugin.id === "node-repl-host" ? "dist/mcp/server.js" : "dist/server.mjs";
+      if (
+        !allowed.includes(plugin.id) ||
+        plugin.entry !== expected ||
+        !Array.isArray(plugin.tools) ||
+        plugin.tools.length === 0 ||
+        !plugin.files?.[expected]
+      )
+        throw new Error("Invalid bundled MCP catalog entry");
+      const suffix = join(...expected.split("/"));
+      if (!entry.endsWith(sep + suffix)) continue;
+      const root = await realpath(entry.slice(0, -(suffix.length + 1)));
+      const manifest = JSON.parse(
+        await readFile(join(root, ".zcode-plugin/plugin.json"), "utf8"),
+      ) as { name?: string };
+      if (manifest.name !== plugin.id) continue;
+      for (const [file, digest] of Object.entries(plugin.files)) {
+        if (
+          !file.startsWith("dist/") ||
+          file.includes("\\") ||
+          file.split("/").includes("..") ||
+          !/^[a-f0-9]{64}$/.test(digest)
+        )
+          throw new Error("Invalid bundled MCP runtime digest");
+        const path = await realpath(join(root, ...file.split("/")));
+        const rel = relative(root, path);
+        if (
+          isAbsolute(rel) ||
+          rel === ".." ||
+          rel.startsWith(".." + sep) ||
+          createHash("sha256")
+            .update(await readFile(path))
+            .digest("hex") !== digest
+        )
+          throw new Error("Bundled MCP runtime integrity check failed");
+      }
+      const idleResourceUri = plugin.id !== "node-repl-host" ? plugin.idleResourceUri : undefined;
+      if (idleResourceUri && idleResourceUri !== "zcode://runtime/idle")
+        throw new Error("Invalid idle readiness resource");
+      return {
+        tools: plugin.tools,
+        idleTimeoutMs: catalog.idleTimeoutMs,
+        ...(idleResourceUri ? { idleResourceUri } : {}),
+      };
+    }
+    return undefined;
+  }
+  return undefined;
 }

@@ -111,6 +111,7 @@ export function createDocumentOwner({ files, parse }: { files: WorkspaceFiles; p
     }
 
     return {
+      canStop: () => current === null && views.size === 0,
       /** The key this session is stored under; also owns the session's file imports. */
       id,
       async info(path: string): Promise<DocumentInfo> {
@@ -272,6 +273,7 @@ export function createDocumentOwner({ files, parse }: { files: WorkspaceFiles; p
      * The viewer state of one session (`_meta.session_id` of the call); calls without one share
      * the default session. Keeps the {@link MAX_SESSIONS} most recently used sessions.
      */
+    canStop: () => handles.size === 0 && [...sessions.values()].every((state) => state.canStop()),
     session(id?: string) {
       const key = id || DEFAULT_SESSION;
       let state = sessions.get(key);
