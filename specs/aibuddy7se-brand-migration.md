@@ -1,5 +1,33 @@
 # aibuddy7se 完整品牌与升级迁移
 
+## 2026-11-16 设置查询与轻量宿主后复验
+
+当前已验收运行时代码 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，仅推送用户 fork 的
+`codex/win7-experimental`。[Windows Actions 43812974790](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790)
+（job `133118609641`）全绿：工程 33/33，真实注册表安全负例未删除/放宽；旧 SQLite/OS 凭据
+迁移、原始数据/冲突保护、Agent/WinPTY、Office/Python、SSH/SFTP、Git/JDK 8/Maven、技能、
+PE 和防火墙 GUI 门禁均通过。新增轻量宿主 stdio/中文参数/环境清洗及授权正负例通过；自动
+插件页不启动 MCP 检查树，手动检查与再次进入复用原 owner 的 GUI 回归通过。
+
+12 张最终截图逐一核对，名称、Logo、关于与帮助正确，中英文自测和深浅代码预览正常。
+品牌扫描 28,563 个文本文件，仅原三份迁移识别模块允许旧标识；新 `plugin-host.cjs` 已纳入
+同一构建品牌转换。成包自测 12 通过、1 注意、0 失败、1 未测。
+
+[当前单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790/artifacts/14201458321)：
+`aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,499,677 字节；Actions 外层 ZIP 恰含一个 EXE，
+没有便携包。实际下载文件 SHA-256 与 runner 一致：
+`45942d5603520c8fb3b36aea9144f7ef43d0bc1e2d63b9ca7b5fe8123e2a3110`。
+[诊断/截图](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790/artifacts/14201612658)
+保留至 2026-11-30 06:09 UTC（北京时间 14:09）。未写入离线电脑 Downloads。
+
+同 runner 对照旧包 43805639768：插件页与首次纯文本回复后的三次 working set 均值由
+2869.14 降为 1663.59 MiB（−42.02%），private bytes 由 2363.48 降为 1458.59 MiB（−38.29%），
+24 个进程变为 16 个。启动 90 秒仍为 950.22 MiB，基础高占用尚未解决；完整测量边界见
+[内存验收](aibuddy7se-memory.md#2026-11-16-设置查询与轻量宿主成包验收)。
+
+真实 Win7/Office 2013、真实模型/内网 SSH/Git/Maven 项目与企业认证、实际旧 NSIS 覆盖安装
+仍未验收。随后文档提交不改变以上安装器对应代码；历史验收记录保留如下。
+
 ## 产品规则
 
 用户明确要求内部标识改名并迁移旧数据。Win7 发布包使用 aibuddy7se：名称、图标、元数据、IPC/preload、环境变量、协议、资源/插件路径及数据库身份表。仅迁移识别代码可以保留旧标识；法律署名保留原作者 Z.AI。开发仓库路径、上游源码包名和 Git 历史不属于安装产品，现代构建不变。

@@ -1,6 +1,6 @@
-> 当前已验收运行时代码为 `121ad70a55273e1327175f3867b1d19743035234`，Actions [43805639768](https://github.com/skyjt/ZCode_custom/actions/runs/43805639768) 全绿（Windows 工程 33/33）。随包 Git、优先复用现有 JDK 8/Maven 的按需自测已完成；没有新增常驻 JVM。唯一离线 EXE、SHA-256、品牌扫描与最终中英文截图均已下载核对。当前下载与仍待真机验收项目见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-git-与-java-开发能力后复验)和[Java 开发环境验收](../../specs/aibuddy7se-java-development.md#2026-11-16-最终成包验收)。
+> 当前已验收运行时代码为 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，Actions [43812974790](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790) 全绿（Windows 工程 33/33）。已实现 Win7 自动 MCP 状态只读与同源轻量工具宿主，保留手动连接/授权和全部原生安全门禁。唯一离线 EXE、SHA-256、品牌扫描与最终 12 张截图均已下载核对；当前下载与未覆盖范围见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-设置查询与轻量宿主后复验)。
 >
-> 此前[内存同机实测](../../specs/aibuddy7se-memory.md#2026-11-13-最终成包验收)的优化保留：空闲 90 秒工作集合计约下降 20%，配置模型但未发送约下降 62%。本轮单次采样为启动 30 秒 1374.40 MiB、90 秒 963.14 MiB、插件页与首次回复后 2916.21 MiB，没有新旧包同机对照；初始启动与任务期间高占用仍未解决。以下原始交接故障描述保留为历史证据，不代表当前仍然失败。
+> [最新同机内存对照](../../specs/aibuddy7se-memory.md#2026-11-16-设置查询与轻量宿主成包验收)：旧包 43805639768 与新包在同一 Windows runner 执行相同 GUI 流程。首次回复后三次 working set 均值 2869.14 → 1663.59 MiB（−42.02%），private bytes 2363.48 → 1458.59 MiB（−38.29%），进程数 24 → 16。启动 90 秒仍约 950 MiB，基础高占用未解决，不能宣称完成全部内存目标。保留随包 Git、复用现有 JDK 8/Maven；没有新增常驻 JVM。以下交接故障及旧数据为历史记录。
 
 # aibuddy7se 云端开发交接（2026-11-13）
 
@@ -33,7 +33,7 @@
 
 先读根 AGENTS.md 及 architecture-governance skill；新增行为先更新对应 spec。不要恢复已退役的 App 业务单测。Node `24.14.0`、pnpm `10.33.2` 以 mise.toml 为准，勿使用其他 pnpm 导致锁文件/依赖变化。
 
-交接时本地：`pnpm typecheck` 通过；`pnpm lint` 为 538 条既有告警、0 错误；当时修改的 ChatErrorBanner 单独 Oxlint 为 0 告警/0 错误，未改变 Hooks 调用顺序或依赖。架构检查新增/基线违规均 0，正常 pre-push 门禁通过。当前云端 Lint 为 533 条既有告警、0 错误，最终验收见文首链接。工程入口：
+交接时本地：`pnpm typecheck` 通过；`pnpm lint` 为 538 条既有告警、0 错误；当时修改的 ChatErrorBanner 单独 Oxlint 为 0 告警/0 错误，未改变 Hooks 调用顺序或依赖。架构检查新增/基线违规均 0，正常 pre-push 门禁通过。当前云端 Lint 为 526 条既有告警、0 错误，最终验收见文首链接。工程入口：
 
 ```sh
 node scripts/check-workspace-freshness.mjs
