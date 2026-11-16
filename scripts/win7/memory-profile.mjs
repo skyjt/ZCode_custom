@@ -63,19 +63,23 @@ ConvertTo-Json -InputObject $rows -Compress
     ],
     { encoding: "utf8", timeout: 20000, maxBuffer: 4 * 1024 * 1024 },
   );
-  const session = await page.context().newCDPSession(page);
   let heap;
-  try {
-    heap = await session.send("Runtime.getHeapUsage");
-  } finally {
-    await session.detach();
+  if (page) {
+    const session = await page.context().newCDPSession(page);
+    try {
+      heap = await session.send("Runtime.getHeapUsage");
+    } finally {
+      await session.detach();
+    }
   }
   const result = {
     phase,
     sampledAt: new Date().toISOString(),
     ...selectProcessTree(JSON.parse(stdout), rootPid),
     rendererHeap: heap,
-    diffWorkers: page.workers().filter((worker) => /diffs\.worker/.test(worker.url())).length,
+    diffWorkers: page
+      ? page.workers().filter((worker) => /diffs\.worker/.test(worker.url())).length
+      : 0,
   };
   console.log(
     `Memory ${phase}: working set ${(result.workingSetBytes / 1048576).toFixed(1)} MiB; private ${(result.privateBytes / 1048576).toFixed(1)} MiB; diff workers ${result.diffWorkers}`,

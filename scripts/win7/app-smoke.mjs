@@ -92,6 +92,11 @@ try {
   await page.getByTestId("sidebar").waitFor({ state: "visible", timeout: 90000 });
   if (process.argv.includes("--measure-memory")) {
     const samples = await profileStartupMemory(page, child.pid, output);
+    assert.match(
+      log,
+      /cron scheduler started/,
+      "Memory optimization must retain the live scheduler",
+    );
     if (!process.argv.includes("--baseline")) {
       assert.equal(samples.at(-1).diffWorkers, 1, "Win7 must use one functioning diff worker");
       assert.match(
@@ -413,6 +418,47 @@ try {
         join(output, "memory-after-first-send-series.json"),
         JSON.stringify({ samples: replySamples }, null, 2),
       );
+      const toolWallTimes = [];
+      const toolSamples = [];
+      for (let number = 1; number <= 5; number++) {
+        await input.fill(
+          `AIBUDDY7SE_TOOL_PROBE_${number}: execute the requested read-only echo once.`,
+        );
+        const started = performance.now();
+        await page.getByTestId("v4-composer-send").click({ timeout: 60000 });
+        await page
+          .getByText(`AIBUDDY7SE_TOOL_DONE_${number}`, { exact: true })
+          .last()
+          .waitFor({ timeout: 120000 });
+        toolWallTimes.push({ number, elapsedMs: performance.now() - started });
+        assert.ok(modelFixture.toolRuns.some((run) => run.number === number && run.verified));
+        if (number === 1 || number === 5)
+          toolSamples.push(await sampleMemory(page, child.pid, `tool-round-${number}`));
+      }
+      await delay(15000);
+      toolSamples.push(await sampleMemory(page, child.pid, "tools-idle-15s"));
+      assert.equal(
+        log.split("\n").filter((line) => /agent process started.*shared-local-tasks/.test(line))
+          .length,
+        1,
+        "Repeated tool use must preserve the shared chat runtime",
+      );
+      await writeFile(
+        join(output, "memory-tool-roundtrips.json"),
+        JSON.stringify(
+          {
+            tool: "Bash",
+            calls: modelFixture.toolRuns,
+            wallTimes: toolWallTimes,
+            samples: toolSamples,
+            scope:
+              "Five real read-only echo executions through the packaged GUI and loopback fixture; no real model, network or project workload",
+          },
+          null,
+          2,
+        ),
+      );
+      await page.screenshot({ path: join(output, "repeated-tools.png") });
     }
     if (!process.argv.includes("--baseline")) {
       // 在采样之后执行主动检查；不能通过删除真实连接能力来获得更低的纯文本内存。

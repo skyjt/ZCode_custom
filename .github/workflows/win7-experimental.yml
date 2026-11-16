@@ -193,7 +193,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Packaged application startup
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        timeout-minutes: 12
+        timeout-minutes: 16
         shell: pwsh
         run: |
           $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe").Path
@@ -223,9 +223,13 @@ jobs:
               New-NetFirewallRule -DisplayName "$rule-baseline" -Direction Outbound -Program $baselineExe -Action Block -Enabled True -Profile Any | Out-Null
               node scripts/win7/app-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline --measure-memory --baseline --baseline-first-send
               if ($LASTEXITCODE) { throw 'Baseline packaged memory/startup check failed' }
+              node scripts/win7/office-memory-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline
+              if ($LASTEXITCODE) { throw 'Baseline Office memory/tool check failed' }
             }
             node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance --measure-memory
             if ($LASTEXITCODE) { throw 'Offline packaged startup failed' }
+            node scripts/win7/office-memory-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
+            if ($LASTEXITCODE) { throw 'Packaged Office memory/tool check failed' }
           } finally {
             Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
             Remove-NetFirewallRule -DisplayName "$rule-baseline" -ErrorAction SilentlyContinue

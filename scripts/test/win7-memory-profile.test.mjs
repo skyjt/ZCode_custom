@@ -20,6 +20,62 @@ test("local memory model fixture completes stream and refuses unexpected routes"
   }
 });
 
+for (const stream of [false, true])
+  test(`memory fixture verifies actual Bash output (stream=${stream})`, async () => {
+    const fixture = await startMemoryModelFixture();
+    const messages = [{ role: "user", content: "AIBUDDY7SE_TOOL_PROBE_1" }];
+    const post = async () => {
+      const response = await fetch(`${fixture.baseUrl}/chat/completions`, {
+        method: "POST",
+        body: JSON.stringify({
+          model: "fictional",
+          stream,
+          messages,
+          tools: [{ type: "function", function: { name: "Bash" } }],
+        }),
+      });
+      assert.equal(response.status, 200);
+      if (!stream) return (await response.json()).choices[0];
+      const body = await response.text();
+      assert.ok(body.endsWith("data: [DONE]\n\n"));
+      const chunks = body
+        .split("\n\n")
+        .filter((line) => line.startsWith("data: {"))
+        .map((line) => JSON.parse(line.slice(6)).choices[0]);
+      return { message: chunks[0].delta, finish_reason: chunks.at(-1).finish_reason };
+    };
+    try {
+      const first = await post();
+      assert.equal(first.finish_reason, "tool_calls");
+      const call = first.message.tool_calls[0];
+      assert.equal(call.function.name, "Bash");
+      assert.equal(JSON.parse(call.function.arguments).command, "echo AIBUDDY7SE_TOOL_OUTPUT_1");
+      assert.equal(fixture.toolRuns.length, 0);
+      messages.push(first.message, {
+        role: "tool",
+        tool_call_id: call.id,
+        content: "Permission denied for echo AIBUDDY7SE_TOOL_OUTPUT_1",
+      });
+      const denied = await fetch(`${fixture.baseUrl}/chat/completions`, {
+        method: "POST",
+        body: JSON.stringify({
+          model: "fictional",
+          stream,
+          messages,
+          tools: [{ type: "function", function: { name: "Bash" } }],
+        }),
+      });
+      assert.equal(denied.status, 500);
+      assert.equal(fixture.toolRuns.length, 0);
+      messages.at(-1).content = "AIBUDDY7SE_TOOL_OUTPUT_1";
+      assert.equal((await post()).message.content, "AIBUDDY7SE_TOOL_DONE_1");
+      assert.equal(fixture.toolRuns.length, 1);
+      assert.ok(fixture.toolRuns[0].elapsedMs >= 0);
+    } finally {
+      await fixture.close();
+    }
+  });
+
 test("memory acceptance counts nested app children without same-name unrelated processes", () => {
   const row = (pid, parentPid, bytes) => ({
     pid,
