@@ -1,5 +1,66 @@
 # aibuddy7se 内存优化
 
+## 2026-11-16 已完成证据归档；Host 候选 RAM 仍待测
+
+本轮在独立 `codex/win7-memory-profiling-20261116` 分支工作；原分支仍为 24932434，
+未部署或发布 Release。产品候选代码 e6b95358 仅在单次 Provider 操作内复用完整校验后的
+canonical signature；没有跨调用缓存、跳过校验、强制 GC、裁剪工作集或关闭必要能力。
+
+两次 cf8022914 原包堆诊断均成功：
+[43856538703](https://github.com/skyjt/ZCode_custom/actions/runs/43856538703)、
+[43859527537](https://github.com/skyjt/ZCode_custom/actions/runs/43859527537)。第二次
+[摘要 artifact 14221629845](https://github.com/skyjt/ZCode_custom/actions/runs/43859527537/artifacts/14221629845)
+ZIP SHA-256 为 `2e9893086710b090076da6ab585193eb20107ca3f899055bf797dbfc1e948b28`。
+取得 Main、Host、Scheduler、Extension Host、Agent 与 6 个插件宿主的 26 个阶段摘要；
+退出 worker、Renderer/GPU/utility 和原生 runtime-host/conhost 明确列作 Node 堆未覆盖。
+采样器不额外开放 Node inspector 网络端口，原始堆不上传。后次已修复 Script 节点名的
+CI 绝对路径，仅保留包内定位；没有真实用户数据。
+
+两轮 Host 90 秒累计抽样分配约 184.89/184.60 MiB、强边保留堆 39.89/39.92 MiB；
+top-80 中 Zod/内置配置编码栈至少 62.44/66.04 MiB。Main 强边堆约 44.85 MiB，RUM
+Script 节点自身保留约 3.42 MiB；这不是完整 SDK 的 RSS，也不能解释全部 Main 占用。
+快照会 GC，后续分配包含采样器处理前次快照的开销，诊断 WS/PB 明显膨胀，禁止当收益。
+
+原 Word 代码的四对 AB/BA 无插桩复测已通过：
+[comparison job 133259475682](https://github.com/skyjt/ZCode_custom/actions/runs/43855759324/job/133259475682)，
+[artifact 14223790174](https://github.com/skyjt/ZCode_custom/actions/runs/43855759324/artifacts/14223790174)，
+ZIP SHA-256 `35d67f35b4f70134e874894657030036b73b6d21184614952ddc39b1e0075249`。
+两版各 4 次新进程/新夹具，同一 Windows Server 2022 runner；OS 文件缓存未清空。
+32 份 Office 插件报告、40 个真实 Bash stdout、全部 GUI/文件安全断言通过。该 run 总体
+显示 failure 是首个诊断 job 的 Windows ASAR 路径错误；已修复且后两次诊断成功，
+comparison job 本身成功，未被取消或重启。
+
+| 指标 | 旧中位数 | 新中位数 | 各对变化的中位数 | 各对变化范围 |
+| --- | ---: | ---: | ---: | ---: |
+| Word 60 次 working set MiB | 149.40 | 105.93 | -29.56% | -31.35% 至 -25.61% |
+| Word 60 次 private bytes MiB | 165.09 | 124.94 | -25.21% | -27.35% 至 -20.14% |
+| Word 轮换均耗时 ms | 30.63 | 15.91 | -49.11% | -55.35% 至 -35.63% |
+| Word 首次 open+read ms | 188.73 | 242.67 | +24.27% | +19.61% 至 +176.92% |
+| 整体 90 秒 working set MiB | 953.65 | 952.17 | -0.14% | -0.60% 至 +0.29% |
+| 文字 working set MiB | 1641.10 | 1622.43 | -1.10% | -2.22% 至 +1.18% |
+| 文字 private bytes MiB | 1430.48 | 1418.69 | -0.79% | -1.51% 至 +0.13% |
+
+首次 Word 四对全部变慢，首对 109.15→302.27 ms，不能隐藏。轮换局部收益稳定，
+20→60 次仍增长，未证明长期泄漏消失。先前文字约 +6% 没有复现；整体仍基本持平，
+不能把小幅波动归因于没有调用的 Word。以上不包含本次 Host 候选。
+
+候选 [run 43859527521](https://github.com/skyjt/ZCode_custom/actions/runs/43859527521) 的
+build job 133272366069 全部成功；原构建/安全步骤完整保留，新增实际 Electron 44.2.0 /
+Node 24.20.0 的 Provider 文件、双进程竞争、watcher 回归 7 组通过。应用自测 12 通过、
+1 注意（OS 非 Win7）、0 失败、1 未测。候选 EXE SHA-256：
+`69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb`。
+四对旧包/候选包 comparison job 133282119165 正在运行；候选实际堆另在 run 43863159301
+独立采样，不混用两个 job 的内存数据。没有这些最终结果前不宣称整体 RAM 改善。
+
+本地候选类型检查、Lint（526 既有告警/0 错误）、schema 8、架构工程 61、受影响工程
+76、保留 CLI 回归 14、诊断工程 9 均通过。原 pre-push 命令在本环境被 tsx Unix pipe
+限制阻断；同一 SQLite 检查改用 node --import tsx 执行，其余门禁逐项原样通过，没有
+删门禁或修改 package.json。独立 Node 四对热点诊断的累计抽样分配中位 -32.60%，
+首次读取中位 -23.80%，输出 hash 一致；结束 heapUsed 有时更高，不当作 RAM 收益。
+
+真实 Win7、Office 2013 GUI/COM、内网模型/项目/认证、旧 NSIS 实机覆盖安装与长浏览
+仍未验收。以下保留此前实现契约和历史单次结果，最新结论以上述重复测试为准。
+
 ## 2026-11-16 候选实际成包诊断
 
 候选代码 e6b95358 的完整 Windows build job 133272366069 已通过，run 43859527521。
