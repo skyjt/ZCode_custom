@@ -298,11 +298,16 @@ try {
     "-c",
     "http.sslVerify=true",
     "-c",
-    "http.sslBackend=openssl",
+    "http.sslBackend=schannel",
     "-c",
     `http.curloptResolve=${host}:${tlsPort}:127.0.0.1`,
   ];
-  await assert.rejects(g([...httpOptions, "ls-remote", url]), /certificate|SSL/i);
+  await assert.rejects(
+    g([...httpOptions, "ls-remote", url]),
+    (error) =>
+      /certificate|CERT_|untrusted/i.test(error.stderr) &&
+      !/Unsupported SSL backend/i.test(error.stderr),
+  );
   assert.equal(authenticated, 0);
   credential = `protocol=https\nhost=${host}:${tlsPort}\nusername=${username}\npassword=${password}\n\n`;
   await run(wincred, ["store"], { input: credential });
@@ -342,7 +347,14 @@ try {
     run(wincred, ["get"], { input: `protocol=https\nhost=${"x".repeat(1100)}.invalid\n\n` }),
     (error) => error.code === 1,
   );
-  const trustedOptions = [...httpOptions, "-c", `http.sslCAInfo=${certificate}`];
+  // 标准 MinGit 的 HTTPS 只带 Schannel；显式 CA 仅用于本次回环，不修改 Windows 信任库。
+  const trustedOptions = [
+    ...httpOptions,
+    "-c",
+    "http.schannelUseSSLCAInfo=true",
+    "-c",
+    `http.sslCAInfo=${certificate}`,
+  ];
   await g([...trustedOptions, "clone", url, join(root, "https-clone")]);
   await g([
     "-C",

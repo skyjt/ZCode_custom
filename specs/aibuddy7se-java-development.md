@@ -70,3 +70,5 @@ Actions 43800362165 已通过 33/33 工程回归、原成包门禁与完整 GUI�
 - 延续标准 Git wincred 格式和 Windows Credential Manager，不设计新凭据存储、降级明文 helper 或读取真实企业账户。原生场景核对 Unicode 凭据、错误 password 不删除、正确 password 删除后不存在、OAuth 字段往返和过长 target 明确拒绝。
 - 原 `prepareOfflineTools` 继续唯一拥有资产下载/摘要/配置/编译。在打包前复用同一准备函数和 Git 验收，输出单独的 `developer-tools-preflight.json`；成包后依旧执行全部原门禁和相同 Git 场景，输出 `developer-tools.json`。预检不能冒充安装器验收。
 - 下载缓存允许恢复相同 runner 架构的旧清单缓存，每个实际使用的资产仍重新按当前清单核对 SHA-256；错误摘要必须失败。
+
+43805188701 在约 25 秒的预检中完成 MSVC helper 构建、SSH 新提交推送和原生凭据断言后，暴露 HTTPS fixture 的后端假设错误：该 MinGit 只支持 Schannel，不能要求 OpenSSL。回环客户端改用实际 Schannel，并仅在受信任正例显式设置 `http.schannelUseSSLCAInfo=true` 和临时 CA 文件；产品仍使用 Windows 原生证书信任。负例必须报告证书/信任错误，不能把“不支持的 SSL backend”当成成功拒绝；不关闭 TLS 验证或全局导入证书。

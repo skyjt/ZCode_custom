@@ -26,6 +26,8 @@ Office 操作见 `office.md`；SSH/SFTP 在聊天中使用 `ssh-sftp` 内置技�
 
 随包 `git/cmd/git.exe`（MinGit 2.46.2）自动加入本应用 PATH，复用现有 Git 界面和终端；不改系统 PATH 或用户 `.gitconfig`。默认凭据使用 Windows 原生 wincred；不依赖 GCM/.NET 4.7.2。MinGit 未附交互式 Git Bash 和 Git LFS，终端仍使用已有 Git Bash 或 CMD。
 
+wincred 组件使用已修复缓冲区问题的固定上游源码构建，源码与构建说明保留在 `git/sources/wincred`。HTTPS 使用 Schannel 和 Windows 证书信任，企业 CA 仍由原环境管理；应用不关闭证书或 SSH 主机验证。
+
 JDK 8 和 Maven 使用电脑现有安装。设置 → 常规 → 系统能力自测会显示 Git、Java/javac 和 Maven 版本；JDK 8 会编译运行一次临时 UTF-8 样本。JAVA_HOME 与 PATH 不一致时报告注意，不自动切换。Maven 仅检查版本及默认 settings.xml 是否存在，不读取凭据、不修改 `.m2`、不下载依赖，也不代表真实项目能离线构建。企业仓库、证书、项目 Wrapper 和依赖继续使用原项目配置。
 
 ## Office 和许可
