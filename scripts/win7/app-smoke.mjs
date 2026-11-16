@@ -180,7 +180,7 @@ try {
   );
   await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
   assert.deepEqual(reports[0], reports[1], "Main must share the in-flight report");
-  if (!process.argv.includes("--baseline")) {
+  if (!process.argv.includes("--baseline") || process.argv.includes("--baseline-first-send")) {
     for (const id of ["git", "java", "maven"]) {
       const check = reports[0].checks.find((item) => item.id === id);
       assert.ok(check, `Missing developer tool check: ${id}`);
@@ -293,7 +293,7 @@ try {
   await page.getByTestId("settings-locale-select-item-zh-CN").click();
   await page.getByText("系统能力自测 · Win7 特别版", { exact: true }).waitFor();
   await page.screenshot({ path: join(output, "startup.png") });
-  if (!process.argv.includes("--baseline")) {
+  if (!process.argv.includes("--baseline") || process.argv.includes("--baseline-first-send")) {
     // reload 后重新执行实际自测，验证新增三行的中文界面，而不只检查语言选择器。
     await page.getByTestId("system-self-test-run").click();
     await page.getByTestId("system-self-test-results").waitFor({ timeout: 150000 });
