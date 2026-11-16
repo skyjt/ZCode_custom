@@ -1,8 +1,43 @@
 # aibuddy7se 完整品牌与升级迁移
 
+## 2026-11-16 调度器与 Office 后复验
+
+当前已通过功能验收的代码为 `3fce87dd116956f0c20253b5e2172edcdd5907fd`，仅推送用户 fork
+`skyjt/ZCode_custom` 的 `codex/win7-experimental`。
+[Windows Actions 43829709499](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499)
+（job `133171871338`）全部通过：工程 36/36，零跳过；真实注册表中文路径、不同 command、
+其它安装位置/自定义入口负例保持执行。旧 SQLite/OS 密文迁移、原数据保留、冲突拒绝、
+Agent/WinPTY/进程归属、轻量宿主、离线 Office/Python/SSH/SFTP/Git、现有 JDK 8/Maven、
+技能、PE 与防火墙阻断成包 GUI 门禁均保留并通过。
+
+本轮缩小调度器导入范围，四类 Office 解析器改为首次文件访问加载。新旧包在同一 runner
+各完成五轮真实只读 Bash、四类 Office 的中文文件读取、20 次轮换、损坏/越界拒绝及原文件
+哈希核对。**功能验收通过不等于整体内存优化达标**：启动 90 秒 working set 为
+956.38 → 955.58 MiB，文字回复三次均值为 1593.90 → 1663.63 MiB（本次上升 4.37%），
+private bytes 为 1448.67 → 1437.09 MiB。Office 首次打开变慢，Word 轮换读取后的占用更高；
+局部收益、完整数据及限制见[内存验收](aibuddy7se-memory.md#2026-11-16-调度器与-office-成包对照验收)。
+
+13 张最终截图逐一核对：名称、Logo、关于、帮助、中英文自测、深浅代码预览、模型配置、
+文字/工具回复与手动 MCP 连接正常。品牌扫描 28,572 个文本文件，仅 `legacy-data.cjs`、
+`legacy-migration.mjs`、`legacy-storage.js` 允许旧识别字符串。新解析器入口和共享 chunk
+纳入原品牌转换；自测 12 通过、1 注意、0 失败、1 未测。正常 pre-push 通过，根类型检查
+通过，Lint 526 既有告警/0 错误，架构新增/基线违规 0。
+
+[当前验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499/artifacts/14209257226)：
+`aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,424,932 字节；外层 Actions ZIP 恰含一个
+EXE，没有便携包。实际下载校验与 runner 一致：
+`5004501678705a84b17d89eaff96fe92a6caceac278961a2a29c7952f2edd17c`。
+[诊断/截图/新旧原始内存数据](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499/artifacts/14209486465)
+保留至 2026-11-30 08:38 UTC（北京时间 16:38）。构建步骤 10 分 43 秒，完整 job 23 分
+54 秒（含双版本 GUI/Office 对照 9 分 05 秒）。没有发布 Release、部署或写入离线电脑 Downloads。
+
+真实 Win7/Office 2013、真实模型/内网 SSH/Git/Maven 项目及企业认证、实际旧 NSIS 覆盖安装
+和完整退出重启升级仍未验收；不将 Server 2022 与虚构样本当作这些验收。随后文档提交不改变
+上述安装器对应代码。下面保留此前各轮历史记录。
+
 ## 2026-11-16 设置查询与轻量宿主后复验
 
-当前已验收运行时代码 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，仅推送用户 fork 的
+该轮已验收运行时代码 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，仅推送用户 fork 的
 `codex/win7-experimental`。[Windows Actions 43812974790](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790)
 （job `133118609641`）全绿：工程 33/33，真实注册表安全负例未删除/放宽；旧 SQLite/OS 凭据
 迁移、原始数据/冲突保护、Agent/WinPTY、Office/Python、SSH/SFTP、Git/JDK 8/Maven、技能、
@@ -13,7 +48,7 @@ PE 和防火墙 GUI 门禁均通过。新增轻量宿主 stdio/中文参数/环�
 品牌扫描 28,563 个文本文件，仅原三份迁移识别模块允许旧标识；新 `plugin-host.cjs` 已纳入
 同一构建品牌转换。成包自测 12 通过、1 注意、0 失败、1 未测。
 
-[当前单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790/artifacts/14201458321)：
+[该轮单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790/artifacts/14201458321)：
 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,499,677 字节；Actions 外层 ZIP 恰含一个 EXE，
 没有便携包。实际下载文件 SHA-256 与 runner 一致：
 `45942d5603520c8fb3b36aea9144f7ef43d0bc1e2d63b9ca7b5fe8123e2a3110`。

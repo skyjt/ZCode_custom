@@ -1,6 +1,8 @@
-> 当前已验收运行时代码为 `a44a27aa3a97c18425c95a745447aefcd4832d6d`，Actions [43812974790](https://github.com/skyjt/ZCode_custom/actions/runs/43812974790) 全绿（Windows 工程 33/33）。已实现 Win7 自动 MCP 状态只读与同源轻量工具宿主，保留手动连接/授权和全部原生安全门禁。唯一离线 EXE、SHA-256、品牌扫描与最终 12 张截图均已下载核对；当前下载与未覆盖范围见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-设置查询与轻量宿主后复验)。
+> 当前通过功能验收的代码为 `3fce87dd116956f0c20253b5e2172edcdd5907fd`，Actions [43829709499](https://github.com/skyjt/ZCode_custom/actions/runs/43829709499) 全绿（Windows 工程 36/36）。本轮缩小调度器依赖，并延迟加载四类 Office 解析器；原迁移/权限/离线能力门禁保留。唯一 EXE、SHA-256、品牌扫描和 13 张最终截图均已下载核对；验证包与未覆盖范围见[品牌迁移 spec](../../specs/aibuddy7se-brand-migration.md#2026-11-16-调度器与-office-后复验)。没有部署或发布 Release。
 >
-> [最新同机内存对照](../../specs/aibuddy7se-memory.md#2026-11-16-设置查询与轻量宿主成包验收)：旧包 43805639768 与新包在同一 Windows runner 执行相同 GUI 流程。首次回复后三次 working set 均值 2869.14 → 1663.59 MiB（−42.02%），private bytes 2363.48 → 1458.59 MiB（−38.29%），进程数 24 → 16。启动 90 秒仍约 950 MiB，基础高占用未解决，不能宣称完成全部内存目标。保留随包 Git、复用现有 JDK 8/Maven；没有新增常驻 JVM。以下交接故障及旧数据为历史记录。
+> [最新同机对照](../../specs/aibuddy7se-memory.md#2026-11-16-调度器与-office-成包对照验收)：对旧包 43812974790 和新包执行相同 GUI、五轮真实命令及四类 Office 流程。启动 90 秒 working set 956.38 → 955.58 MiB，文字回复均值 1593.90 → 1663.63 MiB（上升 4.37%），private bytes 1448.67 → 1437.09 MiB（下降 0.80%）。本轮只有局部收益，不能称为整体 RAM 明显改善；Office 首次打开更慢，Word 轮换读取占用也更高。此前约 42% 属于更早一轮，不能重复算作本轮收益。
+>
+> 首轮 43825818453 在旧包工具回复等待失败，尚未运行 Office 内存测试；真实 Agent 复现确认是测试模型误读工具后的 user-role 系统提醒，修复探针定位后全流程通过，未放宽输出/权限负例。当前没有构建阻塞。下一步优先分析 Main/Window Host 装配与 Word 解析分配，补独立重复启动和长任务对照；Win7 真机、Office 2013、内网模型/SSH/Git/Maven 与旧 NSIS 覆盖安装仍未验收。保留随包 Git、复用现有 JDK 8/Maven，没有新增常驻 JVM。以下早期交接故障及旧数据为历史记录。
 
 # aibuddy7se 云端开发交接（2026-11-13）
 
