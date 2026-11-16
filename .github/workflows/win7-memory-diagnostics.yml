@@ -2,6 +2,12 @@ name: Win7 isolated memory evidence
 on:
   push:
     branches: [codex/win7-memory-profiling-20261116]
+    paths:
+      - scripts/win7/heap-*
+      - scripts/win7/app-smoke.mjs
+      - scripts/win7/cold-comparison.mjs
+      - scripts/test/win7-heap-diagnostics.test.mjs
+      - .github/workflows/win7-memory-diagnostics.yml
   workflow_dispatch:
     inputs:
       run_comparison:

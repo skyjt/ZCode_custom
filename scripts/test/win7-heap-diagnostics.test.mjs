@@ -58,6 +58,14 @@ test("strong dominators handle shared references, weak edges and value redaction
     "root",
   );
   assert.ok(!JSON.stringify(summary).includes("Secret user content"));
+  const scriptSnapshot = structuredClone(snapshot);
+  scriptSnapshot.snapshot.meta.node_types[0].push("code");
+  scriptSnapshot.nodes[5] = 3;
+  scriptSnapshot.strings[1] =
+    "system / Script / file:///C:/Users/private/app.asar/out/main/index.js";
+  const scriptSummary = JSON.stringify(summarizeSnapshot(scriptSnapshot));
+  assert.ok(!scriptSummary.includes("Users/private"));
+  assert.ok(scriptSummary.includes("app.asar/out/main/index.js"));
   const allocation = summarizeAllocation({
     head: {
       selfSize: 0,

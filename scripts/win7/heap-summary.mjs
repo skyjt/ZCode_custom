@@ -14,6 +14,10 @@ export function sourceLocation(value) {
 }
 function safeName(type, value) {
   if (["string", "concatenated string", "sliced string"].includes(type)) return "<string>";
+  // V8 的 Script 节点名包含完整路径；与分配栈一样只保留包内相对定位信息。
+  if (type === "code" && value.startsWith("system / Script / "))
+    return "system / Script / " + sourceLocation(value.slice("system / Script / ".length));
+  if (/file:\/\/|[A-Za-z]:[\\/]|\/(?:Users|home)\//.test(value)) return "<name-redacted>";
   return /^[A-Za-z0-9_ .:$<>+()[\]/*=-]{1,120}$/.test(value) ? value : "<name-redacted>";
 }
 export function summarizeAllocation(profile) {

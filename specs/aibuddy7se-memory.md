@@ -1,5 +1,31 @@
 # aibuddy7se 内存优化
 
+## 2026-11-16 Host 内置配置签名的重复分配候选
+
+Windows 堆证据 run 43856538703 / artifact 14222510372：Host 首次 90 秒累计抽样约
+184.89 MiB，其中 top-80 栈至少 62.44 MiB 经过 Zod / toAibuddy7seBuiltinJSON。
+保留强边堆约 39.89 MiB；Main 约 44.84 MiB，Agent 文字阶段约 105.33 MiB。
+这些是插桩诊断，包含采样器/快照影响，不能当作未插桩 RAM 或泄漏证明。
+
+源码确认一次内置配置读取会在候选选择、Active 比较和 observed signature 中反复
+序列化同一 release，重复创建完整规则与 schema 解析副本。候选改动仅在一次 read、
+applyRemoteRelease 或 watcher refresh 内按 release 对象复用 canonical signature；
+操作结束即释放 WeakMap，不引入跨调用缓存、文件 freshness 假设或新的业务状态。
+
+    文件锁 → 重读 Bundled/Active → 原完整 decoder → 操作内签名一次
+      → 原候选/冲突规则 → 原私有文件原子写入 → 原快照与通知
+
+现有 NodeZCodeBuiltinProviderConfigSource 仍为 IO/监听唯一 owner。保留相同 revision
+冲突、拒绝降级、无效/缺失 Active 回退、Bundled LKG、Endpoint 路径隔离、dispose、
+跨进程锁/原子替换与全部 schema 校验。未解析的远端对象仍在原编码边界验证；不缓存
+可变外部对象跨操作的结果。公开接口与 desktop/mobile 传递语义不变。
+
+验收使用真实临时目录的可重复运行时脚本，覆盖物化/不改写、相同版本冲突、升降级、
+同对象跨调用变化、损坏/缺失、两进程竞争与 watcher 通知；在改动前后运行同一脚本。
+另用独立 Node 进程的交替分配实验定位收益，随后保留原 Windows 全部门禁构建候选，
+新旧未插桩包同机四对 AB/BA，检查首次可用、Main/Host/后代、文字/工具与 Office。
+没有成包对照前只标候选，不称整体内存优化成功。真实 Win7/Office2013/内网仍未验收。
+
 ## 2026-11-16 独立 Windows 堆诊断分支
 
 本轮先在独立分支复用已验收的 43838023557 安装器（代码 cf8022914），校验 EXE

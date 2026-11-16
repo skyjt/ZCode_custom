@@ -48,16 +48,20 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
 
   async read(): Promise<ProviderConfigLayerSnapshot> {
     this.#assertNotDisposed();
+    const signatureOf = createOperationSignature();
     let release: ZCodeBuiltinRelease;
     try {
       await this.#ensureWatcher();
-      release = await withFileLock(this.#activeFilePath, () => this.#readAndMaterializeLocked());
+      release = await withFileLock(this.#activeFilePath, () =>
+        this.#readAndMaterializeLocked(signatureOf),
+      );
     } catch {
       // Active 只是可丢弃缓存，目录锁、监听或原子物化失败不能阻断
       // Bundled 基线。缓存边界不可用时绕过 Active；Bundled 自身无效仍会在这里抛错。
       release = selectReleaseCandidate(
         await readBundledReleaseCandidate(this.#bundledFilePath),
         null,
+        signatureOf,
       );
     }
     this.#observedSignature ??= signatureOf(release);
@@ -69,11 +73,12 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     await this.#ensureWatcher();
     const result = await withFileLock(this.#activeFilePath, async () => {
       this.#assertNotDisposed();
-      const current = await this.#readAndMaterializeLocked();
+      const signatureOf = createOperationSignature();
+      const current = await this.#readAndMaterializeLocked(signatureOf);
       this.#assertNotDisposed();
       if (release.revision < current.revision) return "stale" as const;
       if (release.revision === current.revision) {
-        if (serializeZCodeBuiltinRelease(release) === serializeZCodeBuiltinRelease(current)) {
+        if (signatureOf(release) === signatureOf(current)) {
           return "unchanged" as const;
         }
         throw new Error(`ZCode Built-in 相同 revision ${release.revision} 对应不同内容`);
@@ -100,14 +105,16 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     this.#listeners.clear();
   }
 
-  async #readAndMaterializeLocked(): Promise<ZCodeBuiltinRelease> {
+  async #readAndMaterializeLocked(
+    signatureOf: (release: ZCodeBuiltinRelease) => string,
+  ): Promise<ZCodeBuiltinRelease> {
     const [bundled, active] = await Promise.all([
       readBundledReleaseCandidate(this.#bundledFilePath),
       this.#activeFilePath === this.#bundledFilePath
         ? Promise.resolve(null)
         : readReleaseCandidate(this.#activeFilePath),
     ]);
-    const selected = selectReleaseCandidate(bundled, active);
+    const selected = selectReleaseCandidate(bundled, active, signatureOf);
     if (this.#activeFilePath !== this.#bundledFilePath) {
       const activeSignature = active?.release ? signatureOf(active.release) : null;
       if (activeSignature !== signatureOf(selected)) await this.#writeActiveLocked(selected);
@@ -137,8 +144,9 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
     this.#watchRefresh = this.#watchRefresh.then(async () => {
       if (this.#disposed) return;
       try {
+        const signatureOf = createOperationSignature();
         const release = await withFileLock(this.#activeFilePath, () =>
-          this.#readAndMaterializeLocked(),
+          this.#readAndMaterializeLocked(signatureOf),
         );
         const signature = signatureOf(release);
         if (this.#disposed || signature === this.#observedSignature) return;
@@ -208,12 +216,13 @@ async function readReleaseCandidate(filePath: string): Promise<ReleaseCandidate>
 function selectReleaseCandidate(
   bundled: ReleaseCandidate | null,
   active: ReleaseCandidate | null,
+  signatureOf: (release: ZCodeBuiltinRelease) => string,
 ): ZCodeBuiltinRelease {
   if (
     bundled?.release &&
     active?.release &&
     bundled.release.revision === active.release.revision &&
-    serializeZCodeBuiltinRelease(bundled.release) !== serializeZCodeBuiltinRelease(active.release)
+    signatureOf(bundled.release) !== signatureOf(active.release)
   ) {
     // 同 revision 冲突属于 Active 缓存失效，不能反向使可信 Bundled 无法启动。
     // 返回 Bundled 后调用方会在能够写入时原子替换 Active。
@@ -245,8 +254,17 @@ function snapshotFromRelease(
   });
 }
 
-function signatureOf(release: ZCodeBuiltinRelease): string {
-  return `${release.revision}:${serializeZCodeBuiltinRelease(release)}`;
+function createOperationSignature(): (release: ZCodeBuiltinRelease) => string {
+  // Windows 分配采样确认一次读取重复编码同一候选。仅在本次操作内复用完整校验后的签名，
+  // 不跨调用缓存对象或文件，保留磁盘重读、同版本冲突和可变远端输入的重新校验。
+  const signatures = new WeakMap<ZCodeBuiltinRelease, string>();
+  return (release) => {
+    const previous = signatures.get(release);
+    if (previous !== undefined) return previous;
+    const signature = `${release.revision}:${serializeZCodeBuiltinRelease(release)}`;
+    signatures.set(release, signature);
+    return signature;
+  };
 }
 
 function isFileNotFound(error: unknown): boolean {
