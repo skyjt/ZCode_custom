@@ -29,7 +29,7 @@ export async function runDemandAppSmoke({
     wallTimes: [],
     approvals: [],
     scope:
-      "One cold app run: text, stateless Word, browser, then open Word. Tool stages are not independent starts. Browser host retirement is not implemented; closed-tab retention is observed, not passed as reclamation.",
+      "One cold app run: text, stateless Word, browser, then open Word. Tool stages are not independent starts. Browser proxy retirement preserves the live Main-owned page and its unsubmitted text; CUA retirement is excluded.",
   };
   const save = () =>
     writeFile(join(output, "memory-demand-tools.json"), JSON.stringify(report, null, 2));
@@ -49,6 +49,10 @@ export async function runDemandAppSmoke({
   };
   const pids = (sample, plugin) =>
     sample.processes.filter((row) => row.plugin === plugin).map((row) => row.pid);
+  const identities = (sample, plugin) =>
+    sample.processes
+      .filter((row) => row.plugin === plugin)
+      .map((row) => ({ pid: row.pid, createdAt: row.createdAt }));
   const office = ["documents-plugin", "spreadsheets-plugin", "presentations-plugin", "pdf-plugin"];
   const noOffice = (sample) =>
     office.forEach((plugin) =>
@@ -128,7 +132,10 @@ export async function runDemandAppSmoke({
     const reuse = await call("WORD_REUSE");
     if (candidate) {
       onlyWord(reuse);
-      assert.notEqual(pids(reuse, "documents-plugin")[0], pids(first, "documents-plugin")[0]);
+      assert.notDeepEqual(
+        identities(reuse, "documents-plugin"),
+        identities(first, "documents-plugin"),
+      );
     }
     await delay(report.idleWaitMs);
     const retired = await sample("word_reuse_idle");
@@ -139,9 +146,32 @@ export async function runDemandAppSmoke({
       assert.equal(pids(browser, "node-repl-host").length, 1);
     }
     await call("BROWSER_REPEAT");
+    await delay(report.idleWaitMs);
+    const browserIdle = await sample("browser_open_idle");
+    if (candidate)
+      assert.deepEqual(
+        pids(browserIdle, "node-repl-host"),
+        [],
+        "Idle proxy must exit without closing the page",
+      );
+    const browserReuse = await call("BROWSER_REUSE");
+    if (candidate) {
+      noOffice(browserReuse);
+      assert.equal(pids(browserReuse, "node-repl-host").length, 1);
+      assert.notDeepEqual(
+        identities(browserReuse, "node-repl-host"),
+        identities(browser, "node-repl-host"),
+      );
+    }
     await call("BROWSER_CLOSE");
     await delay(report.idleWaitMs);
-    await sample("browser_closed_idle");
+    const closedBrowser = await sample("browser_closed_idle");
+    if (candidate)
+      assert.deepEqual(
+        pids(closedBrowser, "node-repl-host"),
+        [],
+        "Closed-page proxy must also retire",
+      );
     const opened = await call("WORD_OPEN");
     await delay(report.idleWaitMs);
     const protectedSample = await sample("word_open_protected");

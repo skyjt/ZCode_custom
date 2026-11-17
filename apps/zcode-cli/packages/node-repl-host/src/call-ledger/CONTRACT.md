@@ -17,3 +17,5 @@ tools/call 结束 → close()：之后带这个 token 的请求一律拒绝
 - 已知缺口：cell 可经 `node:inspector` 影响主线程，账本只防住冒充 Worker 结果消息（见规格「可信边界」）。
 
 行为回归位于 `test/call-ledger/`，CUA broker 一侧位于 `test/cua-bridge.test.ts`。
+
+- `hasOpenConnections()` 只读取代理自己拥有的入站 socket 集合；从 accept 到实际 close 都视为占用，包括尚未认证或未发送完整请求的连接。不因调用账本已关闭就提前判空闲。它不释放 Agent/Main 的 browser scope、页面或后台任务。

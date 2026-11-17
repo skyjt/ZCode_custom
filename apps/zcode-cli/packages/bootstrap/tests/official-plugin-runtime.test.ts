@@ -19,71 +19,80 @@ describe("official plugin runtime manifest", () => {
     await Promise.all(cleanups.splice(0).map((root) => rm(root, { force: true, recursive: true })));
   });
 
-  it("accepts only a verified installed catalog and detects runtime tampering", async () => {
-    const root = await mkdtemp(join(tmpdir(), "zcode-demand-catalog-"));
-    cleanups.push(root);
-    process.argv[1] = join(root, "zcode.cjs");
-    const target = join(root, "cache", "documents");
-    const entry = join(target, "dist/server.mjs");
-    await writeJson(join(target, ".zcode-plugin/plugin.json"), { name: "documents" });
-    await writeJson(entry, { fixture: true });
-    const digest = createHash("sha256")
-      .update(await readFile(entry))
-      .digest("hex");
-    const catalog = {
-      version: 1,
-      idleTimeoutMs: 120_000,
-      plugins: [
-        {
-          id: "documents",
-          entry: "dist/server.mjs",
-          files: { "dist/server.mjs": digest },
-          tools: [{ name: "read_document", inputSchema: { type: "object" } }],
-          idleResourceUri: "zcode://runtime/idle",
-        },
-      ],
-    };
-    await writeJson(join(root, "builtin-mcp-catalog.json"), catalog);
-    const config = {
-      type: "stdio" as const,
-      command: process.execPath,
-      args: [...officialPluginHostPrefixArgs()!, entry],
-      source: { kind: "builtin" as const },
-    };
-    expect(await resolveTrustedBuiltinMcpCatalog("documents", config)).toEqual({
-      tools: catalog.plugins[0].tools,
-      idleTimeoutMs: 120_000,
-      idleResourceUri: "zcode://runtime/idle",
-    });
-    expect(
-      await resolveTrustedBuiltinMcpCatalog("third-party", { ...config, source: { kind: "user" } }),
-    ).toBeUndefined();
-    expect(
-      await resolveTrustedBuiltinMcpCatalog("extra-argv", {
-        ...config,
-        args: [...config.args, "--flag"],
-      }),
-    ).toBeUndefined();
-    const mixedEntry = target + "/dist/server.mjs";
-    expect(
-      await resolveTrustedBuiltinMcpCatalog("mixed-entry", {
-        ...config,
-        args: [...officialPluginHostPrefixArgs()!, mixedEntry],
-      }),
-    ).toEqual({
-      tools: catalog.plugins[0].tools,
-      idleTimeoutMs: 120_000,
-      idleResourceUri: "zcode://runtime/idle",
-    });
-    expect(
-      await resolveTrustedBuiltinMcpCatalog("relative-entry", {
-        ...config,
-        args: [...officialPluginHostPrefixArgs()!, "dist/server.mjs"],
-      }),
-    ).toBeUndefined();
-    await writeFile(entry, "changed runtime");
-    await expect(resolveTrustedBuiltinMcpCatalog("documents", config)).rejects.toThrow("integrity");
-  });
+  it.each(["documents", "node-repl-host"])(
+    "accepts only a verified %s catalog and detects runtime tampering",
+    async (id) => {
+      const root = await mkdtemp(join(tmpdir(), "zcode-demand-catalog-"));
+      cleanups.push(root);
+      process.argv[1] = join(root, "zcode.cjs");
+      const target = join(root, "cache", id);
+      const relativeEntry = id === "node-repl-host" ? "dist/mcp/server.js" : "dist/server.mjs";
+      const entry = join(target, relativeEntry);
+      await writeJson(join(target, ".zcode-plugin/plugin.json"), { name: id });
+      await writeJson(entry, { fixture: true });
+      const digest = createHash("sha256")
+        .update(await readFile(entry))
+        .digest("hex");
+      const catalog = {
+        version: 1,
+        idleTimeoutMs: 120_000,
+        plugins: [
+          {
+            id,
+            entry: relativeEntry,
+            files: { [relativeEntry]: digest },
+            tools: [{ name: "read_document", inputSchema: { type: "object" } }],
+            idleResourceUri: "zcode://runtime/idle",
+          },
+        ],
+      };
+      await writeJson(join(root, "builtin-mcp-catalog.json"), catalog);
+      const config = {
+        type: "stdio" as const,
+        command: process.execPath,
+        args: [...officialPluginHostPrefixArgs()!, entry],
+        source: { kind: "builtin" as const },
+      };
+      expect(await resolveTrustedBuiltinMcpCatalog("documents", config)).toEqual({
+        tools: catalog.plugins[0].tools,
+        idleTimeoutMs: 120_000,
+        idleResourceUri: "zcode://runtime/idle",
+      });
+      expect(
+        await resolveTrustedBuiltinMcpCatalog("third-party", {
+          ...config,
+          source: { kind: "user" },
+        }),
+      ).toBeUndefined();
+      expect(
+        await resolveTrustedBuiltinMcpCatalog("extra-argv", {
+          ...config,
+          args: [...config.args, "--flag"],
+        }),
+      ).toBeUndefined();
+      const mixedEntry = target + "/" + relativeEntry;
+      expect(
+        await resolveTrustedBuiltinMcpCatalog("mixed-entry", {
+          ...config,
+          args: [...officialPluginHostPrefixArgs()!, mixedEntry],
+        }),
+      ).toEqual({
+        tools: catalog.plugins[0].tools,
+        idleTimeoutMs: 120_000,
+        idleResourceUri: "zcode://runtime/idle",
+      });
+      expect(
+        await resolveTrustedBuiltinMcpCatalog("relative-entry", {
+          ...config,
+          args: [...officialPluginHostPrefixArgs()!, "dist/server.mjs"],
+        }),
+      ).toBeUndefined();
+      await writeFile(entry, "changed runtime");
+      await expect(resolveTrustedBuiltinMcpCatalog("documents", config)).rejects.toThrow(
+        "integrity",
+      );
+    },
+  );
 
   it("uses the adjacent lightweight host and retains the standalone CLI fallback", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-plugin-host-"));

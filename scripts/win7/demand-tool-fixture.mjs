@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 export const DEMAND_PATTERN =
-  /\bAIBUDDY7SE_DEMAND_(WORD_FIRST|WORD_REPEAT|WORD_REUSE|WORD_OPEN|BROWSER_FIRST|BROWSER_REPEAT|BROWSER_CLOSE)\b/;
+  /\bAIBUDDY7SE_DEMAND_(WORD_FIRST|WORD_REPEAT|WORD_REUSE|WORD_OPEN|BROWSER_FIRST|BROWSER_REPEAT|BROWSER_REUSE|BROWSER_CLOSE)\b/;
 export function demandCall(stage, url, names) {
   if (stage.startsWith("WORD_")) {
     const name = names.find(
@@ -31,6 +31,7 @@ const url = ${JSON.stringify(url)};`;
       ? `const tab = await browser.tabs.new();
 await tab.goto(url);
 await tab.playwright.waitForLoadState({state:"domcontentloaded"});
+await tab.playwright.getByRole("textbox", {name:"Draft", exact:true}).fill("UNSAVED_SYNTHETIC_DRAFT");
 nodeRepl.write(await tab.playwright.domSnapshot());`
       : `const tabs = await browser.tabs.list();
 const matches = tabs.filter(t => t.url === url);
@@ -39,7 +40,16 @@ const tab = await browser.tabs.get(matches[0].id);
 ${stage === "BROWSER_CLOSE" ? 'await tab.close(); if ((await browser.tabs.list()).some(t => t.url === url)) throw new Error("Fixture tab remains"); nodeRepl.write("AIBUDDY7SE_BROWSER_CLOSED_OK");' : "nodeRepl.write(await tab.playwright.domSnapshot());"}`;
   return {
     name: "mcp__node_repl__js",
-    arguments: JSON.stringify({ code: bootstrap + "\n" + action, title: "检查本机浏览器测试页" }),
+    arguments: JSON.stringify({
+      code:
+        bootstrap +
+        "\n" +
+        action +
+        (stage !== "BROWSER_CLOSE"
+          ? "\nnodeRepl.write(await tab.playwright.evaluate(() => document.querySelector('input[aria-label=\"Draft\"]').value));"
+          : ""),
+      title: "检查本机浏览器测试页",
+    }),
   };
 }
 export function verifyDemandResult(stage, output) {
@@ -47,6 +57,11 @@ export function verifyDemandResult(stage, output) {
     output,
     /permission denied|permission_required|isError["']?\s*:\s*true|tool execution failed/i,
   );
+  if (stage.startsWith("BROWSER_") && stage !== "BROWSER_CLOSE")
+    assert.ok(
+      output.includes("UNSAVED_SYNTHETIC_DRAFT"),
+      "Live unsubmitted page value must survive host reuse",
+    );
   assert.ok(
     output.includes(
       stage.startsWith("WORD_")

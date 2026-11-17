@@ -23,7 +23,7 @@ jobs:
   build:
     if: github.repository != 'zai-org/ZCode'
     runs-on: windows-2022
-    timeout-minutes: 150
+    timeout-minutes: 180
     outputs:
       installer_sha: ${{ steps.checksums.outputs.installer_sha }}
     env:
@@ -166,6 +166,8 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           pnpm --filter @zcode/adapters exec vitest run tests/mcp-connection-pool.test.ts tests/mcp-resource-telemetry.test.ts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm --filter @zcode/node-repl-host exec vitest run test/mcp-server.test.ts test/call-ledger/browser-broker-proxy.test.ts test/bundle-smoke.test.ts test/no-progress-guard.test.ts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           pnpm --filter @zcode/office-runtime test
           exit $LASTEXITCODE
       - name: Packaged offline Office and SSH SFTP
@@ -290,7 +292,7 @@ jobs:
     needs: build
     if: github.repository == 'skyjt/ZCode_custom'
     runs-on: windows-2022
-    timeout-minutes: 150
+    timeout-minutes: 180
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       HUSKY: "0"

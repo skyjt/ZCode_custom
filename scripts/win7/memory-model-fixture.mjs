@@ -24,7 +24,9 @@ export async function startMemoryModelFixture() {
       requests.push(observation);
       if (req.method === "GET" && path === "/demand-browser") {
         res.writeHead(200, { "Content-Type": "text/html" });
-        res.end("<!doctype html><title>Demand fixture</title><h1>AIBUDDY7SE_BROWSER_PAGE_OK</h1>");
+        res.end(
+          '<!doctype html><title>Demand fixture</title><h1>AIBUDDY7SE_BROWSER_PAGE_OK</h1><label>Draft<input aria-label="Draft"></label>',
+        );
         return;
       }
       if (req.method !== "POST" || path !== "/v1/chat/completions") {

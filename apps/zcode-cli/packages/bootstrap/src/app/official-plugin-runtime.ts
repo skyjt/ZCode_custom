@@ -263,7 +263,7 @@ export async function resolveTrustedBuiltinMcpCatalog(
         )
           throw new Error("Bundled MCP runtime integrity check failed");
       }
-      const idleResourceUri = plugin.id !== "node-repl-host" ? plugin.idleResourceUri : undefined;
+      const idleResourceUri = plugin.idleResourceUri;
       if (idleResourceUri && idleResourceUri !== "zcode://runtime/idle")
         throw new Error("Invalid idle readiness resource");
       return {

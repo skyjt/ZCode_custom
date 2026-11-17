@@ -2493,3 +2493,5 @@ legacy v1 的 `session/events` 由 `bootstrap/src/zcode-protocol/session-mapper.
 ## Win7 Python 优先执行指引（2026-11-12）
 
 仅 Win7 环境公告追加简短 Python 指引，详细操作放入随包 offline-toolkit 技能；环境不变不逐轮重复。专用工具优先，Bash 原 schema、审批、取消、执行 owner 和结果投影不变。Python 脚本不代表绕过工具权限；Windows 应用内部固定查询不消耗模型 token。规格与验收见根目录 docs/desktop/windows-7-python-operations.md；Win7/PS2 真机仍须实测。
+
+Win7 按需宿主重建扩展：node-repl-host 的内部 runtime/idle 资源仅在调用队列、真实 Worker、代理 socket 全空且无 CUA runtime 时允许退出代理；Agent/Main 的浏览器资源所有权与权限链不变。见 specs/aibuddy7se-demand-rebuild.md 的实验与验收边界。

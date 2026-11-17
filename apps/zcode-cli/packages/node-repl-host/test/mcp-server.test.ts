@@ -67,6 +67,74 @@ describe("node_repl MCP server", () => {
     runtime.dispose();
   });
 
+  const idle = async () => {
+    const value = await client.readResource({ uri: "zcode://runtime/idle" });
+    return JSON.parse((value.contents[0] as { text: string }).text).safeToStop;
+  };
+  async function replaceRuntime(options: Parameters<typeof createNodeReplMcpRuntime>[0]) {
+    await client.close();
+    runtime.dispose();
+    runtime = createNodeReplMcpRuntime(options);
+    client = new Client({ name: "idle-test", version: "1" });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await runtime.server.connect(b);
+    await client.connect(a);
+  }
+
+  it("reports read-only idle readiness and rejects unknown resources", async () => {
+    expect(await idle()).toBe(true);
+    await expect(client.readResource({ uri: "zcode://runtime/unknown" })).rejects.toThrow(
+      "Unknown",
+    );
+  });
+
+  it("pins queued and active calls until every call has settled", async () => {
+    const gates = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+    let entered = 0;
+    await replaceRuntime({
+      executeJs: async () => {
+        const index = entered++;
+        await gates[index]!.promise;
+        return { logs: "done" };
+      },
+    });
+    const first = client.callTool({
+      name: "js",
+      arguments: { code: "first" },
+      _meta: requestMeta("idle-session"),
+    });
+    const second = client.callTool({
+      name: "js",
+      arguments: { code: "second" },
+      _meta: requestMeta("idle-session"),
+    });
+    try {
+      await expect.poll(() => entered).toBe(1);
+      expect(await idle()).toBe(false);
+      gates[0]!.resolve();
+      await first;
+      await expect.poll(() => entered).toBe(2);
+      expect(await idle()).toBe(false);
+      gates[1]!.resolve();
+      await second;
+      expect(await idle()).toBe(true);
+    } finally {
+      gates.forEach((gate) => gate.resolve());
+      await Promise.allSettled([first, second]);
+    }
+  });
+
+  it("keeps a captured CUA runtime pinned even when calls are idle", async () => {
+    await replaceRuntime({
+      cuaRuntime: {
+        execute: async () => ({ content: [] }),
+        closeSession: async () => {},
+        dispose: async () => {},
+      },
+    });
+    expect(await idle()).toBe(false);
+  });
+
   it("exports the main entrypoint required by the packaged plugin host", () => {
     expect(main).toBeTypeOf("function");
     expect(client.getServerVersion()).toEqual({

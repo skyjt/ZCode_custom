@@ -34,6 +34,7 @@ export interface NodeReplBrowserBrokerUpstream {
 export interface NodeReplBrowserBrokerProxy {
   connection: { socketPath: string };
   ready: Promise<void>;
+  hasOpenConnections(): boolean;
   close(): Promise<void>;
 }
 
@@ -47,7 +48,10 @@ export function createNodeReplBrowserBrokerProxy(input: {
     input.platform === "win32"
       ? `\\\\.\\pipe\\zcode-node-repl-browser-${randomUUID()}`
       : join(tmpdir(), `znrb-${randomUUID()}.sock`);
+  const connections = new Set<Socket>();
   const server = createServer((socket) => {
+    connections.add(socket);
+    socket.once("close", () => connections.delete(socket));
     void handleSocket(socket, input).catch((error) => {
       input.logger?.warn("Node REPL browser broker proxy request failed", {
         event: "node_repl.browser_broker_proxy.request.failed",
@@ -69,6 +73,7 @@ export function createNodeReplBrowserBrokerProxy(input: {
   return {
     connection: { socketPath },
     ready,
+    hasOpenConnections: () => connections.size > 0,
     close: async () => {
       await ready.catch(() => undefined);
       if (server.listening) {

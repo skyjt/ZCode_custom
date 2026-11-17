@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { demandCall, verifyDemandResult } from "../win7/demand-tool-fixture.mjs";
 import { selectProcessTree } from "../win7/memory-profile.mjs";
 import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "../win7/memory-model-fixture.mjs";
 
@@ -218,5 +219,24 @@ test("demand fixture discovers local schemas before using the deferred call brid
     assert.equal(fixture.pendingDemand, null);
   } finally {
     await fixture.close();
+  }
+});
+
+test("browser reuse requires live page state and refuses denied or missing state", () => {
+  const page = "AIBUDDY7SE_BROWSER_PAGE_OK";
+  const value = "UNSAVED_SYNTHETIC_DRAFT";
+  for (const stage of ["BROWSER_FIRST", "BROWSER_REPEAT", "BROWSER_REUSE"]) {
+    assert.throws(() => verifyDemandResult(stage, page), /Live unsubmitted/);
+    assert.throws(() => verifyDemandResult(stage, value), /Real fixture/);
+    assert.throws(() => verifyDemandResult(stage, `Permission denied ${page} ${value}`));
+    assert.doesNotThrow(() => verifyDemandResult(stage, `${page}\n${value}`));
+    const call = demandCall(stage, "http://127.0.0.1:1234/demand-browser", ["mcp__node_repl__js"]);
+    const args = JSON.parse(call.arguments);
+    assert.ok(args.title);
+    assert.match(args.code, /playwright.evaluate/);
+    if (stage !== "BROWSER_FIRST") {
+      assert.doesNotMatch(args.code, /\.fill\(|tabs.new\(/);
+      assert.doesNotMatch(args.code, /UNSAVED_SYNTHETIC_DRAFT/);
+    }
   }
 });

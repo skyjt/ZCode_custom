@@ -52,17 +52,14 @@ export async function buildMcpCatalog(app, { idleTimeoutMs = 120_000 } = {}) {
         await client.connect(transport, { timeout: 30_000 });
         const { tools } = await client.listTools({}, { timeout: 30_000 });
         assert.ok(tools.length && tools.every((tool) => tool.name && tool.inputSchema));
-        let idleResourceUri;
-        if (id !== "node-repl-host") {
-          const listed = await client.listResources();
-          idleResourceUri = listed.resources.find(
-            (resource) => resource.name === "runtime-idle",
-          )?.uri;
-          assert.equal(idleResourceUri, "aibuddy7se://runtime/idle");
-          const state = await client.readResource({ uri: idleResourceUri });
-          assert.equal(state.contents[0]?.text, '{"safeToStop":true}');
-        }
-        plugins.push({ id, entry, files, tools, ...(idleResourceUri ? { idleResourceUri } : {}) });
+        const listed = await client.listResources();
+        const idleResourceUri = listed.resources.find(
+          (resource) => resource.name === "runtime-idle",
+        )?.uri;
+        assert.equal(idleResourceUri, "aibuddy7se://runtime/idle");
+        const state = await client.readResource({ uri: idleResourceUri });
+        assert.equal(state.contents[0]?.text, '{"safeToStop":true}');
+        plugins.push({ id, entry, files, tools, idleResourceUri });
         console.log(`Catalog verified: ${id}, ${tools.length} tools`);
       } catch (error) {
         throw new Error(`Packaged MCP catalog failed for ${id}: ${stderr}`, { cause: error });

@@ -106,6 +106,24 @@ describe("node_repl browser broker proxy", () => {
     return { ledger, proxy };
   }
 
+  it("pins incomplete connections until their sockets actually close", async () => {
+    const { proxy } = await startProxy();
+    expect(proxy.hasOpenConnections()).toBe(false);
+    const socket = createConnection(proxy.connection.socketPath);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("connect", resolve);
+        socket.once("error", reject);
+      });
+      await expect.poll(() => proxy.hasOpenConnections()).toBe(true);
+      socket.write('{"incomplete":');
+      expect(proxy.hasOpenConnections()).toBe(true);
+    } finally {
+      socket.destroy();
+    }
+    await expect.poll(() => proxy.hasOpenConnections()).toBe(false);
+  });
+
   it("forwards with the upstream token and the call's own session context, ignoring the Worker's", async () => {
     const upstream = await createUpstream((request) => ({
       id: request.id,

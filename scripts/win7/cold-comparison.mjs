@@ -93,7 +93,7 @@ async function collectMetrics(directory, demandTools = false) {
   if (demandTools) {
     const demand = await json("memory-demand-tools.json");
     assert.equal(demand.result, "PASS");
-    assert.equal(demand.calls.length, 7);
+    assert.equal(demand.calls.length, 8);
     for (const call of demand.calls) {
       assert.ok(call.verified);
       metrics["demand." + call.stage + ".callMs"] = call.elapsedMs;

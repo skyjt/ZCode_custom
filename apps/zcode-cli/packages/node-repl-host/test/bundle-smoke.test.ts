@@ -233,6 +233,13 @@ describe("node_repl host and browser-use runtime bundles", () => {
           ZCODE_MCP_BROWSER_SCREENSHOT_CONTENT_INDICES_META_KEY,
         );
         expect(result._meta ?? {}).not.toHaveProperty(ZCODE_MCP_NODE_REPL_BROWSER_USE_META_KEY);
+        // 伪造早返回仍留下运行中的 Worker；只有 terminate 真正完成后才能报告可退出。
+        await expect
+          .poll(async () => {
+            const idle = await client.readResource({ uri: "zcode://runtime/idle" });
+            return JSON.parse((idle.contents[0] as { text: string }).text).safeToStop;
+          })
+          .toBe(true);
         expect(result._meta ?? {}).not.toHaveProperty(ZCODE_MCP_NODE_REPL_COMPUTER_USE_META_KEY);
       } finally {
         await client.close();

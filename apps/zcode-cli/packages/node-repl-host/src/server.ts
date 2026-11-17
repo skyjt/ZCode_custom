@@ -189,7 +189,9 @@ export function createNodeReplMcpRuntime(
     writeStderr?: (text: string) => void;
   } = {},
 ): NodeReplMcpRuntime {
-  const executeJs = input.executeJs ?? executeJsInWorker;
+  const workers = new Set<Worker>();
+  const executeJs =
+    input.executeJs ?? ((call: NodeReplExecuteInput) => executeJsInWorker(call, workers));
   const writeStderr = input.writeStderr ?? ((text: string) => void process.stderr.write(text));
   const noProgressGuard = createNoProgressGuard();
   const cuaRuntime =
@@ -230,8 +232,34 @@ export function createNodeReplMcpRuntime(
 
   const server = new Server(
     { name: "node_repl", version: NODE_REPL_SERVER_VERSION },
-    { capabilities: { tools: {} }, instructions: NODE_REPL_SERVER_INSTRUCTIONS },
+    { capabilities: { tools: {}, resources: {} }, instructions: NODE_REPL_SERVER_INSTRUCTIONS },
   );
+
+  const idleUri = "zcode://runtime/idle";
+  server.setRequestHandler("resources/list", async () => ({
+    resources: [{ uri: idleUri, name: "runtime-idle", mimeType: "application/json" }],
+  }));
+  server.setRequestHandler("resources/read", async (request) => {
+    if (request.params.uri !== idleUri) invalidParams("Unknown internal resource");
+    return {
+      contents: [
+        {
+          uri: idleUri,
+          mimeType: "application/json",
+          text: JSON.stringify({
+            // 这里只退出代理；浏览器 scope/页面属于 Agent/Main。CUA 没有可证明的无状态合同，保守固定。
+            safeToStop:
+              !disposed &&
+              !cuaRuntime &&
+              activeCalls.size === 0 &&
+              queues.size === 0 &&
+              workers.size === 0 &&
+              !(browserBrokerProxy?.hasOpenConnections() ?? false),
+          }),
+        },
+      ],
+    };
+  });
 
   server.setRequestHandler("tools/list", async () => ({ tools }));
   server.setRequestHandler("tools/call", async (request, extra) => {
@@ -309,7 +337,10 @@ export function createNodeReplMcpRuntime(
   };
 }
 
-async function executeJsInWorker(input: NodeReplExecuteInput): Promise<NodeReplRunResult> {
+async function executeJsInWorker(
+  input: NodeReplExecuteInput,
+  workers: Set<Worker>,
+): Promise<NodeReplRunResult> {
   if (input.signal.aborted) throw input.signal.reason;
   const data: WorkerCallData = {
     code: input.code,
@@ -319,7 +350,11 @@ async function executeJsInWorker(input: NodeReplExecuteInput): Promise<NodeReplR
     cuaBroker: input.cuaBroker,
     browserBroker: input.browserBroker,
   };
-  const worker = new Worker(new URL(import.meta.url), { workerData: data, env: workerEnvironment() });
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: data,
+    env: workerEnvironment(),
+  });
+  workers.add(worker);
   return await new Promise<NodeReplRunResult>((resolveRun, rejectRun) => {
     let settled = false;
     const cleanup = () => {
@@ -330,7 +365,11 @@ async function executeJsInWorker(input: NodeReplExecuteInput): Promise<NodeReplR
       if (settled) return;
       settled = true;
       cleanup();
-      void worker.terminate().catch(() => undefined);
+      // 工具结果可能先于 Worker 退出返回；必须等真实终止后才允许宿主报告空闲。
+      void worker.terminate().then(
+        () => workers.delete(worker),
+        () => undefined,
+      );
       if (error !== undefined) rejectRun(error);
       else if (result) resolveRun(result);
       else rejectRun(new Error("node_repl worker returned no result"));
