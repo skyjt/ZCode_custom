@@ -57,8 +57,9 @@ $rows = @(Get-CimInstance Win32_Process | ForEach-Object {
     if ($_.CommandLine -match 'plugin-host\.cjs') {
       $entry = 'plugin-host.cjs'
       if ($_.CommandLine -match '[\\/]packages[\\/](documents-plugin|spreadsheets-plugin|presentations-plugin|pdf-plugin|node-repl-host|sites-plugin)[\\/]') { $plugin = $Matches[1] }
+      elseif ($_.CommandLine -match '[\\/]cache[\\/]aibuddy7se-plugins-official[\\/](documents|spreadsheets|presentations|pdf|node-repl-host|sites)[\\/][^\\/\s\"]+[\\/]dist[\\/]') { $plugin = $Matches[1]; if ($plugin -ne 'node-repl-host') { $plugin += '-plugin' } }
     } elseif ($_.CommandLine -match 'aibuddy7se\.cjs') { $entry = 'aibuddy7se.cjs' }
-    elseif ($_.CommandLine -match '[\\/]host\.js') { $entry = 'host.js' }
+    elseif ($_.CommandLine -match '[\\/]out[\\/](host|extension-host|scheduler)[\\/]index\.js') { $entry = $Matches[1] + '/index.js'; $role = $Matches[1] }
     if ($_.ProcessId -eq ROOT_PID) { $role = 'main' }
     [PSCustomObject]@{ pid = [int]$_.ProcessId; parentPid = [int]$_.ParentProcessId;
       name = $_.Name; role = $role; entry = $entry; plugin = $plugin; createdAt = $_.CreationDate.ToUniversalTime().ToString('o'); workingSetBytes = [double]$p.WorkingSet64;

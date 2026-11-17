@@ -194,7 +194,10 @@ export async function resolveTrustedBuiltinMcpCatalog(
     !prefix.every((arg, index) => config.args?.[index] === arg)
   )
     return undefined;
-  const entry = config.args[prefix.length]!;
+  const rawEntry = config.args[prefix.length]!;
+  if (!isAbsolute(rawEntry)) return undefined;
+  // Windows manifest 占位符替换会留下混合分隔符；先规范化再匹配，后续真实路径和摘要校验不变。
+  const entry = resolve(rawEntry);
   const allowed = ["documents", "spreadsheets", "presentations", "pdf", "node-repl-host"];
   for (const base of bundleBaseDirs()) {
     let raw: string;

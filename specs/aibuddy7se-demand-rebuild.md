@@ -56,3 +56,9 @@ Windows 全进程树与 PID 映射、四对 AB/BA 独立冷启动、首次/复�
 进程采样仅读取 PID、父 PID、创建时刻、白名单入口/插件身份及工作集/私有提交量，不记录完整命令行、用户路径或环境。创建时间排除已复用父 PID 的旧孤儿。静态目录存在的候选必须证明纯聊天没有 Office/Node REPL 宿主，Word 仅启动 documents，首次与复用同 PID，静默后 PID 消失、重启为新 PID，已打开文档后保持；任何不满足均失败并保留原始证据。测试只访问合成 Word 文件和 loopback HTML，权限走原 GUI 调用链，不关闭安全门禁。
 
 测试夹具遵循真实工具发现协议：名称公告后通过 LocalToolSearch/ToolSearch 获取 schema，按模式使用 DeferredToolCall；不把未加载目录冒充可直接调用。浏览器 js 带必需用户标题。若产品弹出权限选项，仅当前已下发的合成探针可经 UI 选择 allowOnce，记录审批次数；不切换模式、不设置永久授权。
+
+## 首轮 Windows 证据与路径修复
+
+43984513584 成包与原有离线 GUI/Office 检查通过，13 项 rebuilt demand 生命周期通过；官方 manifest 用例因 Windows 混合分隔符的字符串比较失败，故比较 job 被门禁跳过。运行时重写保留 `${PLUGIN_ROOT}/dist/server.mjs` 的正斜杠；按需目录 resolver 原先以平台 sep 做后缀匹配，漏掉这个合法 Windows 入口。修复只对已通过绝对路径/官方命令前缀检查的入口做平台 resolve 归一化，再进行原 manifest/hash/realpath 防护。测试继续严格检查目标路径和额外 argv，而不是要求相同斜杠拼写；追加混合分隔符静态目录与篡改拒绝回归。首轮内存不是优化验收，不计算节省比例。
+
+首轮脱敏采样只匹配 packages 目录，实际宿主从 cache/aibuddy7se-plugins-official/<name>/<version>/dist 启动，因此 5 个宿主未能辨识；不能将 unknown 算作不存在。采样补充固定官方缓存路径模式，候选场景遇到未映射 plugin-host 必须失败。Main PID 直接来自启动句柄，Host 可由原日志中的带 PID host 前缀核实，不猜未知进程身份。

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -62,6 +62,23 @@ describe("official plugin runtime manifest", () => {
       await resolveTrustedBuiltinMcpCatalog("extra-argv", {
         ...config,
         args: [...config.args, "--flag"],
+      }),
+    ).toBeUndefined();
+    const mixedEntry = target + "/dist/server.mjs";
+    expect(
+      await resolveTrustedBuiltinMcpCatalog("mixed-entry", {
+        ...config,
+        args: [...officialPluginHostPrefixArgs()!, mixedEntry],
+      }),
+    ).toEqual({
+      tools: catalog.plugins[0].tools,
+      idleTimeoutMs: 120_000,
+      idleResourceUri: "zcode://runtime/idle",
+    });
+    expect(
+      await resolveTrustedBuiltinMcpCatalog("relative-entry", {
+        ...config,
+        args: [...officialPluginHostPrefixArgs()!, "dist/server.mjs"],
       }),
     ).toBeUndefined();
     await writeFile(entry, "changed runtime");
@@ -138,10 +155,9 @@ describe("official plugin runtime manifest", () => {
     await writeOfficialPluginRuntimeManifest(input);
     const contents = await readFile(manifestPath, "utf8");
     const manifest = JSON.parse(contents);
-    expect(manifest.mcpServers.pdf.args.slice(-2)).toEqual([
-      join(root, "dist/server.mjs"),
-      "--flag",
-    ]);
+    // manifest 占位符替换保留输入的 /，Windows 接受混合分隔符；检查路径身份和原始额外参数。
+    expect(normalize(manifest.mcpServers.pdf.args.at(-2))).toBe(join(root, "dist/server.mjs"));
+    expect(manifest.mcpServers.pdf.args.at(-1)).toBe("--flag");
     expect(manifest.mcpServers.pdf.env.ELECTRON_RUN_AS_NODE).toBe("1");
     expect(manifest.mcpServers.search).toEqual(remote);
     await writeOfficialPluginRuntimeManifest(input);

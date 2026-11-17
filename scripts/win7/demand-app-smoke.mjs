@@ -37,6 +37,14 @@ export async function runDemandAppSmoke({
     const value = await sampleMemory(page, rootPid, phase);
     report.samples.push(value);
     await save();
+    if (candidate)
+      assert.deepEqual(
+        value.processes
+          .filter((row) => row.entry === "plugin-host.cjs" && !row.plugin)
+          .map((row) => row.pid),
+        [],
+        "Unmapped plugin host cannot prove demand startup",
+      );
     return value;
   };
   const pids = (sample, plugin) =>
