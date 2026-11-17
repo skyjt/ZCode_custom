@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { demandCall, verifyDemandResult } from "../win7/demand-tool-fixture.mjs";
-import { selectProcessTree } from "../win7/memory-profile.mjs";
+import { execFileSync } from "node:child_process";
+import { memoryProcessScript, selectProcessTree } from "../win7/memory-profile.mjs";
 import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "../win7/memory-model-fixture.mjs";
 
 test("local memory model fixture completes stream and refuses unexpected routes", async () => {
@@ -240,3 +241,64 @@ test("browser reuse requires live page state and refuses denied or missing state
     }
   }
 });
+
+test(
+  "Windows sampler maps actual branded plugin cache paths without exposing command lines",
+  { skip: process.platform !== "win32" },
+  () => {
+    const entries = [
+      [
+        "C:/fixture/cache/aibuddy7se-plugins-official/documents/0.7.0/dist/server.mjs",
+        "documents-plugin",
+      ],
+      [
+        "C:/fixture/cache/aibuddy7se-plugins-official/spreadsheets/0.7.0/dist/server.mjs",
+        "spreadsheets-plugin",
+      ],
+      [
+        "C:/fixture/cache/aibuddy7se-plugins-official/presentations/0.7.0/dist/server.mjs",
+        "presentations-plugin",
+      ],
+      ["C:/fixture/cache/aibuddy7se-plugins-official/pdf/0.7.0/dist/server.mjs", "pdf-plugin"],
+      [
+        "C:/fixture/cache/aibuddy7se-plugins-official/node-repl-host/0.7.1/dist/mcp/server.js",
+        "node-repl-host",
+      ],
+      [
+        "C:/fixture/cache/aibuddy7se-plugins-official/aibuddy7se-site/0.5.1/dist/server.mjs",
+        "sites-plugin",
+      ],
+      ["C:/fixture/packages/zcode-site-plugin/dist/server.mjs", "sites-plugin"],
+      ["C:/fixture/packages/aibuddy7se-site-plugin/dist/server.mjs", "sites-plugin"],
+      ["C:/fixture/unrelated/server.mjs", null],
+    ];
+    const rows = entries.map(([path], i) => ({
+      ProcessId: i + 1,
+      ParentProcessId: 0,
+      Name: "aibuddy7se.exe",
+      CommandLine: '"C:/fixture/plugin-host.cjs" "' + path.replaceAll("/", "\\") + '"',
+    }));
+    const encoded = Buffer.from(JSON.stringify(rows)).toString("base64");
+    const fixture = `function Get-CimInstance { $items = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | ConvertFrom-Json; $items | ForEach-Object { $_ | Add-Member CreationDate ([DateTime]::UtcNow); $_ } }
+function Get-Process { [PSCustomObject]@{ WorkingSet64=1024; PrivateMemorySize64=2048 } }
+`;
+    const output = execFileSync(
+      "powershell.exe",
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(fixture + memoryProcessScript(1), "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", timeout: 20000 },
+    );
+    const actual = JSON.parse(output);
+    assert.deepEqual(
+      actual.map((row) => row.plugin),
+      entries.map(([, plugin]) => plugin),
+    );
+    assert.ok(actual.every((row) => !Object.hasOwn(row, "CommandLine")));
+    assert.ok(actual.every((row) => row.workingSetBytes === 1024 && row.privateBytes === 2048));
+  },
+);

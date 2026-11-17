@@ -73,3 +73,6 @@ Windows 场景增加：页面填写合成未提交文本，等默认空闲期后
 
 
 截至浏览器扩展提交前，路径修复版本 3d45710e 的 Windows 2022 构建 job（43987788598）全部门禁通过，四对比较正在执行；其浏览器尚不回收。浏览器扩展本地 CLI/root typecheck、lint 与架构检查通过；Node host 四文件 43 通过、13 失败，失败涉及当前 Linux 环境拒绝 Unix socket listen（EPERM），包括已有 12 项和新增 1 项；bundle/真实 Worker 退出与 no-progress 回归通过。完整四文件继续作为 Windows 必须通过的断言，不删除受阻用例。
+
+
+第三轮构建诊断保留一个未映射 plugin-host。源码 manifest 的实际 Sites 名称为 zcode-site，成包品牌替换后为 aibuddy7se-site，并非旧采样的 sites。采样增加这两个固定官方缓存/包目录名称，统一输出 sites-plugin；保留未知宿主阻断，不按剩余数量猜测 PID。Windows 工程回归直接执行采样 PowerShell，覆盖五种工具、Sites 两种品牌路径及未知路径，并验证输出没有完整命令行。最终进程身份仍以新运行实际采样为准。

@@ -44,9 +44,10 @@ export function selectProcessTree(processes, rootPid) {
   };
 }
 
-export async function sampleMemory(page, rootPid, phase) {
-  // 不输出完整命令行/用户路径，也不调用 GC 或修改工作集；private bytes 是提交量，不是物理驻留量。
-  const script = String.raw`
+// 可单独运行生成的 PowerShell，验证真实缓存名称与脱敏身份映射。
+export function memoryProcessScript(rootPid) {
+  assert.ok(Number.isInteger(rootPid) && rootPid > 0);
+  return String.raw`
 $rows = @(Get-CimInstance Win32_Process | ForEach-Object {
   $p = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
   if ($p) {
@@ -56,8 +57,9 @@ $rows = @(Get-CimInstance Win32_Process | ForEach-Object {
     $plugin = $null
     if ($_.CommandLine -match 'plugin-host\.cjs') {
       $entry = 'plugin-host.cjs'
-      if ($_.CommandLine -match '[\\/]packages[\\/](documents-plugin|spreadsheets-plugin|presentations-plugin|pdf-plugin|node-repl-host|sites-plugin)[\\/]') { $plugin = $Matches[1] }
-      elseif ($_.CommandLine -match '[\\/]cache[\\/]aibuddy7se-plugins-official[\\/](documents|spreadsheets|presentations|pdf|node-repl-host|sites)[\\/][^\\/\s\"]+[\\/]dist[\\/]') { $plugin = $Matches[1]; if ($plugin -ne 'node-repl-host') { $plugin += '-plugin' } }
+      if ($_.CommandLine -match '[\\/]packages[\\/](documents-plugin|spreadsheets-plugin|presentations-plugin|pdf-plugin|node-repl-host|sites-plugin|zcode-site-plugin|aibuddy7se-site-plugin)[\\/]') { $plugin = $Matches[1] }
+      elseif ($_.CommandLine -match '[\\/]cache[\\/]aibuddy7se-plugins-official[\\/](documents|spreadsheets|presentations|pdf|node-repl-host|sites|zcode-site|aibuddy7se-site)[\\/][^\\/\s\"]+[\\/]dist[\\/]') { $plugin = $Matches[1]; if ($plugin -ne 'node-repl-host') { $plugin += '-plugin' } }
+      if ($plugin -in @('zcode-site-plugin', 'aibuddy7se-site-plugin')) { $plugin = 'sites-plugin' }
     } elseif ($_.CommandLine -match 'aibuddy7se\.cjs') { $entry = 'aibuddy7se.cjs' }
     elseif ($_.CommandLine -match '[\\/]out[\\/](host|extension-host|scheduler)[\\/]index\.js') { $entry = $Matches[1] + '/index.js'; $role = $Matches[1] }
     if ($_.ProcessId -eq ROOT_PID) { $role = 'main' }
@@ -67,7 +69,11 @@ $rows = @(Get-CimInstance Win32_Process | ForEach-Object {
   }
 })
 ConvertTo-Json -InputObject $rows -Compress
-`;
+`.replace("ROOT_PID", String(rootPid));
+}
+
+export async function sampleMemory(page, rootPid, phase) {
+  // 不输出完整命令行/用户路径，也不调用 GC 或修改工作集；private bytes 是提交量，不是物理驻留量。
   const { stdout } = await execFileAsync(
     "powershell.exe",
     [
@@ -75,7 +81,7 @@ ConvertTo-Json -InputObject $rows -Compress
       "-NoProfile",
       "-NonInteractive",
       "-EncodedCommand",
-      Buffer.from(script.replace("ROOT_PID", String(rootPid)), "utf16le").toString("base64"),
+      Buffer.from(memoryProcessScript(rootPid), "utf16le").toString("base64"),
     ],
     { encoding: "utf8", timeout: 20000, maxBuffer: 4 * 1024 * 1024 },
   );
