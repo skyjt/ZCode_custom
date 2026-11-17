@@ -84,9 +84,17 @@ export async function runDemandAppSmoke({
           "Only this issued synthetic tool may receive a one-time UI approval",
         );
         report.approvals.push({ stage, tool: modelFixture.pendingDemand.tool, kind: "allowOnce" });
-        await once.click();
-        if ((await once.isVisible()) && (await once.getAttribute("aria-selected")) === "true")
-          await once.click();
+        // 点击会先聚焦并触发 React 选中，首击可能已经提交；二次点击会追逐已消失的弹窗。
+        // 只聚焦 allowOnce，确认选中后按一次 Enter，继续走真实权限响应链。
+        await once.focus();
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector('[role="option"][data-permission-option-kind="allowOnce"]')
+              ?.getAttribute("aria-selected") === "true",
+        );
+        await once.press("Enter");
+        await once.waitFor({ state: "hidden", timeout: 10000 });
       }
       await delay(200);
     }

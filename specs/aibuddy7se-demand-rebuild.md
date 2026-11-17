@@ -76,3 +76,6 @@ Windows 场景增加：页面填写合成未提交文本，等默认空闲期后
 
 
 第三轮构建诊断保留一个未映射 plugin-host。源码 manifest 的实际 Sites 名称为 zcode-site，成包品牌替换后为 aibuddy7se-site，并非旧采样的 sites。采样增加这两个固定官方缓存/包目录名称，统一输出 sites-plugin；保留未知宿主阻断，不按剩余数量猜测 PID。Windows 工程回归直接执行采样 PowerShell，覆盖五种工具、Sites 两种品牌路径及未知路径，并验证输出没有完整命令行。最终进程身份仍以新运行实际采样为准。
+
+
+43987788598 的首对旧包在 BROWSER_FIRST 的第二次 allowOnce click 超时，原日志表明首击已经放行且 loopback 页面发生 GET。原因是按钮 focus 会先更新选中状态，首击可能已提交；脚本再根据短暂可见状态追加点击，追逐消失的弹窗。夹具改为 focus 指定 allowOnce、等待其 aria-selected、只按一次 Enter 并等原弹窗消失；不直接调用内部权限服务，不修改模式或永久授权。失败数据完整保留，不构成四对结果。
