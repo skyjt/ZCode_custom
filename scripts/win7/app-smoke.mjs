@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright-core";
+import { runDemandAppSmoke } from "./demand-app-smoke.mjs";
 import { profileStartupMemory, sampleMemory } from "./memory-profile.mjs";
 import { startMemoryModelFixture, MEMORY_MODEL_REPLY } from "./memory-model-fixture.mjs";
 
@@ -497,6 +498,16 @@ try {
         ),
       );
       await page.screenshot({ path: join(output, "repeated-tools.png") });
+      if (process.argv.includes("--demand-tools"))
+        await runDemandAppSmoke({
+          page,
+          input,
+          rootPid: child.pid,
+          appDir,
+          fixtureHome,
+          output,
+          modelFixture,
+        });
     }
     if (!process.argv.includes("--baseline")) {
       // 在采样之后执行主动检查；不能通过删除真实连接能力来获得更低的纯文本内存。

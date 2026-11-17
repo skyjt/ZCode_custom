@@ -1,0 +1,374 @@
+name: Win7 demand rebuild acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      memory_baseline_run:
+        description: "Optional successful Win7 run ID for same-runner memory comparison"
+        required: false
+        type: string
+  push:
+    branches: [codex/win7-demand-rebuild-20261116]
+    paths:
+      - apps/zcode-cli/**
+      - scripts/win7/**
+      - scripts/test/win7*
+      - .github/workflows/win7-demand-rebuild.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: win7-demand-rebuild-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository != 'zai-org/ZCode'
+    runs-on: windows-2022
+    timeout-minutes: 150
+    outputs:
+      installer_sha: ${{ steps.checksums.outputs.installer_sha }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - name: Cache pinned Win7 downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/win7-runtime/*.zip
+            .cache/win7-offline-downloads
+          key: win7-downloads-windows-2022-${{ runner.arch }}-${{ hashFiles('scripts/win7/runtime.json', 'scripts/win7/offline-runtime.json') }}
+          restore-keys: win7-downloads-windows-2022-${{ runner.arch }}-
+      - name: Install pinned dependencies
+        shell: pwsh
+        env:
+          PNPM_MAX_WORKERS: "1"
+        run: |
+          node scripts/win7/patch-pnpm.mjs (Join-Path $env:PNPM_HOME '../pnpm/dist/pnpm.cjs')
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --ignore-scripts
+          exit $LASTEXITCODE
+      - name: Select existing CI JDK 8 for developer probes
+        shell: pwsh
+        run: |
+          if (!(Test-Path "$env:JAVA_HOME_8_X64/bin/javac.exe")) { throw 'Runner JDK 8 is required for native developer probes' }
+          "JAVA_HOME=$env:JAVA_HOME_8_X64" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$env:JAVA_HOME_8_X64/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Engineering regression
+        run: node --test scripts/test/win7-brand.test.mjs scripts/test/win7-build.test.mjs scripts/test/win7-self-test.test.mjs scripts/test/windows-runtime-host-build.test.mjs scripts/test/win7-memory-profile.test.mjs
+      - name: Native Git and inherited Java preflight
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          node scripts/win7/developer-preflight.mjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm exec esbuild packages/services/src/git/providers/gitCommandProvider.ts --bundle --platform=node --format=cjs --outfile=.cache/win7-acceptance/git-provider.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/git-smoke.mjs .cache/win7-developer-preflight .cache/win7-acceptance/git-provider.cjs --preflight
+          exit $LASTEXITCODE
+      - name: Renderer memory cache browser acceptance
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $browser = @("$env:ProgramFiles/Google/Chrome/Application/chrome.exe", "${env:ProgramFiles(x86)}/Microsoft/Edge/Application/msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (!$browser) { throw 'Browser required for renderer cache acceptance' }
+          node scripts/win7/renderer-memory-smoke.mjs "$browser"
+          exit $LASTEXITCODE
+      - name: Office tool file safety and Windows registration probe
+        run: python -B scripts/test/win7-office-native.test.py
+      - name: Legacy Windows system API acceptance
+        timeout-minutes: 3
+        run: node scripts/win7/compat-smoke.mjs
+      - name: Native process ownership (modern and Win7 path)
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          cmake -S scripts/windows-runtime-host -B .cache/runtime-host-acceptance -G "Visual Studio 17 2022" -A x64
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build .cache/runtime-host-acceptance --config Release --target zcode-runtime-host zcode-runtime-host-legacy zcode-runtime-host-acceptance
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $dir = Resolve-Path .cache/runtime-host-acceptance/Release
+          & "$dir/zcode-runtime-host-acceptance.exe" "$dir/zcode-runtime-host.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$dir/zcode-runtime-host-acceptance.exe" "$dir/zcode-runtime-host-legacy.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$dir/zcode-runtime-host-acceptance.exe" "$dir/zcode-runtime-host-legacy.exe" --bootstrap-loss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm exec esbuild packages/services/src/windows-runtime-host/index.ts --bundle --platform=node --format=cjs --outfile=.cache/runtime-host-acceptance/Release/adapter.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/windows-runtime-host/host-acceptance.cjs "$dir"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$dir/zcode-runtime-host-legacy.exe" "$dir/zcode-runtime-host.exe" -Force
+          node scripts/windows-runtime-host/host-acceptance.cjs "$dir"
+          exit $LASTEXITCODE
+      - name: Build isolated experimental installer
+        id: package
+        run: node scripts/win7/build.mjs
+      - name: Packaged runtime smoke
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 1
+        run: node scripts/win7/run-runtime-smoke.mjs "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe" packages/desktop/dist/win7/win-unpacked/resources/app.asar
+      - name: Packaged Agent storage and process ownership
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 2
+        run: node scripts/win7/agent-smoke.cjs packages/desktop/dist/win7/win-unpacked .cache/runtime-host-acceptance/Release/adapter.cjs
+      - name: Lightweight plugin host execution boundaries
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 3
+        run: node --test apps/zcode-cli/packages/cli/tests/plugin-host-entry.test.mjs
+      - name: Packaged legacy credential migration
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 2
+        run: node scripts/win7/run-runtime-smoke.mjs packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe packages/desktop/dist/win7/win-unpacked migration
+      - name: Check Win7 native imports
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $dumpbin = Get-ChildItem "${env:ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName | Select-Object -Last 1
+          if (!$dumpbin) { throw 'dumpbin is required for Win7 import checks' }
+          $app = Resolve-Path packages/desktop/dist/win7/win-unpacked
+          $binaries = @(
+            "$app/resources/tools/ripgrep/rg.exe",
+            "$app/resources/tools/ugrep/ugrep.exe",
+            "$app/resources/tools/runtime-host/aibuddy7se-runtime-host.exe",
+            "$app/resources/app.asar.unpacked/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
+            "$app/resources/glm/node_modules/@napi-rs/keyring-win32-x64-msvc/keyring.win32-x64-msvc.node",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/pty.node",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty.dll",
+            "$app/resources/app.asar.unpacked/node_modules/node-pty/prebuilds/win32-x64/winpty-agent.exe"
+          )
+          $binaries += Get-ChildItem "$app/resources/offline-tools/python","$app/resources/offline-tools/putty","$app/resources/offline-tools/git" -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll','.pyd' } | ForEach-Object { $_.FullName }
+          New-Item .cache/win7-acceptance -ItemType Directory -Force | Out-Null
+          foreach ($binary in $binaries) {
+            $imports = & $dumpbin.FullName /imports $binary | Out-String
+            if ($LASTEXITCODE) { throw "Cannot inspect $binary" }
+            $imports | Add-Content .cache/win7-acceptance/pe-imports.txt
+            if ($imports -match '\b(WaitOnAddress|WakeByAddressAll|WakeByAddressSingle|ProcessPrng|GetSystemTimePreciseAsFileTime|GetTempPath2W|SetThreadDescription|CreatePseudoConsole)\b') { throw "Win8+ static API in $binary" }
+          }
+      - name: Demand lifecycle, permission and state protection regression
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          pnpm --filter @zcode/adapters exec vitest run tests/mcp.test.ts -t 'rebuilt demand'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm --filter @zcode/bootstrap exec vitest run tests/official-plugin-runtime.test.ts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm --filter @zcode/core exec vitest run tests/subagent-borrowed-mcp-port.test.ts tests/subagent-mcp-config.test.ts tests/app-tool-authorization.test.ts tests/mcp-runtime.test.ts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm --filter @zcode/adapters exec vitest run tests/mcp-connection-pool.test.ts tests/mcp-resource-telemetry.test.ts
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm --filter @zcode/office-runtime test
+          exit $LASTEXITCODE
+      - name: Packaged offline Office and SSH SFTP
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $tools = Resolve-Path packages/desktop/dist/win7/win-unpacked/resources/offline-tools
+          & "$tools/python/python.exe" -B -X utf8 "$tools/smoke.py"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$tools/python/python.exe" -B -X utf8 "$tools/office_native.py" probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/ssh-smoke.mjs "$tools"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/skills-smoke.mjs packages/desktop/dist/win7/win-unpacked
+          exit $LASTEXITCODE
+      - name: Packaged Git and inherited Java development environment
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          pnpm exec esbuild packages/services/src/git/providers/gitCommandProvider.ts --bundle --platform=node --format=cjs --outfile=.cache/win7-acceptance/git-provider.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node scripts/win7/git-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance/git-provider.cjs
+          exit $LASTEXITCODE
+      - name: Packaged provider configuration filesystem acceptance
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          pnpm exec esbuild packages/provider-node/src/index.ts --bundle --platform=node --format=cjs --outfile=.cache/win7-acceptance/provider-source.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          try {
+            & packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe scripts/win7/provider-config-smoke.mjs .cache/win7-acceptance/provider-source.cjs config/provider/zcode-builtin.json .cache/win7-acceptance/provider-config
+            if ($LASTEXITCODE) { throw 'Packaged provider filesystem acceptance failed' }
+          } finally { Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue }
+      - name: Record checksums and test instructions
+        id: checksums
+        shell: pwsh
+        run: |
+          $dist = 'packages/desktop/dist/win7'
+          $diagnostics = '.cache/win7-acceptance'
+          $installers = @(Get-ChildItem $dist -File -Filter '*.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one EXE installer' }
+          if (Get-ChildItem $dist -File -Filter '*.zip') { throw 'Portable ZIP must not be generated' }
+          Copy-Item docs/desktop/windows-7-local-compatibility.md "$diagnostics/Win7-test-guide.md"
+          Copy-Item docs/desktop/windows-7-offline-toolkit.md "$diagnostics/Win7-offline-guide.md"
+          Copy-Item docs/desktop/windows-7-office2013.md "$diagnostics/Office2013-guide.md"
+          Copy-Item scripts/win7/runtime.json "$diagnostics/runtime.json"
+          "Commit: $env:GITHUB_SHA`nRunner: Windows Server 2022; Win7 NOT tested" | Set-Content "$diagnostics/build-info.txt"
+          $installers | Get-FileHash -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content "$diagnostics/SHA256SUMS.txt"
+          "installer_sha=$((Get-FileHash $installers[0].FullName -Algorithm SHA256).Hash.ToLower())" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Download optional memory baseline
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && inputs.memory_baseline_run != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: aibuddy7se-Win7-Offline-x64
+          path: .cache/win7-memory-baseline/installer
+          run-id: ${{ inputs.memory_baseline_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Packaged application startup
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        timeout-minutes: 16
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "packages/desktop/dist/win7/win-unpacked/aibuddy7se.exe").Path
+          $rule = "ZCode-offline-smoke-$env:GITHUB_RUN_ID"
+          $profiles = Get-NetFirewallProfile | Select-Object Name,Enabled
+          try {
+            # 仅创建规则不能证明断网；profile 关闭时规则不会生效。
+            Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+            if ((Get-Service MpsSvc).Status -ne 'Running') { throw 'Windows Firewall service is not running' }
+            $activeProfiles = Get-NetFirewallProfile -PolicyStore ActiveStore
+            $activeProfiles | Select-Object Name,Enabled | ConvertTo-Json | Set-Content .cache/win7-acceptance/firewall.json
+            if (@($activeProfiles | Where-Object { $_.Enabled -ne 'True' }).Count) { throw 'Windows Firewall profile is disabled' }
+            New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block -Enabled True -Profile Any | Out-Null
+            $activeRule = Get-NetFirewallRule -DisplayName $rule -PolicyStore ActiveStore
+            if ($activeRule.Enabled -ne 'True' -or $activeRule.Action -ne 'Block') { throw 'Offline firewall rule is not active' }
+            if (Test-Path .cache/win7-memory-baseline/installer) {
+              $baseline = Resolve-Path .cache/win7-memory-baseline
+              $installer = @(Get-ChildItem "$baseline/installer" -Filter '*.exe')
+              if ($installer.Count -ne 1) { throw 'Expected one baseline installer' }
+              & 7z x $installer[0].FullName "-o$baseline/nsis" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'Cannot extract baseline NSIS payload' }
+              $payload = @(Get-ChildItem "$baseline/nsis" -Recurse -Filter 'app-64.7z')
+              if ($payload.Count -ne 1) { throw 'Expected one baseline x64 payload' }
+              & 7z x $payload[0].FullName "-o$baseline/app" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'Cannot extract baseline application' }
+              $baselineExe = (Resolve-Path "$baseline/app/aibuddy7se.exe").Path
+              New-NetFirewallRule -DisplayName "$rule-baseline" -Direction Outbound -Program $baselineExe -Action Block -Enabled True -Profile Any | Out-Null
+              node scripts/win7/app-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline --measure-memory --baseline --baseline-first-send
+              if ($LASTEXITCODE) { throw 'Baseline packaged memory/startup check failed' }
+              node scripts/win7/office-memory-smoke.mjs "$baseline/app" .cache/win7-acceptance/memory-baseline
+              if ($LASTEXITCODE) { throw 'Baseline Office memory/tool check failed' }
+            }
+            node scripts/win7/app-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance --measure-memory
+            if ($LASTEXITCODE) { throw 'Offline packaged startup failed' }
+            node scripts/win7/office-memory-smoke.mjs packages/desktop/dist/win7/win-unpacked .cache/win7-acceptance
+            if ($LASTEXITCODE) { throw 'Packaged Office memory/tool check failed' }
+          } finally {
+            Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue
+            Remove-NetFirewallRule -DisplayName "$rule-baseline" -ErrorAction SilentlyContinue
+            foreach ($profile in $profiles) { Set-NetFirewallProfile -Name $profile.Name -Enabled $profile.Enabled }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Win7-build-diagnostics
+          path: .cache/win7-acceptance
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aibuddy7se-Win7-Offline-x64
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+          path: packages/desktop/dist/win7/*.exe
+
+  comparison:
+    needs: build
+    if: github.repository == 'skyjt/ZCode_custom'
+    runs-on: windows-2022
+    timeout-minutes: 150
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+      - name: Install pinned dependencies
+        shell: pwsh
+        env:
+          PNPM_MAX_WORKERS: "1"
+        run: |
+          node scripts/win7/patch-pnpm.mjs (Join-Path $env:PNPM_HOME '../pnpm/dist/pnpm.cjs')
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --ignore-scripts
+          exit $LASTEXITCODE
+      - name: Select the existing runner JDK 8 for unchanged GUI self-test
+        shell: pwsh
+        run: |
+          if (!(Test-Path "$env:JAVA_HOME_8_X64/bin/javac.exe")) { throw 'JDK 8 required' }
+          "JAVA_HOME=$env:JAVA_HOME_8_X64" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$env:JAVA_HOME_8_X64/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - uses: actions/download-artifact@v4
+        with:
+          name: aibuddy7se-Win7-Offline-x64
+          run-id: 43859527521
+          path: .cache/compare-installer/old
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: aibuddy7se-Win7-Offline-x64
+          run-id: ${{ github.run_id }}
+          path: .cache/compare-installer/new
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Four alternating independent cold-start pairs with demand tools and all GUI and Office assertions
+        shell: pwsh
+        run: |
+          $expected = @{ old='69e0ed1807a8e58a434ff202c06cb24a6f74c41aa5e15220eeec43310cc4d9cb'; new='${{ needs.build.outputs.installer_sha }}' }
+          $profiles = Get-NetFirewallProfile | Select-Object Name,Enabled
+          $rules = @()
+          try {
+            Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
+            if ((Get-Service MpsSvc).Status -ne 'Running') { throw 'Firewall service is not running' }
+            $activeProfiles = Get-NetFirewallProfile -PolicyStore ActiveStore
+            if (@($activeProfiles | Where-Object { $_.Enabled -ne 'True' }).Count) { throw 'Firewall profile disabled' }
+            foreach ($variant in @('old','new')) {
+              $installer = @(Get-ChildItem ".cache/compare-installer/$variant" -Filter '*.exe')
+              if ($installer.Count -ne 1) { throw 'Expected one installer' }
+              if ((Get-FileHash $installer[0].FullName -Algorithm SHA256).Hash.ToLower() -ne $expected[$variant]) { throw 'Installer hash mismatch' }
+              & 7z x $installer[0].FullName "-o.cache/compare-installer/$variant/nsis" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'NSIS extraction failed' }
+              $payload = @(Get-ChildItem ".cache/compare-installer/$variant/nsis" -Recurse -Filter 'app-64.7z')
+              if ($payload.Count -ne 1) { throw 'Expected one payload' }
+              & 7z x $payload[0].FullName "-o.cache/compare-$variant" -y | Out-Null
+              if ($LASTEXITCODE) { throw 'Payload extraction failed' }
+              $exe = (Resolve-Path ".cache/compare-$variant/aibuddy7se.exe").Path
+              $rule = "Aibuddy7se-compare-$variant-$env:GITHUB_RUN_ID"
+              $rules += $rule
+              New-NetFirewallRule -DisplayName $rule -Direction Outbound -Program $exe -Action Block -Enabled True -Profile Any | Out-Null
+              $activeRule = Get-NetFirewallRule -DisplayName $rule -PolicyStore ActiveStore
+              if ($activeRule.Enabled -ne 'True' -or $activeRule.Action -ne 'Block') { throw 'Firewall rule inactive' }
+            }
+            node scripts/win7/cold-comparison.mjs .cache/compare-old .cache/compare-new .cache/cold-comparison 4 --demand-tools
+            if ($LASTEXITCODE) { throw 'Cold comparison failed' }
+          } finally {
+            foreach ($rule in $rules) { Remove-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue }
+            foreach ($profile in $profiles) { Set-NetFirewallProfile -Name $profile.Name -Enabled $profile.Enabled }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Win7-demand-rebuild-cold-comparison
+          path: .cache/cold-comparison
+          retention-days: 7
+          if-no-files-found: error

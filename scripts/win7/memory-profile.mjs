@@ -10,12 +10,19 @@ const execFileAsync = promisify(execFile);
 // 只按父子关系采集本次成包的进程；同名的其他应用和采样工具不能混入总量。
 export function selectProcessTree(processes, rootPid) {
   assert.ok(Number.isInteger(rootPid) && rootPid > 0);
+  const byPid = new Map(processes.map((row) => [row.pid, row]));
   const selected = new Set([rootPid]);
   let changed = true;
   while (changed) {
     changed = false;
     for (const process of processes) {
-      if (selected.has(process.parentPid) && !selected.has(process.pid)) {
+      if (
+        selected.has(process.parentPid) &&
+        !selected.has(process.pid) &&
+        (!process.createdAt ||
+          !byPid.get(process.parentPid)?.createdAt ||
+          Date.parse(process.createdAt) >= Date.parse(byPid.get(process.parentPid).createdAt))
+      ) {
         selected.add(process.pid);
         changed = true;
       }
@@ -39,14 +46,22 @@ export function selectProcessTree(processes, rootPid) {
 
 export async function sampleMemory(page, rootPid, phase) {
   // 不输出完整命令行/用户路径，也不调用 GC 或修改工作集；private bytes 是提交量，不是物理驻留量。
-  const script = `
+  const script = String.raw`
 $rows = @(Get-CimInstance Win32_Process | ForEach-Object {
   $p = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
   if ($p) {
     $role = 'native-or-node'
     if ($_.CommandLine -match '--type=([a-z-]+)') { $role = $Matches[1] }
+    $entry = $null
+    $plugin = $null
+    if ($_.CommandLine -match 'plugin-host\.cjs') {
+      $entry = 'plugin-host.cjs'
+      if ($_.CommandLine -match '[\\/]packages[\\/](documents-plugin|spreadsheets-plugin|presentations-plugin|pdf-plugin|node-repl-host|sites-plugin)[\\/]') { $plugin = $Matches[1] }
+    } elseif ($_.CommandLine -match 'aibuddy7se\.cjs') { $entry = 'aibuddy7se.cjs' }
+    elseif ($_.CommandLine -match '[\\/]host\.js') { $entry = 'host.js' }
+    if ($_.ProcessId -eq ROOT_PID) { $role = 'main' }
     [PSCustomObject]@{ pid = [int]$_.ProcessId; parentPid = [int]$_.ParentProcessId;
-      name = $_.Name; role = $role; workingSetBytes = [double]$p.WorkingSet64;
+      name = $_.Name; role = $role; entry = $entry; plugin = $plugin; createdAt = $_.CreationDate.ToUniversalTime().ToString('o'); workingSetBytes = [double]$p.WorkingSet64;
       privateBytes = [double]$p.PrivateMemorySize64 }
   }
 })
@@ -59,7 +74,7 @@ ConvertTo-Json -InputObject $rows -Compress
       "-NoProfile",
       "-NonInteractive",
       "-EncodedCommand",
-      Buffer.from(script, "utf16le").toString("base64"),
+      Buffer.from(script.replace("ROOT_PID", String(rootPid)), "utf16le").toString("base64"),
     ],
     { encoding: "utf8", timeout: 20000, maxBuffer: 4 * 1024 * 1024 },
   );

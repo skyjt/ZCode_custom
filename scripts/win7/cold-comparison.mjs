@@ -51,7 +51,7 @@ export function summarizePairs(pairs) {
       "One sample unit is a complete fresh-process/fresh-fixture run. Within-run reply snapshots are averaged first. Same runner, balanced AB/BA order; OS/file cache is not cleared. No profiler or forced GC; working sets include shared pages, private bytes are commit. Small sample, no causal or statistical-significance claim.",
   };
 }
-async function collectMetrics(directory) {
+async function collectMetrics(directory, demandTools = false) {
   const json = async (file) => JSON.parse(await readFile(join(directory, file), "utf8"));
   const metrics = {};
   const startupTiming = await json("startup-timing.json");
@@ -90,6 +90,17 @@ async function collectMetrics(directory) {
     metrics[office.plugin + ".rotationMeanMs"] = average(office.rotationReadMs);
     for (const sample of office.samples) add(sample.phase, sample);
   }
+  if (demandTools) {
+    const demand = await json("memory-demand-tools.json");
+    assert.equal(demand.result, "PASS");
+    assert.equal(demand.calls.length, 7);
+    for (const call of demand.calls) {
+      assert.ok(call.verified);
+      metrics["demand." + call.stage + ".callMs"] = call.elapsedMs;
+    }
+    for (const call of demand.wallTimes) metrics["demand." + call.stage + ".uiMs"] = call.elapsedMs;
+    for (const sample of demand.samples) add(sample.phase, sample);
+  }
   return metrics;
 }
 async function assertApplicationStopped(application) {
@@ -111,7 +122,13 @@ async function assertApplicationStopped(application) {
     },
   );
 }
-export async function runColdComparison(oldApp, newApp, output, pairCount = 4) {
+export async function runColdComparison(
+  oldApp,
+  newApp,
+  output,
+  pairCount = 4,
+  demandTools = false,
+) {
   assert.equal(process.platform, "win32", "Packaged cold comparison requires Windows");
   assert.ok(
     Number.isSafeInteger(pairCount) && pairCount >= 2 && pairCount <= 6 && pairCount % 2 === 0,
@@ -127,14 +144,22 @@ export async function runColdComparison(oldApp, newApp, output, pairCount = 4) {
       await mkdir(directory, { recursive: true });
       await assertApplicationStopped(apps[version]);
       for (const [script, args] of [
-        ["app-smoke.mjs", [apps[version], directory, "--measure-memory"]],
+        [
+          "app-smoke.mjs",
+          [
+            apps[version],
+            directory,
+            "--measure-memory",
+            ...(demandTools ? ["--demand-tools"] : []),
+          ],
+        ],
         ["office-memory-smoke.mjs", [apps[version], directory]],
       ]) {
         try {
           const result = await exec(
             process.execPath,
             [resolve(import.meta.dirname, script), ...args],
-            { timeout: 720000, maxBuffer: 32 * 1024 * 1024 },
+            { timeout: demandTools ? 1500000 : 720000, maxBuffer: 32 * 1024 * 1024 },
           );
           await writeFile(join(directory, script + ".log"), result.stdout + result.stderr);
         } catch (error) {
@@ -146,7 +171,7 @@ export async function runColdComparison(oldApp, newApp, output, pairCount = 4) {
         }
       }
       await assertApplicationStopped(apps[version]);
-      pair[version] = await collectMetrics(directory);
+      pair[version] = await collectMetrics(directory, demandTools);
       console.log("Completed independent pair " + (i + 1) + " " + version);
     }
     pairs.push(pair);
@@ -157,5 +182,9 @@ export async function runColdComparison(oldApp, newApp, output, pairCount = 4) {
   return summary;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  await runColdComparison(...process.argv.slice(2, 5), Number(process.argv[5] || 4));
+  await runColdComparison(
+    ...process.argv.slice(2, 5),
+    Number(process.argv[5] || 4),
+    process.argv.includes("--demand-tools"),
+  );
 }

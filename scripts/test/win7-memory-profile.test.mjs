@@ -113,3 +113,63 @@ test("memory acceptance rejects an exited root and invalid counters instead of r
     selectProcessTree([{ pid: 123, workingSetBytes: NaN, privateBytes: 0 }], 123),
   );
 });
+
+test("process tree excludes older orphan after parent PID reuse", () => {
+  const row = (pid, parentPid, createdAt) => ({
+    pid,
+    parentPid,
+    createdAt,
+    workingSetBytes: 10,
+    privateBytes: 20,
+  });
+  const result = selectProcessTree(
+    [
+      row(1, 0, "2026-11-17T02:00:00Z"),
+      row(2, 1, "2026-11-17T01:00:00Z"),
+      row(3, 1, "2026-11-17T02:01:00Z"),
+    ],
+    1,
+  );
+  assert.deepEqual(
+    result.processes.map((row) => row.pid),
+    [1, 3],
+  );
+});
+
+test("demand fixture refuses missing tools, denied outputs and replay", async () => {
+  const fixture = await startMemoryModelFixture();
+  const tools = [
+    { type: "function", function: { name: "mcp__plugin_documents_documents__read_document" } },
+  ];
+  const messages = [{ role: "user", content: "AIBUDDY7SE_DEMAND_WORD_FIRST" }];
+  const post = () =>
+    fetch(fixture.baseUrl + "/chat/completions", {
+      method: "POST",
+      body: JSON.stringify({ model: "fictional", messages, tools }),
+    });
+  try {
+    assert.match(
+      await (await fetch(fixture.baseUrl.replace(/\/v1$/, "/demand-browser"))).text(),
+      /AIBUDDY7SE_BROWSER_PAGE_OK/,
+    );
+    const call = (await (await post()).json()).choices[0].message.tool_calls[0];
+    assert.equal(call.function.name, tools[0].function.name);
+    assert.deepEqual(JSON.parse(call.function.arguments), { anchor: "demand-fixture.docx" });
+    assert.equal((await post()).status, 500);
+    messages.push({
+      role: "tool",
+      tool_call_id: call.id,
+      content: "Permission denied for Quarterly Report",
+    });
+    assert.equal((await post()).status, 500);
+    assert.equal(fixture.demandRuns.length, 0);
+    messages.at(-1).content = "Quarterly Report\nRevenue: 100";
+    assert.equal(
+      (await (await post()).json()).choices[0].message.content,
+      "AIBUDDY7SE_DEMAND_DONE_WORD_FIRST",
+    );
+    assert.equal(fixture.demandRuns.length, 1);
+  } finally {
+    await fixture.close();
+  }
+});

@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { DEMAND_PATTERN, demandCall, verifyDemandResult } from "./demand-tool-fixture.mjs";
 
 export const MEMORY_MODEL_REPLY = "AIBUDDY7SE_MEMORY_FIRST_SEND_OK";
 
@@ -6,6 +7,7 @@ export const MEMORY_MODEL_REPLY = "AIBUDDY7SE_MEMORY_FIRST_SEND_OK";
 export async function startMemoryModelFixture() {
   const requests = [];
   const toolRuns = [];
+  const demandRuns = [];
   const issuedTools = new Map();
   const server = createServer((req, res) => {
     void (async () => {
@@ -19,6 +21,11 @@ export async function startMemoryModelFixture() {
       const path = new URL(req.url, "http://127.0.0.1").pathname;
       const observation = { method: req.method, path };
       requests.push(observation);
+      if (req.method === "GET" && path === "/demand-browser") {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end("<!doctype html><title>Demand fixture</title><h1>AIBUDDY7SE_BROWSER_PAGE_OK</h1>");
+        return;
+      }
       if (req.method !== "POST" || path !== "/v1/chat/completions") {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: { message: "Unsupported fixture route" } }));
@@ -46,7 +53,42 @@ export async function startMemoryModelFixture() {
           ? (/\bAIBUDDY7SE_TOOL_PROBE_(\d+)\b/.exec(JSON.stringify(item.content))?.[1] ?? null)
           : null,
       );
-      if (probe && body.tools?.some((tool) => tool.function?.name === "Bash")) {
+      const demandIndex = (body.messages ?? []).findLastIndex(
+        (item) => item.role === "user" && DEMAND_PATTERN.test(textOf(item.content)),
+      );
+      const demand = DEMAND_PATTERN.exec(textOf(body.messages?.[demandIndex]?.content));
+      if (demand && demandIndex > userIndex) {
+        const stage = demand[1];
+        const id = "demand-" + stage.toLowerCase();
+        const result = body.messages
+          .slice(demandIndex + 1)
+          .find((item) => item.role === "tool" && item.tool_call_id === id);
+        if (result) {
+          verifyDemandResult(stage, textOf(result.content));
+          if (!issuedTools.has(id)) throw new Error("Demand tool was never issued");
+          if (!demandRuns.some((run) => run.stage === stage))
+            demandRuns.push({
+              stage,
+              elapsedMs: performance.now() - issuedTools.get(id),
+              verified: true,
+            });
+          message = { role: "assistant", content: "AIBUDDY7SE_DEMAND_DONE_" + stage };
+        } else {
+          const call = demandCall(
+            stage,
+            `http://127.0.0.1:${server.address().port}/demand-browser`,
+            observation.toolNames,
+          );
+          if (issuedTools.has(id)) throw new Error("Refusing to replay a demand operation");
+          issuedTools.set(id, performance.now());
+          message = {
+            role: "assistant",
+            content: null,
+            tool_calls: [{ id, type: "function", function: call }],
+          };
+          finishReason = "tool_calls";
+        }
+      } else if (probe && body.tools?.some((tool) => tool.function?.name === "Bash")) {
         const number = Number(probe[1]);
         const id = `memory-tool-${number}`;
         const marker = `AIBUDDY7SE_TOOL_OUTPUT_${number}`;
@@ -137,6 +179,7 @@ export async function startMemoryModelFixture() {
     baseUrl: `http://127.0.0.1:${server.address().port}/v1`,
     requests,
     toolRuns,
+    demandRuns,
     async close() {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
