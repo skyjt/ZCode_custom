@@ -27,6 +27,7 @@ export async function runDemandAppSmoke({
     samples: [],
     calls: [],
     wallTimes: [],
+    approvals: [],
     scope:
       "One cold app run: text, stateless Word, browser, then open Word. Tool stages are not independent starts. Browser host retirement is not implemented; closed-tab retention is observed, not passed as reclamation.",
   };
@@ -60,10 +61,24 @@ export async function runDemandAppSmoke({
     );
     const start = performance.now();
     await page.getByTestId("v4-composer-send").click({ timeout: 60000 });
-    await page
-      .getByText("AIBUDDY7SE_DEMAND_DONE_" + stage, { exact: true })
-      .last()
-      .waitFor({ timeout: 120000 });
+    const done = page.getByText("AIBUDDY7SE_DEMAND_DONE_" + stage, { exact: true }).last();
+    const deadline = Date.now() + 120000;
+    while (!(await done.isVisible()) && Date.now() < deadline) {
+      const once = page.locator('[role="option"][data-permission-option-kind="allowOnce"]');
+      if (await once.isVisible()) {
+        assert.equal(
+          modelFixture.pendingDemand?.stage,
+          stage,
+          "Only this issued synthetic tool may receive a one-time UI approval",
+        );
+        report.approvals.push({ stage, tool: modelFixture.pendingDemand.tool, kind: "allowOnce" });
+        await once.click();
+        if ((await once.isVisible()) && (await once.getAttribute("aria-selected")) === "true")
+          await once.click();
+      }
+      await delay(200);
+    }
+    assert.ok(await done.isVisible(), "Synthetic tool response timed out: " + stage);
     const actual = modelFixture.demandRuns.find((run) => run.stage === stage);
     assert.ok(actual?.verified, "Real tool output required: " + stage);
     report.calls.push(actual);

@@ -8,6 +8,7 @@ export async function startMemoryModelFixture() {
   const requests = [];
   const toolRuns = [];
   const demandRuns = [];
+  let pendingDemand = null;
   const issuedTools = new Map();
   const server = createServer((req, res) => {
     void (async () => {
@@ -65,6 +66,7 @@ export async function startMemoryModelFixture() {
           .find((item) => item.role === "tool" && item.tool_call_id === id);
         if (result) {
           verifyDemandResult(stage, textOf(result.content));
+          pendingDemand = null;
           if (!issuedTools.has(id)) throw new Error("Demand tool was never issued");
           if (!demandRuns.some((run) => run.stage === stage))
             demandRuns.push({
@@ -74,17 +76,53 @@ export async function startMemoryModelFixture() {
             });
           message = { role: "assistant", content: "AIBUDDY7SE_DEMAND_DONE_" + stage };
         } else {
+          const announced = (body.messages ?? []).flatMap(
+            (item) =>
+              textOf(item.content).match(
+                /mcp__(?:plugin_documents_[a-z_]+__(?:read_document|open_document)|node_repl__js)\b/g,
+              ) ?? [],
+          );
           const call = demandCall(
             stage,
             `http://127.0.0.1:${server.address().port}/demand-browser`,
-            observation.toolNames,
+            [...observation.toolNames, ...announced],
           );
-          if (issuedTools.has(id)) throw new Error("Refusing to replay a demand operation");
-          issuedTools.set(id, performance.now());
+          const searchId = id + "-search";
+          const searchResult = body.messages
+            .slice(demandIndex + 1)
+            .find((item) => item.role === "tool" && item.tool_call_id === searchId);
+          let wireId = id;
+          let wireCall = call;
+          if (!observation.toolNames.includes(call.name)) {
+            if (!searchResult) {
+              const search = observation.toolNames.find(
+                (name) => name === "LocalToolSearch" || name === "ToolSearch",
+              );
+              if (!search) throw new Error("Deferred tool discovery unavailable");
+              wireId = searchId;
+              wireCall = {
+                name: search,
+                arguments: JSON.stringify({ query: "select:" + call.name, max_results: 1 }),
+              };
+            } else {
+              const schemaText = textOf(searchResult.content);
+              if (!schemaText.includes(call.name) || !schemaText.includes("parameters"))
+                throw new Error("Actual tool schema not discovered");
+              if (!observation.toolNames.includes("DeferredToolCall"))
+                throw new Error("Discovered tool call path unavailable");
+              wireCall = {
+                name: "DeferredToolCall",
+                arguments: JSON.stringify({ name: call.name, input: JSON.parse(call.arguments) }),
+              };
+            }
+          }
+          if (issuedTools.has(wireId)) throw new Error("Refusing to replay a demand operation");
+          issuedTools.set(wireId, performance.now());
+          if (wireId === id) pendingDemand = { stage, tool: call.name };
           message = {
             role: "assistant",
             content: null,
-            tool_calls: [{ id, type: "function", function: call }],
+            tool_calls: [{ id: wireId, type: "function", function: wireCall }],
           };
           finishReason = "tool_calls";
         }
@@ -180,6 +218,9 @@ export async function startMemoryModelFixture() {
     requests,
     toolRuns,
     demandRuns,
+    get pendingDemand() {
+      return pendingDemand;
+    },
     async close() {
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));

@@ -43,6 +43,11 @@ export async function buildMcpCatalog(app, { idleTimeoutMs = 120_000 } = {}) {
         env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", AIBUDDY7SE_WORKSPACE_ROOT: workspace },
         stderr: "pipe",
       });
+      let stderr = "";
+      transport.stderr?.on("data", (chunk) => {
+        stderr = (stderr + String(chunk)).slice(-4000);
+      });
+      console.log(`Inspecting packaged MCP catalog: ${id}`);
       try {
         await client.connect(transport, { timeout: 30_000 });
         const { tools } = await client.listTools({}, { timeout: 30_000 });
@@ -58,6 +63,9 @@ export async function buildMcpCatalog(app, { idleTimeoutMs = 120_000 } = {}) {
           assert.equal(state.contents[0]?.text, '{"safeToStop":true}');
         }
         plugins.push({ id, entry, files, tools, ...(idleResourceUri ? { idleResourceUri } : {}) });
+        console.log(`Catalog verified: ${id}, ${tools.length} tools`);
+      } catch (error) {
+        throw new Error(`Packaged MCP catalog failed for ${id}: ${stderr}`, { cause: error });
       } finally {
         await client.close();
         await transport.close();

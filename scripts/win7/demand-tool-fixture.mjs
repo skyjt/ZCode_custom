@@ -39,7 +39,7 @@ const tab = await browser.tabs.get(matches[0].id);
 ${stage === "BROWSER_CLOSE" ? 'await tab.close(); if ((await browser.tabs.list()).some(t => t.url === url)) throw new Error("Fixture tab remains"); nodeRepl.write("AIBUDDY7SE_BROWSER_CLOSED_OK");' : "nodeRepl.write(await tab.playwright.domSnapshot());"}`;
   return {
     name: "mcp__node_repl__js",
-    arguments: JSON.stringify({ code: bootstrap + "\n" + action }),
+    arguments: JSON.stringify({ code: bootstrap + "\n" + action, title: "检查本机浏览器测试页" }),
   };
 }
 export function verifyDemandResult(stage, output) {

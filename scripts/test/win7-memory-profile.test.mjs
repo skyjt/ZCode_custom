@@ -173,3 +173,50 @@ test("demand fixture refuses missing tools, denied outputs and replay", async ()
     await fixture.close();
   }
 });
+
+test("demand fixture discovers local schemas before using the deferred call bridge", async () => {
+  const fixture = await startMemoryModelFixture();
+  const name = "mcp__plugin_documents_documents__read_document";
+  const tools = ["LocalToolSearch", "DeferredToolCall"].map((name) => ({
+    type: "function",
+    function: { name },
+  }));
+  const messages = [
+    { role: "user", content: "AIBUDDY7SE_DEMAND_WORD_FIRST" },
+    { role: "user", content: "Available deferred tool: " + name },
+  ];
+  const post = () =>
+    fetch(fixture.baseUrl + "/chat/completions", {
+      method: "POST",
+      body: JSON.stringify({ model: "fictional", messages, tools }),
+    });
+  try {
+    const search = (await (await post()).json()).choices[0].message.tool_calls[0];
+    assert.equal(search.function.name, "LocalToolSearch");
+    assert.deepEqual(JSON.parse(search.function.arguments), {
+      query: "select:" + name,
+      max_results: 1,
+    });
+    assert.equal(fixture.pendingDemand, null);
+    messages.push({
+      role: "tool",
+      tool_call_id: search.id,
+      content:
+        "<functions><function>" +
+        JSON.stringify({ name, parameters: { type: "object" } }) +
+        "</function></functions>",
+    });
+    const call = (await (await post()).json()).choices[0].message.tool_calls[0];
+    assert.equal(call.function.name, "DeferredToolCall");
+    assert.deepEqual(JSON.parse(call.function.arguments), {
+      name,
+      input: { anchor: "demand-fixture.docx" },
+    });
+    assert.equal(fixture.pendingDemand.tool, name);
+    messages.push({ role: "tool", tool_call_id: call.id, content: "Quarterly Report" });
+    assert.equal((await post()).status, 200);
+    assert.equal(fixture.pendingDemand, null);
+  } finally {
+    await fixture.close();
+  }
+});
