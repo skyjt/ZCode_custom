@@ -1,8 +1,36 @@
 # aibuddy7se 完整品牌与升级迁移
 
+## 2026-11-20 默认白色与内网设置复验
+
+当前安装器来自用户 fork 的 `codex/win7-experimental` 分支，运行时代码为
+`4ec72e452a563b7b442bd23cbd7094e94630f39a`。Windows Server 2022 的工程回归 36/36，
+含中文注册表路径与不同命令的负例。旧 SQLite、系统加密凭据、冲突保护、Agent、WinPTY、
+子进程权限、PE 导入、离线 Office/Python/SSH/SFTP/Git、现有 JDK 8/Maven、技能以及
+防火墙阻断外联的成包桌面流程均已通过。构建耗时 11 分 21 秒，完整 job 耗时 20 分 25 秒。
+[Windows Actions 44662878070](https://github.com/skyjt/ZCode_custom/actions/runs/44662878070/job/136045118453)
+
+首次工作区和关于窗口显示纯白主背景，旧主题迁移、冲突、重载以及资源管理器实时切换
+均由真实窗口验证。已逐张查看 15 张截图。品牌扫描覆盖 28,572 个文本文件，仅三份迁移
+文件保留旧识别字串。系统自测 12 通过、1 注意、0 失败、1 未测。两项无效更新开关与
+四个不可用搜索结果在内网版消失，硬件加速与本地通知仍可访问。
+[UI 对照与验收](aibuddy7se-intranet.md#win7-默认白色界面) ·
+[截图、品牌扫描和报告](https://github.com/skyjt/ZCode_custom/actions/runs/44662878070/artifacts/14597657027)
+
+本次下载的 Actions 存档恰含一个 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，
+291,429,680 字节。实际 EXE 的 SHA-256 与 runner 的 `SHA256SUMS.txt` 一致，
+为 `845f0314ecdffd9df8591e09d51debb404c8a72f0cafcf50e9d3b4579cf7ab9a`。
+两份存档也已与 GitHub 的摘要核对。下载有效至 2026-12-04 北京时间 11:04。
+[单个离线 EXE 的 Actions 下载](https://github.com/skyjt/ZCode_custom/actions/runs/44662878070/artifacts/14597562142)
+
+根类型检查与正常 pre-push 通过。根 Lint 为 526 条既有告警、0 错误，改动相关 Hooks
+专项扫描与旧版相同，通用设置里已有一条终端选项依赖告警。架构新增违规为 0。
+本次常规成包采样的进程树 working set 在工作区就绪 90 秒时为 904.47 MiB，文字回复后的
+三次均值为 1574.34 MiB。本次未在同一 runner 重跑旧包，整体内存收益仍待对照。
+真实 Win7、Office 2013、内网模型/SSH/Git/Maven 项目与认证、旧 NSIS 覆盖安装仍待实机验收。
+
 ## 2026-11-16 Word 解析优化后复验
 
-当前已通过功能验收的代码为 `cf8022914ae6f4e4186a007e91b317cf48feea4e`，仅推送用户 fork
+该轮通过功能验收的代码为 `cf8022914ae6f4e4186a007e91b317cf48feea4e`，仅推送用户 fork
 `skyjt/ZCode_custom` 的 `codex/win7-experimental`。
 [Windows Actions 43838023557](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557)
 （job `133199473145`）全部通过：Windows 工程 36/36、零跳过；真实注册表中文路径、不同
@@ -26,7 +54,7 @@ Word 60 次后 working set **123.65 → 104.05 MiB**，private bytes **140.90 �
 完整 MCP smoke、正常 pre-push 通过；根 Lint 526 既有告警/0 错误，CLI 86 既有告警/0
 错误，架构新增/基线违规 0。
 
-[当前验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557/artifacts/14212254898)：
+[该轮验证版单个离线 EXE](https://github.com/skyjt/ZCode_custom/actions/runs/43838023557/artifacts/14212254898)：
 `aibuddy7se-3.18.0-win7-intranet-x64.exe`，291,429,328 字节；Actions 外层 ZIP 恰含一个
 EXE，没有便携包。实际下载 SHA-256 与 runner 一致：
 `b743f9096c863505f73c6b4702371d7e671a093a6225c48d1958bc18147365bf`。
@@ -36,7 +64,7 @@ EXE，没有便携包。实际下载 SHA-256 与 runner 一致：
 
 真实 Win7、Office 2013、真实模型/内网 SSH/Git/Maven 项目及企业认证、实际旧 NSIS 覆盖
 安装仍未验收；Server 2022 与虚构数据不能替代这些验收。后续文档提交不改变安装器源码。
-下面保留历史记录；当前下载和结论以本节为准。
+该节保留 Word 优化的同机对照记录，当前安装器见文首。
 
 ## 2026-11-16 调度器与 Office 后复验
 

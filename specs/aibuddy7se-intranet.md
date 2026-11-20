@@ -44,6 +44,20 @@ flowchart LR
 四个对应本版隐藏或禁用的目标。新版四个目标在设置和搜索中均不可见，硬件加速和本地通知
 仍可访问。同样的场景在现代 Desktop 上保留四个目标，现代 Web 保留其入门引导入口。
 
+### 2026-11-20 Windows 成包验收
+
+Windows Server 2022 用提交 `4ec72e452a563b7b442bd23cbd7094e94630f39a` 运行成包应用。
+没有主题键时，工作区主画布与关于窗口的实测背景均为 `rgb(255, 255, 255)`。点击缺模型
+提示中的“模型设置”可进入添加提供商页面。设置搜索与实际设置行通过正反例检查。
+保存深色后重载可恢复，旧主题键会在页面启动前迁移，新旧键冲突时采用现有选择。
+从帮助菜单打开的独立资源管理器读到迁移的深色，切回浅色后窗口即时变白。
+[Windows 验收日志](https://github.com/skyjt/ZCode_custom/actions/runs/44662878070/job/136045118453)
+
+已逐张查看 15 张成包截图。首次白色首页见 `workspace-default.png`，中文版通用设置见
+`startup.png`，独立窗口见 `about.png`、`resource-manager-light.png`。两张代码预览图
+分别显示浅色和深色为活动主题。原始自测内容由中英文开发工具截图和 JSON 报告记录。
+[截图与诊断](https://github.com/skyjt/ZCode_custom/actions/runs/44662878070/artifacts/14597657027)
+
 ## Feature Summary / 已确认边界
 
 用户确认「清理一下，这些没用，我内网」。只对 Win7 特别版生效；改动层为 presentation、validation、option-source、commit-effect，沿用 `ZCODE_WIN7_EDITION`，Agent 通过启动环境继承同一版本事实。现代 Desktop/Web 保持原功能。不是全网防火墙：自定义模型、MCP、内网 SSH、用户主动配置的源及浏览器操作仍按原权限工作。
