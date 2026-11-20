@@ -96,6 +96,7 @@ for (const theme of ["light", "dark"])
                 lineHeight: parseFloat(style.lineHeight),
                 font: parseFloat(style.fontSize),
                 top: input.getBoundingClientRect().top,
+                overflows: title.scrollWidth > title.clientWidth,
               });
             });
             observer.observe(title);
@@ -160,6 +161,10 @@ for (const theme of ["light", "dark"])
         for (const { mode, samples } of evidence) {
           assert.ok(samples.length > 1, `${mode}: missing resize evidence`);
           assert.ok(
+            samples.every((sample) => !sample.overflows),
+            `${mode}: horizontal overflow`,
+          );
+          assert.ok(
             samples.some((sample) => sample.font < 30),
             `${mode}: did not exercise font fitting`,
           );
@@ -198,6 +203,7 @@ for (const theme of ["light", "dark"])
             const bounds = title.getBoundingClientRect();
             return {
               font: getComputedStyle(title).fontSize,
+              overflows: title.scrollWidth > title.clientWidth,
               fits: Array.from(range.getClientRects()).every(
                 (rect) => rect.left >= bounds.left && rect.right <= bounds.right,
               ),
@@ -205,6 +211,7 @@ for (const theme of ["light", "dark"])
             };
           });
           assert.equal(layout.font, "20px");
+          assert.equal(layout.overflows, false);
           assert.ok(layout.fits);
           assert.ok(layout.text.length > 10);
           await page.screenshot({

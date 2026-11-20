@@ -203,9 +203,10 @@ export function ConversationDraftEmptyState({
             : "text-[length:var(--v4-draft-greeting-font-size,30px)]/[1.2]",
         )}
       >
+        {/* 测量文字保留 30px 的自然宽度。只裁切隐藏层，避免它在窄栏中撑出横向滚动。 */}
         <span
           aria-hidden="true"
-          className="pointer-events-none invisible absolute inset-x-4 whitespace-nowrap text-3xl/[1.2]"
+          className="pointer-events-none invisible absolute inset-x-4 overflow-hidden whitespace-nowrap text-3xl/[1.2]"
         >
           <span ref={greetingMeasurementRef} className="inline-block">
             {greeting}
