@@ -27,7 +27,7 @@ import type {
   UserInfo,
   ZCodeInteractionBehavior,
 } from "@zcode/shared";
-import { BUILTIN_MODEL_PROVIDER_IDS, isLocale } from "@zcode/shared";
+import { BUILTIN_MODEL_PROVIDER_IDS, isLocale, ZCODE_WIN7_EDITION } from "@zcode/shared";
 import {
   TID_SETTINGS_BACK_BUTTON,
   TID_SETTINGS_PAGE,
@@ -1566,6 +1566,8 @@ export function SettingsPage({
                   sections={settingsSections}
                   availability={{
                     desktop: Boolean(isDesktop),
+                    standardDesktop: Boolean(isDesktop) && !ZCODE_WIN7_EDITION,
+                    standardEdition: !ZCODE_WIN7_EDITION,
                     windowsHost: hostPlatform === "win32",
                     tray: Boolean(isWindowsDesktop || isLinuxDesktop),
                     notWindows: !isWindowsDesktop,

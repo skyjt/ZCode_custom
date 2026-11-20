@@ -609,27 +609,30 @@ export function GeneralSectionContent({
 
       <SettingsGroupCard>
         {isDesktop ? (
+          <SettingsRow
+            searchId="settings.desktopChromiumHardwareAcceleration"
+            label={intl.formatMessage({
+              id: "settings.desktopChromiumHardwareAcceleration",
+            })}
+            description={intl.formatMessage({
+              id: "settings.desktopChromiumHardwareAccelerationDescription",
+            })}
+            control={
+              <Switch
+                aria-label={intl.formatMessage({
+                  id: "settings.desktopChromiumHardwareAcceleration",
+                })}
+                checked={desktopChromiumHardwareAccelerationEnabled}
+                onCheckedChange={(checked) => {
+                  void onDesktopChromiumHardwareAccelerationChange(checked);
+                }}
+              />
+            }
+          />
+        ) : null}
+        {/* 内网版由离线 EXE 更新；隐藏无效开关时不写回用户已保存的更新偏好。 */}
+        {isDesktop && !ZCODE_WIN7_EDITION ? (
           <>
-            <SettingsRow
-              searchId="settings.desktopChromiumHardwareAcceleration"
-              label={intl.formatMessage({
-                id: "settings.desktopChromiumHardwareAcceleration",
-              })}
-              description={intl.formatMessage({
-                id: "settings.desktopChromiumHardwareAccelerationDescription",
-              })}
-              control={
-                <Switch
-                  aria-label={intl.formatMessage({
-                    id: "settings.desktopChromiumHardwareAcceleration",
-                  })}
-                  checked={desktopChromiumHardwareAccelerationEnabled}
-                  onCheckedChange={(checked) => {
-                    void onDesktopChromiumHardwareAccelerationChange(checked);
-                  }}
-                />
-              }
-            />
             <SettingsRow
               searchId="settings.receivePreviewUpdates"
               label={intl.formatMessage({ id: "settings.receivePreviewUpdates" })}

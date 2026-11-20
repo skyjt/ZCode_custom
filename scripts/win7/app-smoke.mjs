@@ -250,6 +250,26 @@ try {
   await about.close();
   await page.getByTestId("task-settings-button").click();
   await page.getByTestId("settings-section-nav-general").click();
+  if (!process.argv.includes("--baseline")) {
+    const hardware = "settings.desktopChromiumHardwareAcceleration";
+    const unavailable = [
+      "settings.receivePreviewUpdates",
+      "settings.autoDownloadAndInstallUpdates",
+      "settings.mobilePush",
+      "settings.onboarding",
+    ];
+    await page.locator(`[data-settings-search-id="${hardware}"]`).waitFor();
+    for (const id of unavailable) {
+      assert.equal(await page.locator(`[data-settings-search-id="${id}"]`).count(), 0, id);
+    }
+    await page.getByTestId("settings-search-open").click();
+    await page.locator(`[data-settings-search-result="${hardware}"]`).waitFor();
+    for (const id of unavailable) {
+      assert.equal(await page.locator(`[data-settings-search-result="${id}"]`).count(), 0, id);
+    }
+    await page.keyboard.press("Escape");
+    await page.getByTestId("settings-search-dialog").waitFor({ state: "hidden" });
+  }
   await page.getByTestId("system-self-test-run").click();
   const reports = await page.evaluate(() =>
     Promise.all([window.aibuddy7se.runSystemSelfTest(), window.aibuddy7se.runSystemSelfTest()]),

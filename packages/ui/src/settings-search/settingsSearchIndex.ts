@@ -2,6 +2,8 @@ import type { SettingsSectionId } from "@/lib/settingsNavigation.js";
 
 export interface SettingsSearchAvailability {
   desktop: boolean;
+  standardDesktop: boolean;
+  standardEdition: boolean;
   windowsHost: boolean;
   tray: boolean;
   notWindows: boolean;
@@ -81,13 +83,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "settings.receivePreviewUpdates",
     section: "general",
     description: "settings.receivePreviewUpdatesDescription",
-    visibility: "desktop",
+    visibility: "standardDesktop",
   },
   {
     id: "settings.autoDownloadAndInstallUpdates",
     section: "general",
     description: "settings.autoDownloadAndInstallUpdatesDescription",
-    visibility: "desktop",
+    visibility: "standardDesktop",
   },
   {
     id: "settings.notification",
@@ -105,7 +107,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "settings.mobilePush",
     section: "general",
     description: "settings.mobilePushDescription",
-    visibility: "desktop",
+    visibility: "standardDesktop",
   },
   {
     id: "settings.closeToTrayOnWindows",
@@ -129,7 +131,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "settings.onboarding",
     section: "general",
     description: "settings.onboardingDescription",
-    visibility: "all",
+    visibility: "standardEdition",
   },
   {
     id: "settings.toolSearch",
