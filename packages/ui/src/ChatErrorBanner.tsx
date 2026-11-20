@@ -221,6 +221,7 @@ export function ChatErrorBanner({
   );
   const remoteConnectionFailure = Boolean(getRemoteConnectionFailureCode(error));
   const modelConfigMissing = isModelConfigMissingError(error);
+  const intranetModelSetup = ZCODE_WIN7_EDITION && modelConfigMissing;
   const hookBlocked = error.code === "fault.runtime.hookBlocked";
   if (shouldSuppressChatErrorBanner(error)) {
     return null;
@@ -298,6 +299,7 @@ export function ChatErrorBanner({
           className={cn(
             "flex min-w-0 flex-1 items-center gap-2 text-ui-base text-foreground",
             requestConfigError && "basis-full",
+            intranetModelSetup && "basis-56",
           )}
         >
           {hookBlocked ? (
@@ -312,7 +314,9 @@ export function ChatErrorBanner({
           <div
             className={cn(
               "min-w-0 font-medium",
-              requestConfigError ? "whitespace-normal break-words" : "truncate",
+              requestConfigError || intranetModelSetup
+                ? "whitespace-normal break-words"
+                : "truncate",
             )}
           >
             {localizedErrorMessage}
@@ -345,10 +349,11 @@ export function ChatErrorBanner({
               size="sm"
               onClick={onOpenModelSettings}
               className={cn(actionButtonClassName, "gap-1.5")}
-              aria-label={intl.formatMessage({ id: "chat.error.setModels" })}
             >
-              <SettingsIcon className="size-3.5" />
-              {intl.formatMessage({ id: "chat.error.setModels" })}
+              <SettingsIcon aria-hidden="true" className="size-3.5" />
+              {intl.formatMessage({
+                id: intranetModelSetup ? "chat.error.modelSettings" : "chat.error.setModels",
+              })}
             </Button>
           </>
         ) : null}

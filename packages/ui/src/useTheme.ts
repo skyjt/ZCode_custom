@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+import { readSafeLocalStorage, writeSafeLocalStorage } from "./lib/browserEnvironment.js";
 
 export type Theme = "light" | "dark" | "zai-light" | "zai-dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
-const STORAGE_KEY = "zcode-theme";
+export const THEME_STORAGE_KEY = "zcode-theme";
 const BROWSER_THEME_SURFACE_ATTRIBUTE = "data-zcode-browser-theme-surface";
 
 function getSystemTheme(): ResolvedTheme {
@@ -79,16 +81,19 @@ function isTheme(value: string | null): value is Theme {
   );
 }
 
+export function loadThemePreference(): Theme {
+  const saved = readSafeLocalStorage(THEME_STORAGE_KEY);
+  if (isTheme(saved)) return normalizeThemePreference(saved);
+  // 主窗口、独立窗口和 store 共用缺省值；读取时不写入，以免默认值抢占旧版迁移的偏好。
+  return ZCODE_WIN7_EDITION ? "zai-light" : "zai-dark";
+}
+
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    // 默认主题统一收敛到 Zai dark，避免旧 hook 兜底值和 Zustand store 默认值分叉。
-    return isTheme(saved) ? normalizeThemePreference(saved) : "zai-dark";
-  });
+  const [theme, setThemeState] = useState<Theme>(loadThemePreference);
 
   const setTheme = useCallback((t: Theme) => {
     const normalizedTheme = normalizeThemePreference(t);
-    localStorage.setItem(STORAGE_KEY, normalizedTheme);
+    writeSafeLocalStorage(THEME_STORAGE_KEY, normalizedTheme);
     setThemeState(normalizedTheme);
     applyTheme(normalizedTheme);
   }, []);

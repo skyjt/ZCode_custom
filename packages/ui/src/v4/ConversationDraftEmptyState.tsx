@@ -178,7 +178,10 @@ export function ConversationDraftEmptyState({
       )}
     >
       {ZCODE_WIN7_EDITION ? (
-        <ZCodeAboutLogo className="size-24" />
+        <div className="flex flex-col items-center gap-1">
+          <ZCodeAboutLogo className="size-16 sm:size-20" />
+          <p className="text-ui-sm text-foreground-subtle">aibuddy7se · Win7 特别版</p>
+        </div>
       ) : (
         <div
           aria-hidden="true"
@@ -189,9 +192,6 @@ export function ConversationDraftEmptyState({
         >
           <ZCodeEmptyStateLogo className="h-full w-full" />
         </div>
-      )}
-      {ZCODE_WIN7_EDITION && (
-        <p className="text-ui-sm text-muted-foreground">aibuddy7se · Win7 特别版</p>
       )}
       <p
         ref={greetingContainerRef}

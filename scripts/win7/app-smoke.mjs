@@ -61,6 +61,53 @@ async function waitForMcpStatusRequest(previousCount) {
   while (mcpStatusRequestCount() <= previousCount && Date.now() < deadline) await delay(100);
   assert.ok(mcpStatusRequestCount() > previousCount, "Real MCP status request must complete");
 }
+
+async function selectTheme(page, menuOwner, menu, theme) {
+  await menuOwner.getByTestId("login-trigger").click();
+  await page.getByRole("menuitem", { name: menu, exact: true }).hover();
+  await page.getByRole("menuitemradio", { name: theme, exact: true }).click();
+}
+
+async function checkThemeMigrationAndResourceWindow(page, context) {
+  // 一次性用户用旧 key 重载，走成包同步迁移；新旧 key 冲突时仍以用户现有选择为准。
+  await page.getByTestId("settings-back-button").click();
+  await page.evaluate(() => {
+    localStorage.removeItem("aibuddy7se-theme");
+    localStorage.setItem("zcode-theme", "dark");
+  });
+  await page.reload();
+  const sidebar = page.getByTestId("sidebar");
+  await sidebar.waitFor({ timeout: 60000 });
+  assert.equal(await page.evaluate(() => localStorage.getItem("aibuddy7se-theme")), "dark");
+  assert.ok(await page.locator("html.theme-zai-dark.dark").count());
+  await page.getByTestId("workspace-help-menu-trigger").click();
+  const [manager] = await Promise.all([
+    context.waitForEvent("page"),
+    page.getByRole("menuitem", { name: "资源管理器", exact: true }).click(),
+  ]);
+  try {
+    await manager.emulateMedia({ colorScheme: null });
+    await manager.getByTestId("resource-manager").waitFor();
+    assert.ok(await manager.locator("html.theme-zai-dark.dark").count());
+    await page.bringToFront();
+    await selectTheme(page, sidebar, "界面主题", "浅色主题");
+    await manager.locator("html.theme-zai-light:not(.dark)").waitFor();
+    assert.equal(
+      await manager
+        .getByTestId("resource-manager")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+      "rgb(255, 255, 255)",
+    );
+    await manager.screenshot({ path: join(output, "resource-manager-light.png") });
+  } finally {
+    await manager.close();
+  }
+  await page.evaluate(() => localStorage.setItem("zcode-theme", "dark"));
+  await page.reload();
+  await sidebar.waitFor({ timeout: 60000 });
+  assert.ok(await page.locator("html.theme-zai-light:not(.dark)").count());
+  assert.equal(await page.evaluate(() => localStorage.getItem("aibuddy7se-theme")), "zai-light");
+}
 try {
   const endpoint = await new Promise((done, fail) => {
     const timer = setTimeout(() => fail(new Error("Packaged app startup timed out")), 60000);
@@ -142,6 +189,17 @@ try {
   assert.equal(await page.evaluate(() => typeof window.zcode), "undefined");
   assert.doesNotMatch(await page.locator("body").innerText(), /zcode/i);
   assert.ok((await page.locator('[data-app-logo="aibuddy7se"]').count()) > 0);
+  if (!process.argv.includes("--baseline")) {
+    assert.equal(await page.evaluate(() => localStorage.getItem("aibuddy7se-theme")), null);
+    assert.ok(await page.locator("html.theme-zai-light:not(.dark)").count());
+    const frame = page.locator('[data-workspace-conversation-frame="true"]').first();
+    assert.equal(
+      await frame.evaluate((el) => getComputedStyle(el).backgroundColor),
+      "rgb(255, 255, 255)",
+    );
+    await page.getByTestId("chat-error-banner").waitFor();
+    await page.screenshot({ path: join(output, "workspace-default.png") });
+  }
   const preferences = page.getByTestId("sidebar").getByTestId("login-trigger");
   assert.equal((await preferences.innerText()).trim(), "aibuddy7se");
   await preferences.click();
@@ -159,6 +217,11 @@ try {
     await missingModelBanner.getByRole("button", { name: "Upgrade", exact: true }).count(),
     0,
   );
+  if (!process.argv.includes("--baseline")) {
+    await missingModelBanner.getByRole("button", { name: "Model settings", exact: true }).click();
+    await page.getByTestId("model-provider-add-provider-button").waitFor();
+    await page.getByTestId("settings-back-button").click();
+  }
   await page.getByTestId("workspace-help-menu-trigger").click();
   for (const name of ["Feedback", "Request a feature", "Product docs", "Community"]) {
     assert.equal(await page.getByRole("menuitem", { name, exact: true }).count(), 0);
@@ -176,9 +239,17 @@ try {
   );
   assert.doesNotMatch(await about.locator("body").innerText(), /zcode/i);
   assert.ok((await about.locator('img[src^="data:image/png"]').count()) > 0);
+  if (!process.argv.includes("--baseline")) {
+    await about.emulateMedia({ colorScheme: null });
+    assert.equal(
+      await about.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor),
+      "rgb(255, 255, 255)",
+    );
+  }
   await about.screenshot({ path: join(output, "about.png") });
   await about.close();
   await page.getByTestId("task-settings-button").click();
+  await page.getByTestId("settings-section-nav-general").click();
   await page.getByTestId("system-self-test-run").click();
   const reports = await page.evaluate(() =>
     Promise.all([window.aibuddy7se.runSystemSelfTest(), window.aibuddy7se.runSystemSelfTest()]),
@@ -211,9 +282,7 @@ try {
     await page.getByTestId("system-self-test-results").innerText(),
   );
   for (const theme of ["Light theme", "Dark theme"]) {
-    await page.getByTestId("settings-page").getByTestId("login-trigger").click();
-    await page.getByRole("menuitem", { name: "App theme", exact: true }).hover();
-    await page.getByRole("menuitemradio", { name: theme, exact: true }).click();
+    await selectTheme(page, page.getByTestId("settings-page"), "App theme", theme);
     await page.waitForFunction(
       (dark) => document.documentElement.classList.contains("dark") === dark,
       theme === "Dark theme",
@@ -280,8 +349,13 @@ try {
   await page.getByTestId("settings-back-button").click();
   await page.reload();
   await page.getByTestId("sidebar").waitFor({ timeout: 60000 });
+  assert.ok(
+    await page.locator("html.theme-zai-dark.dark").count(),
+    "Keep the selected dark theme on reload",
+  );
   assert.equal(await page.getByTestId("login-use-api-key-button").count(), 0);
   await page.getByTestId("task-settings-button").click();
+  await selectTheme(page, page.getByTestId("settings-page"), "App theme", "Light theme");
   assert.doesNotMatch(await page.locator("body").innerText(), /zcode/i);
   await page.getByTestId("settings-section-nav-modelProvider").click();
   await page.getByTestId(providerTestId).click();
@@ -498,6 +572,7 @@ try {
           2,
         ),
       );
+      await checkThemeMigrationAndResourceWindow(page, context);
     }
   }
 } catch (error) {

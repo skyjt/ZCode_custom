@@ -18,6 +18,7 @@ import {
   isTrustedCodingPlanWebviewOrigin,
   isTrustedRewardsUrl,
   PlatformChannels,
+  ZCODE_WIN7_EDITION,
 } from "@zcode/shared";
 import { loadWindow, type WindowBootstrapOptions } from "./desktopHostProcess.js";
 import {
@@ -151,6 +152,8 @@ function buildDesktopWindowVisualOptions() {
   }
 
   if (process.platform === "win32") {
+    // Win7 没有 Acrylic；透明底在 renderer 首帧之前会露出黑色的原生窗口。
+    if (ZCODE_WIN7_EDITION) return { frame: false, backgroundColor: "#ffffff" };
     return {
       backgroundColor: "#00000000",
       // Windows 窗口操作由 renderer 绘制，禁用原生标题栏，避免出现两套按钮。

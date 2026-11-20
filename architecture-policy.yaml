@@ -1811,17 +1811,21 @@ modules:
     roots:
       - packages/ui/src/resource-manager
       - packages/services/src/process/processResourceSampler.ts
+      - packages/desktop/src/main/resourceManagerWindow.ts
+      - packages/desktop/src/renderer/src/resource-manager.tsx
     managed: true
-    requires: [shared, ui]
+    requires: [shared, ui, desktop]
     publicEntrypoints:
       - packages/ui/src/resource-manager/ResourceManagerApp.tsx
       - packages/ui/src/resource-manager/contract.ts
       - packages/ui/src/resource-manager/resourceUsageView.ts
       - packages/services/src/process/processResourceSampler.ts
+      - packages/desktop/src/main/resourceManagerWindow.ts
     layers:
       contract: contract.ts
-      adapters: ../../../services/src/process/processResourceSampler.ts
-      ui: .
+      # 组件目录是展示层；其余三个文件根是 Host、Main 及 renderer/preload 的宿主适配入口。
+      ui: ../resource-manager
+      adapters: .
     layerOrder: [contract, adapters, ui]
     owner: desktop
   # settings-search：由 architecture:adopt 登记

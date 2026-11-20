@@ -1,3 +1,5 @@
+import { ZCODE_WIN7_EDITION } from "@zcode/shared";
+
 interface CustomAboutDialogHtmlInput {
   applicationName: string;
   iconDataUrl?: string;
@@ -31,7 +33,7 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
       :root {
         color-scheme: light dark;
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-        --startup-page-bg: #f4f4f5;
+        --startup-page-bg: ${ZCODE_WIN7_EDITION ? "#ffffff" : "#f4f4f5"};
         --about-primary: #0a0a0a;
         --about-primary-foreground: #fafafa;
         --about-primary-active: color-mix(in oklab, var(--about-primary) 80%, transparent);
@@ -147,6 +149,11 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
 
       .ok-button:active {
         background: var(--about-primary-active);
+      }
+
+      .ok-button:focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
       }
 
       @media (prefers-color-scheme: dark) {

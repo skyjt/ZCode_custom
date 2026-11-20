@@ -2443,6 +2443,16 @@ body {
   padding-top: 0;
 }
 
+/* Win7 办公界面的内容区与纸张同色，侧栏仍使用独立的浅灰结构色。 */
+html.aibuddy7se.theme-zai-light {
+  --color-background: var(--color-card);
+  color-scheme: light;
+}
+
+html.aibuddy7se.theme-zai-dark {
+  color-scheme: dark;
+}
+
 /* Win7 特别版保留状态文字与小型忙碌指示，移除持续装饰重绘。 */
 html.aibuddy7se .animated-gradient-text,
 html.aibuddy7se .markdown-image-loading-shimmer,

@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, extname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { defineConfig, loadEnv, type IndexHtmlTransformContext, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { resolveZCodeEndpointOrigin } from "@zcode/shared/zcodeEndpoint";
@@ -196,7 +196,28 @@ export default defineConfig(({ command, mode }) => {
       ? [
           {
             name: "aibuddy7se-brand",
-            async transformIndexHtml(html: string) {
+            async transformIndexHtml(html: string, context: IndexHtmlTransformContext) {
+              // 首屏先于 renderer 模块绘制。旧偏好由包内 legacy-storage.js 在 head 开头迁移，
+              // 此处只投影配色；限制到两个应用页面，避免在插件沙箱或权限窗口读取存储。
+              if (["index.html", "resource-manager.html"].includes(basename(context.filename))) {
+                html = html.replace(
+                  "<head>",
+                  `<head>
+    <script>
+      (() => {
+        let dark = false;
+        try {
+          const theme = localStorage.getItem("zcode-theme");
+          dark = theme === "dark" || theme === "zai-dark" ||
+            (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        } catch { /* 存储不可读时使用默认白色。 */ }
+        const root = document.documentElement;
+        root.classList.add(dark ? "theme-zai-dark" : "theme-zai-light");
+        root.classList.toggle("dark", dark);
+      })();
+    </script>`,
+                );
+              }
               const logo = (
                 await readFile(resolve(__dirname, "../ui/src/assets/aibuddy.png"))
               ).toString("base64");

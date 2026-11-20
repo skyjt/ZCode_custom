@@ -1,4 +1,4 @@
-import { app, BrowserWindow, webContents as electronWebContents } from "electron";
+import { app, BrowserWindow, nativeTheme, webContents as electronWebContents } from "electron";
 import type { UtilityProcess as ElectronUtilityProcess } from "electron";
 import os from "node:os";
 import { join } from "node:path";
@@ -9,6 +9,7 @@ import {
   formatZCodeMainProcessName,
   formatZCodeRendererProcessName,
   formatZCodeUtilityProcessName,
+  ZCODE_WIN7_EDITION,
   type HostResourceUsageProcess,
   type ResourceUsageProcess,
   type ResourceUsageSnapshot,
@@ -267,7 +268,7 @@ export function openResourceManager(): void {
     minHeight: 420,
     title: RESOURCE_MANAGER_WINDOW_TITLE,
     // 不继承主窗口的自定义标题栏，使用系统默认标题栏
-    backgroundColor: "#1e1e1e",
+    backgroundColor: ZCODE_WIN7_EDITION && !nativeTheme.shouldUseDarkColors ? "#ffffff" : "#1e1e1e",
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
